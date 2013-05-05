@@ -13,3 +13,7 @@ project/plugins/project/
 .scala_dependencies
 /.settings
 /.project
+/bin
+/.classpath
+/.history
+/.cache
