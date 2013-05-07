@@ -16,4 +16,8 @@ libraryDependencies ++= Seq("com.typesafe.akka" %% "akka-actor" % "2.1.2",
 
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.12"
 
+scalariformSettings
+
+net.virtualvoid.sbt.graph.Plugin.graphSettings
+
 
