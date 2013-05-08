@@ -2,19 +2,18 @@ package com.azaptree.entity
 
 import java.util.UUID
 
-trait Entity extends Serializable with Equals {
-  val entityId: UUID;
-  val entityCreatedOn: Long;
+class Entity[+A](val entityId: UUID = UUID.randomUUID, val entityCreatedOn: Long = System.currentTimeMillis, val entity: A) extends Serializable with Equals {
+  require(entity != null, "entity is required")
 
-  override def canEqual(that: Any) = that.isInstanceOf[Entity]
+  override def canEqual(that: Any) = that.isInstanceOf[Entity[A]]
 
   override def equals(obj: Any): Boolean = {
     obj match {
-      case that: Entity =>
-        if (this eq that) {
+      case that: Entity[A] =>
+        if (Entity.this eq that) {
           true
         } else {
-          (that canEqual this) && (entityId == that.entityId)
+          (that canEqual Entity.this) && (entityId == that.entityId)
         }
       case _ => false
     }
