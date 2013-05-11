@@ -36,7 +36,7 @@ abstract class MessagingActorSupport extends Actor with ActorLogging {
    * </ul>
    */
   override def receive = LoggingReceive {
-    case msg : Message[_] =>
+    case msg: Message[_] =>
 
       def processGetStats(message: Message[_]): Unit = {
         val metrics = updateProcessingTime(message.processingResults.head.metrics)
