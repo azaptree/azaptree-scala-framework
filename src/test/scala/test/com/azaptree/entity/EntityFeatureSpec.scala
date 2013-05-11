@@ -35,6 +35,18 @@ class EntityFeatureSpec extends FeatureSpec with ShouldMatchers {
       foo2.entityId should be(uuid)
       foo2.entityCreatedOn should be <= System.currentTimeMillis
     }
+
+    scenario("Create an Entity with a null entity value should not be allowed") {
+      intercept[IllegalArgumentException] {
+        val foo1 = new Entity[Foo](entity = null)
+      }
+    }
+
+    scenario("Create an Entity with a null entityId value should not be allowed") {
+      intercept[IllegalArgumentException] {
+        val foo1 = new Entity[Foo](entity = new Foo, entityId = null)
+      }
+    }
   }
 
   feature("Two entities are considered to be equal if they have the same entityId") {
