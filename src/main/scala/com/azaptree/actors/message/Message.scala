@@ -11,13 +11,13 @@ import akka.actor.ActorPath
  * actorPathChain is the list of ActorPaths that this message has been sent to, where the first item in the list is the last path of the last Actor that received the message
  */
 case class Message[A](
-    val data: A,
-    val properties: MessageProperties = MessageProperties(),
-    val header: Option[MessageHeader],
-    val deliveryAnnotations: Option[Map[Symbol, Any]],
-    val messageAnnotations: Option[Map[Symbol, Any]],
-    val applicationProperties: Option[Map[Symbol, Any]],
-    val actorPathChain: List[ActorPath]) {
+  val data: A,
+  val properties: MessageProperties = MessageProperties(),
+  val header: Option[MessageHeader] = None,
+  val deliveryAnnotations: Option[Map[Symbol, Any]] = None,
+  val messageAnnotations: Option[Map[Symbol, Any]] = None,
+  val applicationProperties: Option[Map[Symbol, Any]] = None,
+  val actorPathChain: List[ActorPath] = Nil) {
 }
 
 case class MessageProperties(
@@ -36,3 +36,10 @@ case class MessageHeader(
 object Heartbeat extends Serializable {}
 
 object GetStats extends Serializable {}
+
+case class MessageStats(
+  val successCount: Long = 0l,
+  val failureCount: Long = 0l,
+  val lastSuccessOn: Long = 0l,
+  val lastFailureOn: Long = 0l,
+  val lastHeartbeatOn: Long = 0l)

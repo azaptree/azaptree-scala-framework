@@ -1,11 +1,13 @@
 package com.azaptree.actors
 
+import com.azaptree.actors.message.GetStats
+import com.azaptree.actors.message.Heartbeat
 import com.azaptree.actors.message.Message
+import com.azaptree.actors.message.MessageStats
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.actorRef2Scala
-import com.azaptree.actors.message.Heartbeat
 
 /**
  * Only supports messages of type: com.azaptree.actors.message.Message
@@ -24,6 +26,7 @@ abstract class ActorSupport extends Actor with ActorLogging {
   private[this] var failureCount: Long = 0l
   private[this] var lastSuccessOn: Long = 0l
   private[this] var lastFailureOn: Long = 0l
+  private[this] var lastHeartbeatOn: Long = 0l
 
   /**
    * Sub-classes override this method to provide the message handling logic
@@ -42,7 +45,10 @@ abstract class ActorSupport extends Actor with ActorLogging {
       val message = msg.copy(actorPathChain = self.path :: msg.actorPathChain)
       msg.data match {
         case _: Heartbeat.type =>
+          lastHeartbeatOn = System.currentTimeMillis
           sender ! message
+        case _: GetStats.type =>
+          sender ! Message[MessageStats](data = MessageStats(successCount, failureCount, lastSuccessOn, lastFailureOn, lastHeartbeatOn))
         case _ =>
           delegateToMessageHandler(message)
       }
