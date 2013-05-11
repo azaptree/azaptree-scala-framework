@@ -2,6 +2,7 @@ package test.com.azaptree.actors
 
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.FeatureSpec
+import scala.concurrent.ExecutionContext
 
 class ActorSpec extends FeatureSpec with ShouldMatchers {
 
@@ -32,6 +33,39 @@ class ActorSpec extends FeatureSpec with ShouldMatchers {
 
   feature("""The ActorConfig can be requested by sending a message to the Actor""") {
     scenario("Send an Actor a GetConfig message") {
+      pending
+    }
+  }
+
+  feature("An Actor will log all messages that are received with processing metrics") {
+    scenario("Send an Actor some application messages and check that they are logged.") {
+      pending
+    }
+
+    scenario("Send an Actor some system messages and check that they are logged.") {
+      pending
+    }
+  }
+
+  feature("An ActorSystem can be configured to log to a database") {
+    scenario("Send an Actor some messages, then try to find them in the database") {
+      pending
+    }
+  }
+
+  feature("An ActorSystem can be configured to log all DeadLetters") {
+    scenario("Send a msg to a non-existent Actor, which will cause the message to be sent to published as a DeadLetter") {
+      pending
+    }
+
+    scenario("The ActorSystem is configured to log the dead letters to a database") {
+      pending
+    }
+  }
+
+  feature("Actors will publish MessageEvents to the ActorSystem's event stream") {
+    scenario("""Create an Actor that subscribes to MessageEvents. 
+        Then send messages to another Actor, and check that MessageEvent's are published for each message """) {
       pending
     }
   }

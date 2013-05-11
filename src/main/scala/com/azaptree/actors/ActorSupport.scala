@@ -1,14 +1,7 @@
 package com.azaptree.actors
 
-import com.azaptree.actors.message.SUCCESS_MESSAGE_STATUS
-import com.azaptree.actors.message.GetStats
-import com.azaptree.actors.message.Heartbeat
-import com.azaptree.actors.message.Message
-import com.azaptree.actors.message.MessageProcessingMetrics
-import com.azaptree.actors.message.MessageStatus
-import com.azaptree.actors.message.MessageStats
-import com.azaptree.actors.message.ProcessingResult
-
+import com.azaptree.actors.message._
+import akka.event.LoggingReceive
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.actorRef2Scala
@@ -26,23 +19,15 @@ import akka.actor.actorRef2Scala
  *
  */
 abstract class ActorSupport extends Actor with ActorLogging {
-  private[this] var successCount: Long = 0l
-  private[this] var failureCount: Long = 0l
-  private[this] var lastSuccessOn: Long = 0l
-  private[this] var lastFailureOn: Long = 0l
+  private[this] var messageCount: Long = 0l
+  private[this] var lastMessageReceivedOn: Long = 0l
   private[this] var lastHeartbeatOn: Long = 0l
 
   /**
    * Sub-classes override this method to provide the message handling logic
    *
    */
-  def messageHandler: Receive
-
-  /**
-   * Optional exception handler
-   *
-   */
-  def exceptionHandler: Option[PartialFunction[Exception, Unit]] = None
+  def processMessage(message: Message[_]): Unit
 
   /**
    * Handles the following system messages :
@@ -51,8 +36,26 @@ abstract class ActorSupport extends Actor with ActorLogging {
    * <li>com.azaptree.actors.message.GetStats
    * </ul>
    */
-  override def receive = {
+  override def receive = LoggingReceive {
     case msg: Message[_] =>
+
+      def processGetStats(message: Message[_]): Unit = {
+        val metrics = updateProcessingTime(message.processingResults.head.metrics)
+        val response = Message[MessageStats](
+          data = MessageStats(messageCount, lastMessageReceivedOn, lastHeartbeatOn),
+          processingResults = message.processingResults.head.copy(status = Some(SUCCESS_MESSAGE_STATUS), metrics = metrics) :: message.processingResults.tail)
+        sender ! response
+        logMessage(response)
+      }
+
+      def processHeartbeat(message: Message[_]): Unit = {
+        lastHeartbeatOn = System.currentTimeMillis
+        val metrics = updateProcessingTime(message.processingResults.head.metrics)
+        val response = message.copy(processingResults = message.processingResults.head.copy(status = Some(SUCCESS_MESSAGE_STATUS), metrics = metrics) :: message.processingResults.tail)
+        sender ! response
+        logMessage(response)
+      }
+
       val message = msg.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.processingResults)
       msg.data match {
         case _: Heartbeat.type =>
@@ -60,46 +63,35 @@ abstract class ActorSupport extends Actor with ActorLogging {
         case _: GetStats.type =>
           processGetStats(message)
         case _ =>
-          try {
-            delegateToMessageHandler(message)
-          } catch {
-            case e: Exception => exceptionHandler match {
-              case Some(handler) => handler(e)
-              case None => log.error(s"failed to process message : $message", e)
-            }
-          }
+          delegateMessageProcessing(message)
       }
+  }
+
+  def delegateMessageProcessing(message: Message[_]) = {
+    messageCount = messageCount + 1
+    lastMessageReceivedOn = System.currentTimeMillis()
+    try {
+      processMessage(message)
+      val metrics = updateProcessingTime(message.processingResults.head.metrics)
+      logMessage(message.copy(processingResults = message.processingResults.head.copy(status = Some(SUCCESS_MESSAGE_STATUS), metrics = metrics) :: message.processingResults.tail))
+    } catch {
+      case e: Exception =>
+        val metrics = updateProcessingTime(message.processingResults.head.metrics)
+        logMessage(message.copy(processingResults = message.processingResults.head.copy(status = Some(ERROR_MESSAGE_STATUS), metrics = metrics) :: message.processingResults.tail))
+        throw e
+    }
+  }
+
+  /**
+   * logs the message, and then publishes a MessageEvent to the ActorSystem event stream
+   */
+  def logMessage(msg: Message[_]) = {
+    log.info("{}", msg)
+    context.system.eventStream.publish(MessageEvent(msg))
   }
 
   def updateProcessingTime(metrics: MessageProcessingMetrics): MessageProcessingMetrics = {
-    metrics.copy(processingTime = new Some(System.currentTimeMillis - metrics.receivedOn))
-  }
-
-  private[this] def processGetStats(message: Message[_]): Unit = {
-    val metrics = updateProcessingTime(message.processingResults.head.metrics)
-    sender ! Message[MessageStats](
-      data = MessageStats(successCount, failureCount, lastSuccessOn, lastFailureOn, lastHeartbeatOn),
-      processingResults = message.processingResults.head.copy(status = new Some(SUCCESS_MESSAGE_STATUS), metrics = metrics) :: message.processingResults.tail)
-  }
-
-  private[this] def processHeartbeat(message: Message[_]): Unit = {
-    lastHeartbeatOn = System.currentTimeMillis
-    val metrics = updateProcessingTime(message.processingResults.head.metrics)
-    sender ! message.copy(processingResults = message.processingResults.head.copy(status = new Some(SUCCESS_MESSAGE_STATUS), metrics = metrics) :: message.processingResults.tail)
-  }
-
-  private[this] def delegateToMessageHandler(message: Message[_]): Unit = {
-    try {
-      messageHandler(message)
-      successCount = successCount + 1
-      lastSuccessOn = System.currentTimeMillis
-    } catch {
-      case exception: Exception => {
-        failureCount = failureCount + 1
-        lastFailureOn = System.currentTimeMillis
-        exceptionHandler.foreach(_(exception))
-      }
-    }
+    metrics.copy(processingTime = Some(System.currentTimeMillis - metrics.receivedOn))
   }
 
 }

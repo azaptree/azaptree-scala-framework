@@ -1,7 +1,13 @@
 package com.azaptree.actors
 
-import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
+
 import com.azaptree.actors.message.Heartbeat
+import com.azaptree.actors.message.Message
+
 import akka.actor.ActorPath
 import akka.actor.ActorSystem
 import akka.actor.Kill
@@ -9,11 +15,8 @@ import akka.actor.PoisonPill
 import akka.actor.actorRef2Scala
 import akka.pattern.AskTimeoutException
 import akka.pattern.ask
-import akka.util.Timeout
-import javax.naming.OperationNotSupportedException
+import akka.util.Timeout.durationToTimeout
 import com.azaptree.actors.message.Heartbeat
-import com.azaptree.actors.message.Heartbeat
-import scala.concurrent.Await
 
 object ActorSystemManager {
 
@@ -41,15 +44,7 @@ object ActorSystemManager {
   def stopActorNow(actorSystemName: Symbol, actorPath: ActorPath): Unit = {
     val actorSystem = actorSystems(actorSystemName)
     val actor = actorSystem.actorFor(actorPath)
-
-    import scala.concurrent.duration._
-    import akka.pattern.ask
-    try {
-      val response = actor.ask(Heartbeat)(5 seconds)
-
-    } catch {
-      case e: AskTimeoutException => //ignore
-    }
+    actorSystem.stop(actor)
   }
 
   /**
@@ -62,33 +57,35 @@ object ActorSystemManager {
     actor ! PoisonPill
   }
 
-  def gracefulStop(actorSystemName: Symbol, actorPath: ActorPath): Unit = {
-
-  }
-
-  def restartActor(actorSystemName: Symbol, actorPath: ActorPath): Boolean = {
-    val actorSystem = actorSystems(actorSystemName)
+  def gracefulStop(actorSystemName: Symbol, actorPath: ActorPath, timeout: FiniteDuration): Unit = {
+    import scala.concurrent.duration._
+    implicit val actorSystem = actorSystems(actorSystemName)
     val actor = actorSystem.actorFor(actorPath)
-
-    if (actorExists(actorSystemName: Symbol, actorPath: ActorPath)) {
-      actor ! Kill
-      true
-    } else {
-      false
+    try {
+      val stopped: Future[Boolean] = akka.pattern.gracefulStop(actor, timeout)
+      Await.result(stopped, timeout + 1.second)
+    } catch {
+      case e: AskTimeoutException =>
     }
   }
 
-  def actorExists(actorSystemName: Symbol, actorPath: ActorPath): Boolean = {
+  def restartActor(actorSystemName: Symbol, actorPath: ActorPath): Unit = {
+    val actorSystem = actorSystems(actorSystemName)
+    val actor = actorSystem.actorFor(actorPath)
+    actor ! Kill
+  }
+
+  def sendHeartbeat(actorSystemName: Symbol, actorPath: ActorPath, timeout: FiniteDuration): Option[Message[Heartbeat.type]] = {
     val actorSystem = actorSystems(actorSystemName)
     val actor = actorSystem.actorFor(actorPath)
 
     import scala.concurrent.duration._
     import akka.pattern.ask
     try {
-      val response = actor.ask(Heartbeat)(5 seconds)
-      true
+      val response = actor.ask(Heartbeat)(timeout).mapTo[Message[Heartbeat.type]]
+      Some(Await.result(response, timeout + 1.second))
     } catch {
-      case e: AskTimeoutException => false
+      case e: AskTimeoutException => None
     }
   }
 
