@@ -1,6 +1,5 @@
-package com.azaptree.actors
+package com.azaptree.actors.message
 
-import com.azaptree.actors.message._
 import akka.event.LoggingReceive
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -18,7 +17,7 @@ import akka.actor.actorRef2Scala
  * </ul>
  *
  */
-abstract class ActorSupport extends Actor with ActorLogging {
+abstract class MessagingActorSupport extends Actor with ActorLogging {
   private[this] var messageCount: Long = 0l
   private[this] var lastMessageReceivedOn: Long = 0l
   private[this] var lastHeartbeatOn: Long = 0l
@@ -37,7 +36,7 @@ abstract class ActorSupport extends Actor with ActorLogging {
    * </ul>
    */
   override def receive = LoggingReceive {
-    case msg: Message[_] =>
+    case msg : Message[_] =>
 
       def processGetStats(message: Message[_]): Unit = {
         val metrics = updateProcessingTime(message.processingResults.head.metrics)
