@@ -7,22 +7,33 @@ import scala.concurrent.duration.Duration
 import akka.actor.ActorPath
 
 /**
- *
- * actorPathChain is the list of ActorPaths that this message has been sent to, where the first item in the list is the last path of the last Actor that received the message
+ * processingResults is the list of ProcessingResults from the Actor processing chain,
+ * where the head of the list is ProcessingResult of the last Actor that received the message
  */
 case class Message[A](
-  val data: A,
-  val properties: MessageProperties = MessageProperties(),
-  val header: Option[MessageHeader] = None,
-  val deliveryAnnotations: Option[Map[Symbol, Any]] = None,
-  val messageAnnotations: Option[Map[Symbol, Any]] = None,
-  val applicationProperties: Option[Map[Symbol, Any]] = None,
-  val actorPathChain: List[ActorPath] = Nil) {
+    data: A,
+    properties: MessageProperties = MessageProperties(),
+    header: Option[MessageHeader] = None,
+    deliveryAnnotations: Option[Map[Symbol, Any]] = None,
+    messageAnnotations: Option[Map[Symbol, Any]] = None,
+    applicationProperties: Option[Map[Symbol, Any]] = None,
+    processingResults: List[ProcessingResult] = Nil) {
 }
 
+case class ProcessingResult(
+  actorPath: ActorPath,
+  status: Option[MessageStatus] = None,
+  metrics: MessageProcessingMetrics = MessageProcessingMetrics())
+
+case class MessageProcessingMetrics(
+  receivedOn: Long = System.currentTimeMillis,
+  processingTime: Option[Long] = None)
+
+case class MessageStatus(code: Int = 0, message: String = "success")
+
 case class MessageProperties(
-  val messageId: UUID = UUID.randomUUID,
-  val createdOn: Long = System.currentTimeMillis)
+  messageId: UUID = UUID.randomUUID,
+  createdOn: Long = System.currentTimeMillis)
 
 /**
  * Higher the priorty value, the higher the priority.
@@ -38,8 +49,8 @@ object Heartbeat extends Serializable {}
 object GetStats extends Serializable {}
 
 case class MessageStats(
-  val successCount: Long = 0l,
-  val failureCount: Long = 0l,
-  val lastSuccessOn: Long = 0l,
-  val lastFailureOn: Long = 0l,
-  val lastHeartbeatOn: Long = 0l)
+  successCount: Long = 0l,
+  failureCount: Long = 0l,
+  lastSuccessOn: Long = 0l,
+  lastFailureOn: Long = 0l,
+  lastHeartbeatOn: Long = 0l)

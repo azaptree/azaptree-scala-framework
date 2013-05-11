@@ -30,4 +30,10 @@ class ActorSpec extends FeatureSpec with ShouldMatchers {
 
   }
 
+  feature("""The ActorConfig can be requested by sending a message to the Actor""") {
+    scenario("Send an Actor a GetConfig message") {
+      pending
+    }
+  }
+
 }
