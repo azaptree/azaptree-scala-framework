@@ -11,13 +11,25 @@ import akka.actor.ActorPath
  * where the head of the list is ProcessingResult of the last Actor that received the message
  */
 case class Message[A](
-    data: A,
-    properties: MessageProperties = MessageProperties(),
-    header: Option[MessageHeader] = None,
-    deliveryAnnotations: Option[Map[Symbol, Any]] = None,
-    messageAnnotations: Option[Map[Symbol, Any]] = None,
-    applicationProperties: Option[Map[Symbol, Any]] = None,
-    processingResults: List[ProcessingResult] = Nil) {
+  data: A,
+  properties: MessageProperties = MessageProperties(),
+  header: Option[MessageHeader] = None,
+  deliveryAnnotations: Option[Map[Symbol, Any]] = None,
+  messageAnnotations: Option[Map[Symbol, Any]] = None,
+  applicationProperties: Option[Map[Symbol, Any]] = None,
+  processingResults: List[ProcessingResult] = Nil) {
+
+  def update(status: MessageStatus): Message[A] = {
+    copy(processingResults = processingResults.head.copy(status = Some(status)) :: processingResults.tail)
+  }
+
+  def update(status: MessageStatus, metrics: MessageProcessingMetrics): Message[A] = {
+    copy(processingResults = processingResults.head.copy(status = Some(status), metrics = metrics) :: processingResults.tail)
+  }
+
+  def update(metrics: MessageProcessingMetrics): Message[A] = {
+    copy(processingResults = processingResults.head.copy(metrics = metrics) :: processingResults.tail)
+  }
 }
 
 case class MessageProperties(messageId: UUID = UUID.randomUUID, createdOn: Long = System.currentTimeMillis)
@@ -40,11 +52,11 @@ case class MessageStatus(code: Int = 0, message: String = "success")
 
 case class MessageProcessingMetrics(receivedOn: Long = System.currentTimeMillis, processingTime: Option[Long] = None)
 
-trait SystemMessage extends Serializable
+trait SystemMessage
 
-object Heartbeat extends SystemMessage {}
+case object Heartbeat extends SystemMessage {}
 
-object GetStats extends SystemMessage {}
+case object GetStats extends SystemMessage {}
 
 case class MessageStats(
   messageCount: Long = 0l,
