@@ -33,10 +33,13 @@ abstract class MessagingActorSupport(routedTo: Boolean = false) extends Actor wi
   private[this] var lastHeartbeatOn: Long = 0l
 
   /**
-   * Sub-classes override this method to provide the message handling logic
+   * Sub-classes override this method to provide the message handling logic.
+   *
+   * The Message status should be updated by this method.
+   * If not set, then it will be set to SUCCESS_MESSAGE_STATUS if no exception was thrown, and set to ERROR_MESSAGE_STATUS if this method throws an Exception.
    *
    */
-  def processMessage(message: Message[_]): Unit
+  def processMessage(messageData: Any)(implicit message: Message[_]): Unit
 
   /**
    * if routed to, then the sender will be the parent, i.e., the head router
@@ -54,63 +57,78 @@ abstract class MessagingActorSupport(routedTo: Boolean = false) extends Actor wi
    * <li>com.azaptree.actors.message.Heartbeat
    * <li>com.azaptree.actors.message.GetStats
    * </ul>
+   *
+   * All messages are logged after they are processed, which records the processing metrics and message processing status.
+   * The Message status is set to ERROR_MESSAGE_STATUS if an exception is thrown during message processing.
+   * If the message is successfully processed, i.e., no exception is thrown, but the Message status is None, then the Message status will be set to SUCCESS_MESSAGE_STATUS.
+   *
    */
   override def receive = LoggingReceive {
     case msg: Message[_] =>
 
-      def processGetStats(message: Message[_]): Unit = {
+      def processGetStats(implicit message: Message[_]): Unit = {
         val metrics = updateProcessingTime(message.processingResults.head.metrics)
+        val responseData = MessageStats(messageCount, lastMessageReceivedOn, lastHeartbeatOn)
         val response = Message[MessageStats](
-          data = MessageStats(messageCount, lastMessageReceivedOn, lastHeartbeatOn),
+          data = responseData,
           processingResults = message.processingResults.head.copy(status = Some(SUCCESS_MESSAGE_STATUS), metrics = metrics) :: message.processingResults.tail)
         sender ! response
         logMessage(response)
       }
 
-      def processHeartbeat(message: Message[_]): Unit = {
+      /**
+       * Replies to the Sender with
+       */
+      def processHeartbeat(implicit message: Message[_]): Unit = {
         lastHeartbeatOn = System.currentTimeMillis
         val metrics = updateProcessingTime(message.processingResults.head.metrics)
-        val response = message.update(status = SUCCESS_MESSAGE_STATUS, metrics = metrics)
+        val response = Message[HeartbeatResponse.type](
+          data = HeartbeatResponse,
+          processingResults = message.processingResults.head.copy(status = Some(SUCCESS_MESSAGE_STATUS), metrics = metrics) :: message.processingResults.tail)
         sender ! response
         logMessage(response)
       }
 
-      val message = msg.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.processingResults)
-      msg.data match {
-        case Heartbeat =>
-          processHeartbeat(message)
-        case GetStats =>
-          processGetStats(message)
-        case _ =>
-          delegateMessageProcessing(message)
+      def executeProcessMessage(implicit message: Message[_]) = {
+        messageCount = messageCount + 1
+        lastMessageReceivedOn = System.currentTimeMillis()
+        try {
+          processMessage(message.data)
+          val metrics = updateProcessingTime(message.processingResults.head.metrics)
+          if (message.processingResults.head.status.isDefined) {
+            logMessage(message.update(metrics = metrics))
+          } else {
+            logMessage(message.update(status = SUCCESS_MESSAGE_STATUS, metrics = metrics))
+          }
+        } catch {
+          case e: Exception =>
+            val metrics = updateProcessingTime(message.processingResults.head.metrics)
+            logMessage(message.update(status = ERROR_MESSAGE_STATUS, metrics = metrics))
+            throw e
+        }
       }
-  }
 
-  def delegateMessageProcessing(message: Message[_]) = {
-    messageCount = messageCount + 1
-    lastMessageReceivedOn = System.currentTimeMillis()
-    try {
-      processMessage(message)
-      val metrics = updateProcessingTime(message.processingResults.head.metrics)
-      logMessage(message.update(metrics = metrics))
-    } catch {
-      case e: Exception =>
-        val metrics = updateProcessingTime(message.processingResults.head.metrics)
-        logMessage(message.update(status = ERROR_MESSAGE_STATUS, metrics = metrics))
-        throw e
-    }
-  }
+      /**
+       * logs the message, and then publishes a MessageEvent to the ActorSystem event stream
+       */
+      def logMessage(msg: Message[_]) = {
+        log.info("{}", msg)
+        context.system.eventStream.publish(MessageProcessedEvent(msg))
+      }
 
-  /**
-   * logs the message, and then publishes a MessageEvent to the ActorSystem event stream
-   */
-  def logMessage(msg: Message[_]) = {
-    log.info("{}", msg)
-    context.system.eventStream.publish(MessageProcessedEvent(msg))
-  }
+      def updateProcessingTime(metrics: MessageProcessingMetrics): MessageProcessingMetrics = {
+        metrics.copy(processingTime = Some(System.currentTimeMillis - metrics.receivedOn))
+      }
 
-  def updateProcessingTime(metrics: MessageProcessingMetrics): MessageProcessingMetrics = {
-    metrics.copy(processingTime = Some(System.currentTimeMillis - metrics.receivedOn))
+      implicit val message = msg.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.processingResults)
+      message.data match {
+        case HeartbeatRequest =>
+          processHeartbeat
+        case GetStats =>
+          processGetStats
+        case _ =>
+          executeProcessMessage(message)
+      }
   }
 
 }
