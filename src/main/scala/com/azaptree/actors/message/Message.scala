@@ -11,13 +11,13 @@ import akka.actor.ActorPath
  * where the head of the list is ProcessingResult of the last Actor that received the message
  */
 case class Message[A](
-  data: A,
-  properties: MessageProperties = MessageProperties(),
-  header: Option[MessageHeader] = None,
-  deliveryAnnotations: Option[Map[Symbol, Any]] = None,
-  messageAnnotations: Option[Map[Symbol, Any]] = None,
-  applicationProperties: Option[Map[Symbol, Any]] = None,
-  processingResults: List[ProcessingResult] = Nil) {
+    data: A,
+    properties: MessageProperties = MessageProperties(),
+    header: Option[MessageHeader] = None,
+    deliveryAnnotations: Option[Map[Symbol, Any]] = None,
+    messageAnnotations: Option[Map[Symbol, Any]] = None,
+    applicationProperties: Option[Map[Symbol, Any]] = None,
+    processingResults: List[ProcessingResult] = Nil) {
 
   def update(status: MessageStatus): Message[A] = {
     copy(processingResults = processingResults.head.copy(status = Some(status)) :: processingResults.tail)
@@ -52,15 +52,3 @@ case class MessageStatus(code: Int = 0, message: String = "success")
 
 case class MessageProcessingMetrics(receivedOn: Long = System.currentTimeMillis, processingTime: Option[Long] = None)
 
-trait SystemMessage
-
-case object Heartbeat extends SystemMessage {}
-
-case object GetStats extends SystemMessage {}
-
-case class MessageStats(
-  messageCount: Long = 0l,
-  lastMessageReceivedOn: Long = 0l,
-  lastHeartbeatOn: Long = 0l)
-
-case class MessageEvent(message: Message[_])

@@ -8,5 +8,9 @@ class ActorConfigSpec extends FunSpec with ShouldMatchers {
     it("defines the message types the Actor supports supports, i.e., the message schema") {
       pending
     }
+
+    it("defines the message router configuration") {
+      pending
+    }
   }
 }

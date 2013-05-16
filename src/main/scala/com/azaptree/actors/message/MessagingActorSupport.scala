@@ -1,9 +1,10 @@
 package com.azaptree.actors.message
 
 import akka.event.LoggingReceive
-import akka.actor.Actor
+import akka.actor.{ Actor, ActorRef }
 import akka.actor.ActorLogging
 import akka.actor.actorRef2Scala
+import com.azaptree.actors.message.system._
 
 /**
  * Only supports messages of type: com.azaptree.actors.message.Message
@@ -16,8 +17,17 @@ import akka.actor.actorRef2Scala
  * <li> last time a message was processed unsuccessfully
  * </ul>
  *
+ * routedTo is set to true if the Actor was created by a Router. This helps the Actor choose the sender reference for any messages they dispatch
+ *
+ * <code>
+ * sender.tell(x, context.parent) // replies will go back to parent
+ * sender ! x // replies will go to this actor
+ * </code>
+ *
+ * @author alfio
+ *
  */
-abstract class MessagingActorSupport extends Actor with ActorLogging {
+abstract class MessagingActorSupport(routedTo: Boolean = false) extends Actor with ActorLogging {
   private[this] var messageCount: Long = 0l
   private[this] var lastMessageReceivedOn: Long = 0l
   private[this] var lastHeartbeatOn: Long = 0l
@@ -27,6 +37,16 @@ abstract class MessagingActorSupport extends Actor with ActorLogging {
    *
    */
   def processMessage(message: Message[_]): Unit
+
+  /**
+   * if routed to, then the sender will be the parent, i.e., the head router
+   */
+  val tell =
+    if (routedTo) {
+      (actorRef: ActorRef, msg: Any) => actorRef.tell(msg, context.parent)
+    } else {
+      (actorRef: ActorRef, msg: Any) => actorRef ! msg
+    }
 
   /**
    * Handles the following system messages :
@@ -50,7 +70,7 @@ abstract class MessagingActorSupport extends Actor with ActorLogging {
       def processHeartbeat(message: Message[_]): Unit = {
         lastHeartbeatOn = System.currentTimeMillis
         val metrics = updateProcessingTime(message.processingResults.head.metrics)
-        val response = message.update(status = SUCCESS_MESSAGE_STATUS, metrics = metrics) 
+        val response = message.update(status = SUCCESS_MESSAGE_STATUS, metrics = metrics)
         sender ! response
         logMessage(response)
       }
@@ -86,7 +106,7 @@ abstract class MessagingActorSupport extends Actor with ActorLogging {
    */
   def logMessage(msg: Message[_]) = {
     log.info("{}", msg)
-    context.system.eventStream.publish(MessageEvent(msg))
+    context.system.eventStream.publish(MessageProcessedEvent(msg))
   }
 
   def updateProcessingTime(metrics: MessageProcessingMetrics): MessageProcessingMetrics = {

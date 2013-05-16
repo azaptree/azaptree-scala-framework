@@ -4,10 +4,7 @@ import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-
-import com.azaptree.actors.message.Heartbeat
 import com.azaptree.actors.message.Message
-
 import akka.actor.ActorPath
 import akka.actor.ActorSystem
 import akka.actor.Kill
@@ -16,7 +13,7 @@ import akka.actor.actorRef2Scala
 import akka.pattern.AskTimeoutException
 import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
-import com.azaptree.actors.message.Heartbeat
+import com.azaptree.actors.message.system.Heartbeat
 
 object ActorSystemManager {
 

@@ -1,8 +1,7 @@
-package test.com.azaptree.actors
+package test.com.azaptree.actors.message
 
-import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.FeatureSpec
-import scala.concurrent.ExecutionContext
+import org.scalatest.matchers.ShouldMatchers
 
 class ActorSpec extends FeatureSpec with ShouldMatchers {
 
@@ -63,11 +62,40 @@ class ActorSpec extends FeatureSpec with ShouldMatchers {
     }
   }
 
-  feature("Actors will publish MessageEvents to the ActorSystem's event stream") {
+  feature("Actors will publish MessageProcessedEvents to the ActorSystem's event stream") {
     scenario("""Create an Actor that subscribes to MessageEvents. 
         Then send messages to another Actor, and check that MessageEvent's are published for each message """) {
       pending
     }
+  }
+
+  feature("""Actors will register with an ActorRegistry as when started/restarted and unregister when stopped""") {
+    scenario("Create an Actor and check that is has registered") {
+      pending
+    }
+
+    scenario("Restart an Actor and check that is has unregistered and registered") {
+      pending
+    }
+
+    scenario("Stop an Actor and check that is has unregistered") {
+      pending
+    }
+  }
+
+  feature("The mailbox size, i.e., the number of messages queued in a mailbox, can be inspected at runtime") {
+    scenario("""1. Create an Actor with Stash, and send it messages. 
+        2. Check the mailbox size. 
+        3. Send the Actor a message to unstash the messages. Then confirm that the mailbox has been flushed.""") {
+      pending
+    }
+  }
+
+  feature("An Actor defines the messages it supports within its companion object") {
+    scenario("Send messages to the Actor using message types defined within its companion object") {
+      pending
+    }
+
   }
 
 }
