@@ -10,7 +10,11 @@ import akka.actor.Stash
 import akka.actor.actorRef2Scala
 
 /**
- * Only supports messages of type: com.azaptree.actors.message.Message
+ * Only supports messages of types:
+ *
+ * <ol>
+ * <li>com.azaptree.actors.message.Message
+ * <li>com.azaptree.actors.fsm.LifeCycleCommand
  *
  * Keeps track of the following metrics:
  * <ul>
@@ -30,10 +34,11 @@ import akka.actor.actorRef2Scala
  * @author alfio
  *
  */
-abstract class MessagingActorFSMSupport(routedTo: Boolean = false) extends Actor with Stash with LoggingFSM[State, Any] {
-  private[this] var messageCount: Long = 0l
-  private[this] var lastMessageReceivedOn: Long = 0l
-  private[this] var lastHeartbeatOn: Long = 0l
+abstract class MessagingActorFSM(routedTo: Boolean = false) extends Actor
+  with Stash
+  with LoggingFSM[State, Any]
+  with SystemMessageProcessing
+  with MessageLogging {
 
   /**
    * if routed to, then the sender will be the parent, i.e., the head router
@@ -61,52 +66,16 @@ abstract class MessagingActorFSMSupport(routedTo: Boolean = false) extends Actor
    */
   def initializeActor(): Unit = {}
 
-  def processGetStats(implicit message: Message[_]): Unit = {
-    val metrics = updateProcessingTime(message.processingResults.head.metrics)
-    val response = Message[MessageStats](
-      data = MessageStats(messageCount, lastMessageReceivedOn, lastHeartbeatOn),
-      processingResults = message.processingResults.head.copy(status = Some(SUCCESS_MESSAGE_STATUS), metrics = metrics) :: message.processingResults.tail)
-    sender ! response
-    logMessage(response)
-  }
-
   /**
-   * Replies to the Sender with
+   * If the Message.data is a SystemMessage, then process it.
+   * Otherwise, stah the message until we transition over to the "Running" state
+   *
    */
-  def processHeartbeat(implicit message: Message[_]): Unit = {
-    lastHeartbeatOn = System.currentTimeMillis
-    val metrics = updateProcessingTime(message.processingResults.head.metrics)
-    val response = Message[HeartbeatResponse.type](
-      data = HeartbeatResponse,
-      processingResults = message.processingResults.head.copy(status = Some(SUCCESS_MESSAGE_STATUS), metrics = metrics) :: message.processingResults.tail)
-    sender ! response
-    logMessage(response)
-  }
-
-  def handleSystemMessage(sysMsg: SystemMessage)(implicit message: Message[_]): PartialFunction[SystemMessage, Unit] = {
-    case HeartbeatRequest =>
-      processHeartbeat
-    case GetStats =>
-      processGetStats
-  }
-
-  /**
-   * logs the message, and then publishes a MessageEvent to the ActorSystem event stream
-   */
-  def logMessage(msg: Message[_]) = {
-    log.info("{}", msg)
-    context.system.eventStream.publish(MessageProcessedEvent(msg))
-  }
-
-  def updateProcessingTime(metrics: MessageProcessingMetrics): MessageProcessingMetrics = {
-    metrics.copy(processingTime = Some(System.currentTimeMillis - metrics.receivedOn))
-  }
-
   def stashMessage(msg: Message[_]): State = {
     implicit val message = msg.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.processingResults)
     message.data match {
       case sysMsg: SystemMessage =>
-        handleSystemMessage(sysMsg)
+        processSystemMessage(sysMsg)
       case _ =>
         stash()
     }
@@ -120,7 +89,7 @@ abstract class MessagingActorFSMSupport(routedTo: Boolean = false) extends Actor
       lastMessageReceivedOn = System.currentTimeMillis()
       try {
         processMessage(message.data)
-        val metrics = updateProcessingTime(message.processingResults.head.metrics)
+        val metrics = message.processingResults.head.metrics.updateProcessingTime
         if (message.processingResults.head.status.isDefined) {
           logMessage(message.update(metrics = metrics))
         } else {
@@ -128,7 +97,7 @@ abstract class MessagingActorFSMSupport(routedTo: Boolean = false) extends Actor
         }
       } catch {
         case e: Exception =>
-          val metrics = updateProcessingTime(message.processingResults.head.metrics)
+          val metrics = message.processingResults.head.metrics.updateProcessingTime
           logMessage(message.update(status = ERROR_MESSAGE_STATUS, metrics = metrics))
           throw e
       }
@@ -137,7 +106,7 @@ abstract class MessagingActorFSMSupport(routedTo: Boolean = false) extends Actor
     implicit val message = msg.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.processingResults)
     message.data match {
       case sysMsg: SystemMessage =>
-        handleSystemMessage(sysMsg)
+        processSystemMessage(sysMsg)
       case _ =>
         executeProcessMessage(message)
     }

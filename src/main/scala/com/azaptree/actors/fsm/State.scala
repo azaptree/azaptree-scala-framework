@@ -1,6 +1,6 @@
 package com.azaptree.actors.fsm
 
-trait State
+sealed trait State
 
 case object Constructed extends State
 
@@ -10,12 +10,12 @@ case object Running extends State
 
 case object Destroyed extends State
 
-trait LifeCycle
+sealed trait LifeCycleCommand
 
-case object Initialize extends LifeCycle
+case object Initialize extends LifeCycleCommand
 
-case object Start extends LifeCycle
+case object Start extends LifeCycleCommand
 
-case object Stop extends LifeCycle
+case object Stop extends LifeCycleCommand
 
-case object Destroy extends LifeCycle
+case object Destroy extends LifeCycleCommand
