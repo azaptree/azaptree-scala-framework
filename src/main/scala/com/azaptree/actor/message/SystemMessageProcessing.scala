@@ -12,11 +12,14 @@ import com.azaptree.actor.message.system.MessageProcessedEvent
 trait SystemMessageProcessing {
   self: Actor with ActorLogging with MessageLogging =>
 
-  def processSystemMessage(sysMsg: SystemMessage)(implicit message: Message[_]): PartialFunction[SystemMessage, Unit] = {
-    case HeartbeatRequest =>
-      processHeartbeat
-    case GetStats =>
-      processGetStats
+  def processSystemMessage(sysMsg: SystemMessage)(implicit message: Message[_]): Unit = {
+    sysMsg match {
+      case HeartbeatRequest =>
+        processHeartbeat
+      case GetStats =>
+        processGetStats
+      case _ => log.warning("Received unknown SystemMessage : {}", sysMsg)
+    }
   }
 
   /**

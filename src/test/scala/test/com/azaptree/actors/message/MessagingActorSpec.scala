@@ -2,8 +2,43 @@ package test.com.azaptree.actors.message
 
 import org.scalatest.FeatureSpec
 import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.BeforeAndAfterAll
+import akka.testkit.TestKit
+import akka.actor.ActorSystem
+import akka.testkit.ImplicitSender
+import akka.testkit.DefaultTimeout
+import com.azaptree.actor.config.ActorConfig
+import com.azaptree.actor.message.MessagingActor
+import com.azaptree.actor.message.Message
+import akka.actor.Props
+import scala.concurrent.duration._
+import com.azaptree.actor.config.ActorConfig
+import com.azaptree.actor.message.system.GetStats
+import com.azaptree.actor.message.system.MessageStats
 
-class ActorSpec extends FeatureSpec with ShouldMatchers {
+object ActorSpec {
+
+  class EchoMessageActor(actorConfig: ActorConfig, loggingReceive: Boolean = false) extends MessagingActor(actorConfig, loggingReceive) {
+    override def processMessage(messageData: Any)(implicit message: Message[_]) = {
+      import com.azaptree.actor.message._
+      messageData match {
+        case msg: String =>
+          message.update(SUCCESS_MESSAGE_STATUS)
+          tell(sender, message)
+      }
+    }
+  }
+}
+
+class ActorSpec(_system: ActorSystem) extends TestKit(_system)
+    with DefaultTimeout with ImplicitSender
+    with FeatureSpec with ShouldMatchers with BeforeAndAfterAll {
+
+  def this() = this(ActorSystem("ActorSpec"))
+
+  override def afterAll() = {
+    system.shutdown()
+  }
 
   feature("""Actors will keep track of counts for total number of messages processed successfully and messages processed unsucessfully. 
       Actors will also track the last time a message was processed successfully, and the last time a message processing failure occurred.
@@ -11,9 +46,30 @@ class ActorSpec extends FeatureSpec with ShouldMatchers {
       Heartbeat and GetStats messages do not count against MessageStats. However, the last time a heartbeat message was received will be tracked.""") {
 
     scenario("""Create a new Actor and send some application messages. 
-        Then check that number of messages successfully processed matches the number of Heartbeat messages that were sent
+        Then check that number of messages successfully processed matches the number of application messages that were sent
         Verify that lastSuccessOn has been updated.""") {
-      pending
+
+      val actorConfig = ActorConfig("EchoMessageActor")
+      val echoMessageActor = system.actorOf(Props(new ActorSpec.EchoMessageActor(actorConfig)), actorConfig.name)
+      val request = Message[String]("CIAO MUNDO!")
+      echoMessageActor ! request
+      expectMsgPF(100.millis) {
+        case msg: Message[_] =>
+          msg.data match {
+            case text: String =>
+              assert(request.data == text)
+          }
+      }
+
+      echoMessageActor ! Message[GetStats.type](GetStats)
+      expectMsgPF(1000.millis) {
+        case msg: Message[_] =>
+          msg.data match {
+            case msgStats: MessageStats =>
+              msgStats.messageCount should be(1)
+          }
+      }
+
     }
 
     scenario("""Create a new Actor and send some Hearbeat messages. 

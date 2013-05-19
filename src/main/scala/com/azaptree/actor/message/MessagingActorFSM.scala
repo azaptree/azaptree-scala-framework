@@ -74,7 +74,7 @@ abstract class MessagingActorFSM(actorConfig: ActorConfig) extends ConfigurableA
       lastMessageReceivedOn = System.currentTimeMillis()
       try {
         processMessage(message.data)
-        val metrics = message.processingResults.head.metrics.updateProcessingTime
+        val metrics = message.processingResults.head.metrics.updated
         if (message.processingResults.head.status.isDefined) {
           logMessage(message.update(metrics = metrics))
         } else {
@@ -82,7 +82,7 @@ abstract class MessagingActorFSM(actorConfig: ActorConfig) extends ConfigurableA
         }
       } catch {
         case e: Exception =>
-          val metrics = message.processingResults.head.metrics.updateProcessingTime
+          val metrics = message.processingResults.head.metrics.updated
           logMessage(message.update(status = ERROR_MESSAGE_STATUS, metrics = metrics))
           throw e
       }

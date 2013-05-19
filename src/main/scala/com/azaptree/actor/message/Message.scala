@@ -19,8 +19,12 @@ case class Message[A](
     applicationProperties: Option[Map[Symbol, Any]] = None,
     processingResults: List[ProcessingResult] = Nil) {
 
+  /**
+   * updates the metrics as well, using the current time to compute the processingTime
+   */
   def update(status: MessageStatus): Message[A] = {
-    copy(processingResults = processingResults.head.copy(status = Some(status)) :: processingResults.tail)
+    val metrics = processingResults.head.metrics.updated
+    update(status, metrics)
   }
 
   def update(status: MessageStatus, metrics: MessageProcessingMetrics): Message[A] = {
@@ -66,14 +70,16 @@ case class ProcessingResult(
    * Metrics processing time is also updated
    */
   def update(status: MessageStatus) = {
-    copy(status = Some(status), metrics = metrics.updateProcessingTime)
+    copy(status = Some(status), metrics = metrics.updated)
   }
 
 }
 
 case class MessageStatus(code: Int = 0, message: String = "success")
 
-case class MessageProcessingMetrics(receivedOn: Long = System.currentTimeMillis, processingTime: Option[Long] = None) {
-  def updateProcessingTime = copy(processingTime = Some(System.currentTimeMillis - receivedOn))
+case class MessageProcessingMetrics(receivedOn: Long = System.currentTimeMillis, lastUpdatedOn: Option[Long] = None) {
+  def updated = copy(lastUpdatedOn = Some(System.currentTimeMillis))
+
+  def processingTime = lastUpdatedOn.getOrElse(System.currentTimeMillis()) - receivedOn
 }
 

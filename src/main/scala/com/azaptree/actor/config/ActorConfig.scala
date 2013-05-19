@@ -5,5 +5,5 @@ import akka.actor.Props
 
 case class ActorConfig(
     name: String,
-    props: Props) {
+    routedTo: Boolean = false) {
 }

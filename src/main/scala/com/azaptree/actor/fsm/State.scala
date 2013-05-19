@@ -10,12 +10,3 @@ case object Running extends State
 
 case object Destroyed extends State
 
-sealed trait LifeCycleCommand
-
-case object Initialize extends LifeCycleCommand
-
-case object Start extends LifeCycleCommand
-
-case object Stop extends LifeCycleCommand
-
-case object Destroy extends LifeCycleCommand

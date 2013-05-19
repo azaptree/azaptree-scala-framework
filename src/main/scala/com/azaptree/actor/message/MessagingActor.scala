@@ -51,16 +51,18 @@ abstract class MessagingActor(actorConfig: ActorConfig, loggingReceive: Boolean 
           lastMessageReceivedOn = System.currentTimeMillis()
           try {
             processMessage(message.data)
-            val metrics = message.processingResults.head.metrics.updateProcessingTime
             if (message.processingResults.head.status.isDefined) {
-              logMessage(message.update(metrics = metrics))
+              if (message.processingResults.head.metrics.lastUpdatedOn.isDefined) {
+                logMessage(message)
+              } else {
+                logMessage(message.update(metrics = message.processingResults.head.metrics.updated))
+              }
             } else {
-              logMessage(message.update(status = SUCCESS_MESSAGE_STATUS, metrics = metrics))
+              logMessage(message.update(status = SUCCESS_MESSAGE_STATUS))
             }
           } catch {
             case e: Exception =>
-              val metrics = message.processingResults.head.metrics.updateProcessingTime
-              logMessage(message.update(status = ERROR_MESSAGE_STATUS, metrics = metrics))
+              logMessage(message.update(status = ERROR_MESSAGE_STATUS))
               throw e
           }
         }

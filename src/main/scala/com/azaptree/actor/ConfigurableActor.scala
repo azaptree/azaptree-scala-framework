@@ -14,10 +14,10 @@ abstract class ConfigurableActor(actorConfig: ActorConfig) extends Actor {
    * If routed to, then the sender will be the parent, i.e., the head router.
    */
   val tell: (ActorRef, Any) => Unit =
-    if (actorConfig.props.routerConfig == NoRouter) {
-      (actorRef: ActorRef, msg: Any) => actorRef ! msg
-    } else {
+    if (actorConfig.routedTo) {
       (actorRef: ActorRef, msg: Any) => actorRef.tell(msg, context.parent)
+    } else {
+      (actorRef: ActorRef, msg: Any) => actorRef ! msg
     }
 
 }
