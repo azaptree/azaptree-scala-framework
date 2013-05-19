@@ -1,13 +1,9 @@
-package com.azaptree.actors
+package com.azaptree.actor
 
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-
-import com.azaptree.actors.message.Message
-import com.azaptree.actors.message.system.HeartbeatRequest
-
 import akka.actor.ActorPath
 import akka.actor.ActorSystem
 import akka.actor.Kill
@@ -16,7 +12,8 @@ import akka.actor.actorRef2Scala
 import akka.pattern.AskTimeoutException
 import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
-import com.azaptree.actors.message.system.HeartbeatResponse
+import com.azaptree.actor.message.system._
+import com.azaptree.actor.message.Message
 
 object ActorSystemManager {
 
@@ -81,6 +78,7 @@ object ActorSystemManager {
 
     import scala.concurrent.duration._
     import akka.pattern.ask
+
     try {
       val response = actor.ask(HeartbeatRequest)(timeout).mapTo[Message[HeartbeatResponse.type]]
       Some(Await.result(response, timeout + 1.second))

@@ -1,4 +1,4 @@
-package com.azaptree.actors.fsm
+package com.azaptree.actor.fsm
 
 sealed trait State
 

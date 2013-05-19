@@ -1,13 +1,13 @@
-package com.azaptree.actors.message
+package com.azaptree.actor.message
 
 import akka.actor.Actor
-import com.azaptree.actors.message.system.GetStats
-import com.azaptree.actors.message.system.HeartbeatResponse
-import com.azaptree.actors.message.system.HeartbeatRequest
-import com.azaptree.actors.message.system.MessageStats
-import com.azaptree.actors.message.system.SystemMessage
+import com.azaptree.actor.message.system.GetStats
+import com.azaptree.actor.message.system.HeartbeatResponse
+import com.azaptree.actor.message.system.HeartbeatRequest
+import com.azaptree.actor.message.system.MessageStats
+import com.azaptree.actor.message.system.SystemMessage
 import akka.actor.ActorLogging
-import com.azaptree.actors.message.system.MessageProcessedEvent
+import com.azaptree.actor.message.system.MessageProcessedEvent
 
 trait SystemMessageProcessing {
   self: Actor with ActorLogging with MessageLogging =>

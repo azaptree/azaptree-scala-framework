@@ -1,8 +1,8 @@
-package com.azaptree.actors.message
+package com.azaptree.actor.message
 
 import akka.actor.ActorLogging
 import akka.actor.Actor
-import com.azaptree.actors.message.system.MessageProcessedEvent
+import com.azaptree.actor.message.system.MessageProcessedEvent
 
 trait MessageLogging {
   self: Actor with ActorLogging =>

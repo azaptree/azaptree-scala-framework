@@ -1,13 +1,14 @@
-package com.azaptree.actors.message
+package com.azaptree.actor.message
 
-import com.azaptree.actors.fsm._
-import com.azaptree.actors.message.system._
-
+import com.azaptree.actor.fsm._
+import com.azaptree.actor.message.system.SystemMessage
 import akka.actor.Actor
 import akka.actor.ActorRef
-import akka.actor.{ FSM, LoggingFSM }
+import akka.actor.FSM
 import akka.actor.Stash
 import akka.actor.actorRef2Scala
+import com.azaptree.actor.config.ActorConfig
+import com.azaptree.actor.ConfigurableActor
 
 /**
  * Only supports messages of types:
@@ -24,31 +25,15 @@ import akka.actor.actorRef2Scala
  * <li> last time a message was processed unsuccessfully
  * </ul>
  *
- * routedTo is set to true if the Actor was created by a Router. This helps the Actor choose the sender reference for any messages they dispatch
- *
- * <code>
- * sender.tell(x, context.parent) // replies will go back to parent
- * sender ! x // replies will go to this actor
- * </code>
  *
  * @author alfio
  *
  */
-abstract class MessagingActorFSM(routedTo: Boolean = false) extends Actor
-  with Stash
-  with LoggingFSM[State, Any]
-  with SystemMessageProcessing
-  with MessageLogging {
-
-  /**
-   * if routed to, then the sender will be the parent, i.e., the head router
-   */
-  val tell =
-    if (routedTo) {
-      (actorRef: ActorRef, msg: Any) => actorRef.tell(msg, context.parent)
-    } else {
-      (actorRef: ActorRef, msg: Any) => actorRef ! msg
-    }
+abstract class MessagingActorFSM(actorConfig: ActorConfig) extends ConfigurableActor(actorConfig)
+    with Stash
+    with FSM[State, Any]
+    with SystemMessageProcessing
+    with MessageLogging {
 
   /**
    * Sub-classes override this method to provide the message handling logic.

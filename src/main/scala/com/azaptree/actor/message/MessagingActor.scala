@@ -1,10 +1,12 @@
-package com.azaptree.actors.message
+package com.azaptree.actor.message
 
 import akka.event.LoggingReceive
 import akka.actor.{ Actor, ActorRef }
 import akka.actor.ActorLogging
 import akka.actor.actorRef2Scala
-import com.azaptree.actors.message.system._
+import com.azaptree.actor.message.system._
+import com.azaptree.actor.ConfigurableActor
+import com.azaptree.actor.config.ActorConfig
 
 /**
  * Only supports messages of type: com.azaptree.actors.message.Message
@@ -17,23 +19,19 @@ import com.azaptree.actors.message.system._
  * <li> last time a message was processed unsuccessfully
  * </ul>
  *
- * routedTo is set to true if the Actor was created by a Router. This helps the Actor choose the sender reference for any messages they dispatch
  *
- * <code>
- * sender.tell(x, context.parent) // replies will go back to parent
- * sender ! x // replies will go to this actor
- * </code>
  *
  * If loggingReceive = true, then the receive is wrapped in a akka.event.LoggingReceive which then logs message invocations.
  * This is enabled by a setting in the Configuration : akka.actor.debug.receive = on
+ * *** NOTE: enabling it uniformly on all actors is not usually what you need, and it would lead to endless loops if it were applied to EventHandler listeners.
  *
  * @author alfio
  *
  */
-abstract class MessagingActor(routedTo: Boolean = false, loggingReceive: Boolean = false) extends Actor
-  with ActorLogging
-  with SystemMessageProcessing
-  with MessageLogging {
+abstract class MessagingActor(actorConfig: ActorConfig, loggingReceive: Boolean = false) extends ConfigurableActor(actorConfig)
+    with ActorLogging
+    with SystemMessageProcessing
+    with MessageLogging {
 
   /**
    * Sub-classes override this method to provide the message handling logic.
@@ -43,18 +41,6 @@ abstract class MessagingActor(routedTo: Boolean = false, loggingReceive: Boolean
    *
    */
   def processMessage(messageData: Any)(implicit message: Message[_]): Unit
-
-  /**
-   * Used to send messages to other Actors.
-   *
-   * If routed to, then the sender will be the parent, i.e., the head router.
-   */
-  val tell: (ActorRef, Any) => Unit =
-    if (routedTo) {
-      (actorRef: ActorRef, msg: Any) => actorRef.tell(msg, context.parent)
-    } else {
-      (actorRef: ActorRef, msg: Any) => actorRef ! msg
-    }
 
   val executeReceive: Receive = {
     def receiveMessage: Receive = {

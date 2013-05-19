@@ -1,6 +1,6 @@
-package com.azaptree.actors.message.system
+package com.azaptree.actor.message.system
 
-import com.azaptree.actors.message.Message
+import com.azaptree.actor.message.Message
 
 sealed trait SystemMessage
 
