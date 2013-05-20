@@ -1,7 +1,7 @@
 package com.azaptree.actor.message
 
 import akka.actor.Actor
-import com.azaptree.actor.message.system.GetStats
+import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.MessageStats
@@ -16,7 +16,7 @@ trait SystemMessageProcessing {
     sysMsg match {
       case HeartbeatRequest =>
         processHeartbeat
-      case GetStats =>
+      case GetMessageStats =>
         processGetStats
       case _ => log.warning("Received unknown SystemMessage : {}", sysMsg)
     }

@@ -1,20 +1,26 @@
 package test.com.azaptree.actors.message
 
+import scala.concurrent.duration._
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
 import org.scalatest.matchers.ShouldMatchers
-import org.scalatest.BeforeAndAfterAll
-import akka.testkit.TestKit
-import akka.actor.ActorSystem
-import akka.testkit.ImplicitSender
-import akka.testkit.DefaultTimeout
 import com.azaptree.actor.config.ActorConfig
-import com.azaptree.actor.message.MessagingActor
+import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.message.Message
-import akka.actor.Props
-import scala.concurrent.duration._
-import com.azaptree.actor.config.ActorConfig
-import com.azaptree.actor.message.system.GetStats
+import com.azaptree.actor.message.MessagingActor
+import com.azaptree.actor.message.system.GetMessageStats
+import com.azaptree.actor.message.system.HeartbeatRequest
+import com.azaptree.actor.message.system.HeartbeatResponse
+import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.MessageStats
+import akka.actor.ActorSystem
+import akka.actor.Props
+import akka.pattern._
+import akka.testkit.DefaultTimeout
+import akka.testkit.ImplicitSender
+import akka.testkit.TestKit
+import com.azaptree.actor.message.Message
+import scala.concurrent.Await
 
 object ActorSpec {
 
@@ -25,6 +31,8 @@ object ActorSpec {
         case msg: String =>
           message.update(SUCCESS_MESSAGE_STATUS)
           tell(sender, message)
+        case e: Exception =>
+          throw e
       }
     }
   }
@@ -40,42 +48,106 @@ class ActorSpec(_system: ActorSystem) extends TestKit(_system)
     system.shutdown()
   }
 
+  val actorConfig = ActorConfig("EchoMessageActor")
+  val echoMessageActor = system.actorOf(Props(new ActorSpec.EchoMessageActor(actorConfig)), actorConfig.name)
+
   feature("""Actors will keep track of counts for total number of messages processed successfully and messages processed unsucessfully. 
       Actors will also track the last time a message was processed successfully, and the last time a message processing failure occurred.
       When an Actor receives a Message[GetStats] message, it will return a Message[MessageStats] to the sender.
-      Heartbeat and GetStats messages do not count against MessageStats. However, the last time a heartbeat message was received will be tracked.""") {
+      Messages of type com.azaptree.actor.message.system.SystemMessage do not count against MessageStats. 
+      The last time a heartbeat message was received will be tracked.""") {
 
     scenario("""Create a new Actor and send some application messages. 
         Then check that number of messages successfully processed matches the number of application messages that were sent
         Verify that lastSuccessOn has been updated.""") {
 
-      val actorConfig = ActorConfig("EchoMessageActor")
-      val echoMessageActor = system.actorOf(Props(new ActorSpec.EchoMessageActor(actorConfig)), actorConfig.name)
       val request = Message[String]("CIAO MUNDO!")
-      echoMessageActor ! request
+
+      val messageStatsFuture = ask(echoMessageActor, Message[GetMessageStats.type](GetMessageStats)).mapTo[Message[MessageStats]]
+      implicit val dispatcher = system.dispatcher
+      val msgStatsBefore = Await.result(messageStatsFuture, 100 millis).data
+
+      var lastMessageSentTime = System.currentTimeMillis();
+      val requestCount = 10
+      for (i <- 1 to requestCount) {
+        lastMessageSentTime = System.currentTimeMillis();
+        echoMessageActor ! request
+        expectMsgPF(100.millis) {
+          case msg: Message[_] =>
+            msg.data match {
+              case text: String =>
+                assert(request.data == text)
+            }
+        }
+      }
+
+      echoMessageActor ! Message[GetMessageStats.type](GetMessageStats)
       expectMsgPF(100.millis) {
         case msg: Message[_] =>
           msg.data match {
-            case text: String =>
-              assert(request.data == text)
-          }
-      }
-
-      echoMessageActor ! Message[GetStats.type](GetStats)
-      expectMsgPF(1000.millis) {
-        case msg: Message[_] =>
-          msg.data match {
             case msgStats: MessageStats =>
-              msgStats.messageCount should be(1)
+              msgStats.messageCount should be(msgStatsBefore.messageCount + requestCount)
+              msgStats.lastMessageReceivedOn should be >= (lastMessageSentTime)
           }
       }
 
     }
 
-    scenario("""Create a new Actor and send some Hearbeat messages. 
+    scenario("""Create a new Actor and send some Application Messages followed by Hearbeat messages. 
         Then check that number of messages successfully processed has not been incremented.
         Verify that lastHeartbeatOn has been updated.""") {
-      pending
+
+      val messageStatsFuture = ask(echoMessageActor, Message[GetMessageStats.type](GetMessageStats)).mapTo[Message[MessageStats]]
+      implicit val dispatcher = system.dispatcher
+      val msgStatsBefore = Await.result(messageStatsFuture, 100 millis).data
+
+      val request = Message[String]("CIAO MUNDO!")
+
+      var lastMessageSentTime = System.currentTimeMillis();
+      val requestCount = 10
+      for (i <- 1 to requestCount) {
+        lastMessageSentTime = System.currentTimeMillis();
+        echoMessageActor ! request
+        expectMsgPF(100.millis) {
+          case msg: Message[_] =>
+            msg.data match {
+              case text: String =>
+                assert(request.data == text)
+            }
+        }
+      }
+
+      echoMessageActor ! Message[GetMessageStats.type](GetMessageStats)
+      val msgStats1 = expectMsgPF(100.millis) {
+        case msg: Message[_] =>
+          msg.data match {
+            case msgStats: MessageStats =>
+              msgStats.messageCount should be(msgStatsBefore.messageCount + requestCount)
+              msgStats.lastMessageReceivedOn should be >= (lastMessageSentTime)
+              msgStats
+          }
+      }
+
+      Thread.sleep(10l)
+      echoMessageActor ! Message[HeartbeatRequest.type](HeartbeatRequest)
+      expectMsgPF(100.millis) {
+        case msg: Message[_] =>
+          msg.data match {
+            case response @ HeartbeatResponse =>
+              println(response)
+          }
+      }
+
+      echoMessageActor ! Message[GetMessageStats.type](GetMessageStats)
+      expectMsgPF(100.millis) {
+        case msg: Message[_] =>
+          msg.data match {
+            case msgStats: MessageStats =>
+              msgStats.messageCount should be(msgStats1.messageCount)
+              msgStats.lastMessageReceivedOn should be(msgStats1.lastMessageReceivedOn)
+              msgStats.lastHeartbeatOn should be > (msgStats1.lastMessageReceivedOn)
+          }
+      }
     }
 
     scenario("""Create a new Actor and send some messages that will trigger failures. 

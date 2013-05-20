@@ -8,7 +8,7 @@ case object HeartbeatRequest extends SystemMessage {}
 
 case object HeartbeatResponse extends SystemMessage {}
 
-case object GetStats extends SystemMessage {}
+case object GetMessageStats extends SystemMessage {}
 
 /**
  * Response message for GetStats
