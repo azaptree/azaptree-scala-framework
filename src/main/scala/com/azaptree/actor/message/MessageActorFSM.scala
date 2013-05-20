@@ -29,20 +29,12 @@ import com.azaptree.actor.ConfigurableActor
  * @author alfio
  *
  */
-abstract class MessagingActorFSM(actorConfig: ActorConfig) extends ConfigurableActor(actorConfig)
+abstract class MessageActorFSM(actorConfig: ActorConfig) extends ConfigurableActor(actorConfig)
     with Stash
     with FSM[State, Any]
     with SystemMessageProcessing
-    with MessageLogging {
-
-  /**
-   * Sub-classes override this method to provide the message handling logic.
-   *
-   * The Message status should be updated by this method.
-   * If not set, then it will be set to SUCCESS_MESSAGE_STATUS if no exception was thrown, and set to ERROR_MESSAGE_STATUS if this method throws an Exception.
-   *
-   */
-  def processMessage(messageData: Any)(implicit message: Message[_]): Unit
+    with MessageLogging
+    with MessageProcessor {
 
   /**
    * Override to perform intialization when transitioning from Constructed -> Idle.
@@ -67,37 +59,6 @@ abstract class MessagingActorFSM(actorConfig: ActorConfig) extends ConfigurableA
     stay
   }
 
-  def processMessage(msg: Message[_]): State = {
-
-    def executeProcessMessage(implicit message: Message[_]) = {
-      messageCount = messageCount + 1
-      lastMessageReceivedOn = System.currentTimeMillis()
-      try {
-        processMessage(message.data)
-        val metrics = message.processingResults.head.metrics.updated
-        if (message.processingResults.head.status.isDefined) {
-          logMessage(message.update(metrics = metrics))
-        } else {
-          logMessage(message.update(status = SUCCESS_MESSAGE_STATUS, metrics = metrics))
-        }
-      } catch {
-        case e: Exception =>
-          val metrics = message.processingResults.head.metrics.updated
-          logMessage(message.update(status = ERROR_MESSAGE_STATUS, metrics = metrics))
-          throw e
-      }
-    }
-
-    implicit val message = msg.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.processingResults)
-    message.data match {
-      case sysMsg: SystemMessage =>
-        processSystemMessage(sysMsg)
-      case _ =>
-        executeProcessMessage(message)
-    }
-    stay
-  }
-
   startWith(Constructed, None)
 
   when(Constructed) {
@@ -112,7 +73,9 @@ abstract class MessagingActorFSM(actorConfig: ActorConfig) extends ConfigurableA
 
   when(Running) {
     case Event(Stop, _) => goto(Idle)
-    case Event(msg: Message[_], _) => processMessage(msg)
+    case Event(msg: Message[_], _) =>
+      process(msg)
+      stay
   }
 
   whenUnhandled {

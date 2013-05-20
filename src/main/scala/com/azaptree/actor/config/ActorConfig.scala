@@ -5,5 +5,6 @@ import akka.actor.Props
 
 case class ActorConfig(
     name: String,
-    routedTo: Boolean = false) {
+    routedTo: Boolean = false,
+    loggingReceive: Boolean = false) {
 }

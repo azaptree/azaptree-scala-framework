@@ -7,7 +7,6 @@ import org.scalatest.matchers.ShouldMatchers
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.message.Message
-import com.azaptree.actor.message.MessagingActor
 import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.HeartbeatResponse
@@ -21,11 +20,13 @@ import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import com.azaptree.actor.message.Message
 import scala.concurrent.Await
+import com.azaptree.actor.message.MessageActor
+import com.azaptree.actor.message.MessageProcessor
 
 object ActorSpec {
 
-  class EchoMessageActor(actorConfig: ActorConfig, loggingReceive: Boolean = false) extends MessagingActor(actorConfig, loggingReceive) {
-    override def processMessage(messageData: Any)(implicit message: Message[_]) = {
+  class EchoMessageActor(actorConfig: ActorConfig) extends MessageActor(actorConfig) {
+    override protected[this] def processMessage(messageData: Any)(implicit message: Message[_]) = {
       import com.azaptree.actor.message._
       messageData match {
         case msg: String =>

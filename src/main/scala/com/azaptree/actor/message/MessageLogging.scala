@@ -18,4 +18,9 @@ trait MessageLogging {
     log.info("{}", msg)
     context.system.eventStream.publish(MessageProcessedEvent(msg))
   }
+
+  def messageReceived(): Unit = {
+    messageCount = messageCount + 1
+    lastMessageReceivedOn = System.currentTimeMillis()
+  }
 }
