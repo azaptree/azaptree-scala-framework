@@ -5,7 +5,7 @@ import com.azaptree.actor.message.system.SystemMessage
 import akka.actor.Actor
 
 trait MessageProcessor {
-  selfActor: Actor with ConfigurableActor with SystemMessageProcessing with MessageLogging =>
+  selfActor: ConfigurableActor with SystemMessageProcessing with MessageLogging =>
 
   /**
    * Sub-classes override this method to provide the message handling logic.
