@@ -30,6 +30,7 @@ trait MessageProcessor {
         }
       } catch {
         case e: Exception =>
+          messageFailed()
           val metrics = message.processingResults.head.metrics.updated
           logMessage(message.update(status = ERROR_MESSAGE_STATUS, metrics = metrics))
           throw e

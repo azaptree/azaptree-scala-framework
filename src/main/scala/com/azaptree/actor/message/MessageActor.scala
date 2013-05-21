@@ -35,7 +35,7 @@ abstract class MessageActor(actorConfig: ActorConfig) extends ConfigurableActor(
     with MessageLogging
     with MessageProcessor {
 
-  override val supervisorStrategy = actorConfig.superviorStrategy.getOrElse(SupervisorStrategy.defaultStrategy)
+  override val supervisorStrategy = actorConfig.supervisorStrategy.getOrElse(SupervisorStrategy.defaultStrategy)
 
   val executeReceive: Receive = {
     if (actorConfig.loggingReceive) {

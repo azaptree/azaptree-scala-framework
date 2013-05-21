@@ -1,5 +1,6 @@
 package test.com.azaptree.actors.message
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
@@ -7,25 +8,26 @@ import org.scalatest.matchers.ShouldMatchers
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.message.Message
+import com.azaptree.actor.message.Message
+import com.azaptree.actor.message.MessageActor
+import com.azaptree.actor.message.MessageProcessor
 import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.MessageStats
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
+import akka.actor.OneForOneStrategy
+import akka.actor.OneForOneStrategy
 import akka.actor.Props
+import akka.actor.SupervisorStrategy
 import akka.pattern._
 import akka.testkit.DefaultTimeout
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
-import com.azaptree.actor.message.Message
-import scala.concurrent.Await
-import com.azaptree.actor.message.MessageActor
-import com.azaptree.actor.message.MessageProcessor
-import akka.actor.SupervisorStrategy
-import akka.actor.OneForOneStrategy
-import akka.actor.OneForOneStrategy
-import akka.actor.ActorRef
+import com.azaptree.actor.config.ActorConfig
+import akka.actor.ActorSelection
 
 object ActorSpec {
 
@@ -37,9 +39,26 @@ object ActorSpec {
 
   case object GetSupervisorStrategy
 
-  class EchoMessageActor(actorConfig: ActorConfig, supervisionStrategy: SupervisorStrategy = SupervisorStrategy.defaultStrategy) extends MessageActor(actorConfig) {
+  class Printer(actorConfig: ActorConfig) extends MessageActor(actorConfig) {
+    override protected[this] def processMessage(messageData: Any)(implicit message: Message[_]) = {
+      import com.azaptree.actor.message._
+      messageData match {
+        case msg: String =>
+          val path = self.path
+          println(s"$path : msg = $msg")
+        case e: Exception =>
+          throw e
+      }
+    }
+  }
 
-    override val supervisorStrategy = supervisionStrategy
+  class EchoMessageActor(actorConfig: ActorConfig) extends MessageActor(actorConfig) {
+    var printerActor: ActorRef = _
+
+    override def preStart() = {
+      val actorConfig = ActorConfig("Printer")
+      printerActor = context.actorOf(Props(new Printer(actorConfig)), actorConfig.name)
+    }
 
     override protected[this] def processMessage(messageData: Any)(implicit message: Message[_]) = {
       import com.azaptree.actor.message._
@@ -54,24 +73,6 @@ object ActorSpec {
     }
   }
 
-  class EchoMessageActor2(actorConfig: ActorConfig) extends MessageActor(actorConfig) {
-
-    override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = Int.MaxValue) {
-      case _ => Resume
-    }
-
-    override protected[this] def processMessage(messageData: Any)(implicit message: Message[_]) = {
-      import com.azaptree.actor.message._
-      messageData match {
-        case msg: String =>
-          message.update(SUCCESS_MESSAGE_STATUS)
-          tell(sender, message)
-        case e: Exception =>
-          throw e
-        case GetSupervisorStrategy => tell(sender, Message[SupervisorStrategy](data = supervisorStrategy))
-      }
-    }
-  }
 }
 
 class ActorSpec(_system: ActorSystem) extends TestKit(_system)
@@ -87,10 +88,10 @@ class ActorSpec(_system: ActorSystem) extends TestKit(_system)
   val actorConfig = ActorConfig("EchoMessageActor")
   val echoMessageActor = system.actorOf(Props(new ActorSpec.EchoMessageActor(actorConfig)), actorConfig.name)
 
-  val actorConfig2 = ActorConfig("echoMessageActorWithResumeSupervisorStrategy")
-  val echoMessageActorWithResumeSupervisorStrategy = system.actorOf(Props(new ActorSpec.EchoMessageActor(actorConfig2, ActorSpec.resumeStrategy)), actorConfig2.name)
+  val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(name = "echoMessageActorWithResumeSupervisorStrategy", supervisorStrategy = Some(ActorSpec.resumeStrategy))
+  val echoMessageActorWithResumeSupervisorStrategy = system.actorOf(Props(new ActorSpec.EchoMessageActor(echoMessageActorWithResumeSupervisorStrategyConfig)), echoMessageActorWithResumeSupervisorStrategyConfig.name)
 
-  def getEchoMessageActorStats(actor: ActorRef): MessageStats = {
+  def getMessageActorStats(actor: ActorRef): MessageStats = {
     val messageStatsFuture = ask(actor, Message[GetMessageStats.type](GetMessageStats)).mapTo[Message[MessageStats]]
     implicit val dispatcher = system.dispatcher
     Await.result(messageStatsFuture, 100 millis).data
@@ -103,16 +104,17 @@ class ActorSpec(_system: ActorSystem) extends TestKit(_system)
   }
 
   feature("""Actors will keep track of counts for total number of messages processed successfully and messages processed unsucessfully. 
-      | Actors will also track the last time a message was processed successfully, and the last time a message processing failure occurred.
+      | Actors will track the last time a message was processed successfully.
       | When an Actor receives a Message[GetStats] message, it will return a Message[MessageStats] to the sender.
       | Messages of type com.azaptree.actor.message.system.SystemMessage do not count against MessageStats. 
-      | The last time a heartbeat message was received will be tracked.""".stripMargin) {
+      | The last time a heartbeat message was received will be tracked.
+      | Message failures are tracked, but will only be returned in a MessageStats response message (in reply to a GetStats request) if the SupervisorStrategy returns a Resume directive""".stripMargin) {
 
     scenario("""Create a new Actor and send some application messages. 
         |Then check that number of messages successfully processed matches the number of application messages that were sent
         |Verify that lastMessageProcessedOn has been updated.""".stripMargin) {
 
-      val msgStatsBefore = getEchoMessageActorStats(echoMessageActor)
+      val msgStatsBefore = getMessageActorStats(echoMessageActor)
 
       val request = Message[String]("CIAO MUNDO!")
 
@@ -147,7 +149,7 @@ class ActorSpec(_system: ActorSystem) extends TestKit(_system)
         | Then check that number of messages successfully processed has not been incremented.
         | Verify that lastHeartbeatOn has been updated.""".stripMargin) {
 
-      val msgStatsBefore = getEchoMessageActorStats(echoMessageActor)
+      val msgStatsBefore = getMessageActorStats(echoMessageActor)
 
       val request = Message[String]("CIAO MUNDO!")
 
@@ -201,9 +203,15 @@ class ActorSpec(_system: ActorSystem) extends TestKit(_system)
     scenario("""Create a new Actor and send some messages that will trigger failures. 
         |The actor has an Supervision policy to restart it. Thus the MessageStats should be reset after the failure""".stripMargin) {
 
+      val requestCount = 10
+      for (i <- 1 to requestCount) {
+        echoMessageActor ! Message[String]("CIAO MUNDO #" + i)
+      }
+
       val now = System.currentTimeMillis()
+      Thread.sleep(10l)
       echoMessageActor ! Message[Exception](data = new Exception("Testing Message Failure"))
-      val msgStats = getEchoMessageActorStats(echoMessageActor)
+      val msgStats = getMessageActorStats(echoMessageActor)
 
       msgStats.actorCreatedOn should be >= now
       msgStats.messageCount should be(0)
@@ -217,44 +225,36 @@ class ActorSpec(_system: ActorSystem) extends TestKit(_system)
         |The Actor should have supervision strategy to resume. 
         |Thus, the message count should have increased, but lastMessageProcessedOn should not have changed.""".stripMargin) {
 
-      pending
+      val supervisorStrategy = getEchoMessageActorSupervisorStrategy(echoMessageActorWithResumeSupervisorStrategy)
+      println(s"echoMessageActorWithResumeSupervisorStrategy.supervisorStrategy = $supervisorStrategy")
+      supervisorStrategy should be(ActorSpec.resumeStrategy)
 
-      //      val msgStatsBefore = getEchoMessageActorStats(echoMessageActorWithResumeSupervisorStrategy)
-      //      val supervisorStrategy = getEchoMessageActorSupervisorStrategy(echoMessageActorWithResumeSupervisorStrategy)
-      //      println(s"echoMessageActorWithResumeSupervisorStrategy.supervisorStrategy = $supervisorStrategy")
-      //      supervisorStrategy should be(ActorSpec.resumeStrategy)
-      //
-      //      val request = Message[String]("CIAO MUNDO!")
-      //
-      //      val requestCount = 10
-      //      for (i <- 1 to requestCount) {
-      //        echoMessageActorWithResumeSupervisorStrategy ! request
-      //        expectMsgPF(100.millis) {
-      //          case msg: Message[_] =>
-      //            msg.data match {
-      //              case text: String =>
-      //                assert(request.data == text)
-      //            }
-      //        }
-      //      }
-      //
-      //      val now = System.currentTimeMillis()
-      //      Thread.sleep(10l)
-      //
-      //      val msgStatsBefore2 = getEchoMessageActorStats(echoMessageActorWithResumeSupervisorStrategy)
-      //      println(s"*** msgStatsBefore2 = $msgStatsBefore2")
-      //
-      //      echoMessageActorWithResumeSupervisorStrategy ! Message[Exception](data = new Exception("Testing Message Failure"))
-      //
-      //      val msgStats = getEchoMessageActorStats(echoMessageActorWithResumeSupervisorStrategy)
-      //      println(s"*** msgStats = $msgStats")
-      //
-      //      msgStats.actorCreatedOn should be(msgStatsBefore2.actorCreatedOn)
-      //      msgStats.messageCount should be(msgStatsBefore2.messageCount + 1)
-      //      msgStats.lastHeartbeatOn should be(msgStatsBefore2.lastHeartbeatOn)
-      //      msgStats.lastMessageProcessedOn should be(msgStatsBefore2.lastMessageProcessedOn)
-      //      msgStats.lastMessageReceivedOn should be > msgStatsBefore2.lastMessageReceivedOn
+      val printer = system.actorFor("akka://%s/user/%s/Printer".format(system.name, echoMessageActorWithResumeSupervisorStrategyConfig.name))
+      val msgStatsBefore = getMessageActorStats(printer)
 
+      val requestCount = 10
+      for (i <- 1 to requestCount) {
+        printer ! Message[String]("CIAO MUNDO #" + i)
+      }
+
+      val now = System.currentTimeMillis()
+      Thread.sleep(10l)
+
+      val msgStatsBefore2 = getMessageActorStats(printer)
+      println(s"*** msgStatsBefore2 = $msgStatsBefore2")
+
+      printer ! Message[Exception](data = new Exception("Testing Message Failure"))
+
+      val msgStats = getMessageActorStats(printer)
+      println(s"*** msgStats = $msgStats")
+
+      msgStats.actorCreatedOn should be(msgStatsBefore2.actorCreatedOn)
+      msgStats.messageCount should be(msgStatsBefore2.messageCount + 1)
+      msgStats.lastHeartbeatOn should be(msgStatsBefore2.lastHeartbeatOn)
+      msgStats.lastMessageProcessedOn should be(msgStatsBefore2.lastMessageProcessedOn)
+      msgStats.lastMessageReceivedOn should be > msgStatsBefore2.lastMessageReceivedOn
+      msgStats.lastMessageFailedOn should be >= msgStats.lastMessageReceivedOn
+      msgStats.messageFailedCount should be(msgStatsBefore2.messageFailedCount + 1)
     }
 
   }

@@ -17,7 +17,7 @@ trait SystemMessageProcessing {
       case HeartbeatRequest =>
         processHeartbeat
       case GetMessageStats =>
-        processGetStats
+        processGetMessageStats
       case _ => log.warning("Received unknown SystemMessage : {}", sysMsg)
     }
   }
@@ -26,7 +26,7 @@ trait SystemMessageProcessing {
    * Sends a Message[MessageStats] reply back to the sender.
    * The response message gets logged
    */
-  def processGetStats(implicit message: Message[_]): Unit = {
+  def processGetMessageStats(implicit message: Message[_]): Unit = {
     val response = Message[MessageStats](
       data = messageStats,
       processingResults = message.processingResults.head.success :: message.processingResults.tail)

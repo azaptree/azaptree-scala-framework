@@ -22,7 +22,9 @@ case class MessageStats(
   messageCount: Long = 0l,
   lastMessageReceivedOn: Option[Long] = None,
   lastHeartbeatOn: Option[Long] = None,
-  lastMessageProcessedOn: Option[Long] = None) extends SystemMessage
+  lastMessageProcessedOn: Option[Long] = None,
+  messageFailedCount: Long = 0,
+  lastMessageFailedOn: Option[Long] = None) extends SystemMessage
 
 @SerialVersionUID(1L)
 case class MessageProcessedEvent(message: Message[_]) extends SystemMessage

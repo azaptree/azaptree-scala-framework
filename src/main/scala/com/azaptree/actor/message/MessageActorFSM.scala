@@ -37,7 +37,7 @@ abstract class MessageActorFSM(actorConfig: ActorConfig) extends ConfigurableAct
     with MessageLogging
     with MessageProcessor {
 
-  override val supervisorStrategy = actorConfig.superviorStrategy.getOrElse(SupervisorStrategy.defaultStrategy)
+  override val supervisorStrategy = actorConfig.supervisorStrategy.getOrElse(SupervisorStrategy.defaultStrategy)
 
   /**
    * Override to perform intialization when transitioning from Constructed -> Idle.
