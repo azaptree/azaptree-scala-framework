@@ -7,16 +7,17 @@ import scala.concurrent.duration.Duration
 import akka.actor.ActorPath
 
 /**
+ * The intent for messageHeaders is similar to HTTP headers.
+ *
  * processingResults is the list of ProcessingResults from the Actor processing chain,
  * where the head of the list is ProcessingResult of the last Actor that received the message
  */
+@SerialVersionUID(1L)
 case class Message[A](
     data: A,
-    properties: MessageProperties = MessageProperties(),
-    header: Option[MessageHeader] = None,
-    deliveryAnnotations: Option[Map[Symbol, Any]] = None,
-    messageAnnotations: Option[Map[Symbol, Any]] = None,
-    applicationProperties: Option[Map[Symbol, Any]] = None,
+    messageId: UUID = UUID.randomUUID,
+    createdOn: Long = System.currentTimeMillis,
+    messageHeaders: Option[Map[Symbol, Any]] = None,
     processingResults: List[ProcessingResult] = Nil) {
 
   /**
@@ -36,17 +37,7 @@ case class Message[A](
   }
 }
 
-case class MessageProperties(messageId: UUID = UUID.randomUUID, createdOn: Long = System.currentTimeMillis)
-
-/**
- * Higher the priorty value, the higher the priority.
- */
-case class MessageHeader(
-  durable: Boolean = false,
-  priority: Byte = 0,
-  deliveryCount: Int = 0,
-  ttl: Duration = Duration.Inf)
-
+@SerialVersionUID(1L)
 case class ProcessingResult(
     actorPath: ActorPath,
     status: Option[MessageStatus] = None,
@@ -75,8 +66,10 @@ case class ProcessingResult(
 
 }
 
+@SerialVersionUID(1L)
 case class MessageStatus(code: Int = 0, message: String = "success")
 
+@SerialVersionUID(1L)
 case class MessageProcessingMetrics(receivedOn: Long = System.currentTimeMillis, lastUpdatedOn: Option[Long] = None) {
   def updated = copy(lastUpdatedOn = Some(System.currentTimeMillis))
 

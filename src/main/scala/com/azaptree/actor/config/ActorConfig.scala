@@ -3,6 +3,7 @@ package com.azaptree.actor.config
 import akka.actor.Address
 import akka.actor.Props
 
+@SerialVersionUID(1L)
 case class ActorConfig(
     name: String,
     routedTo: Boolean = false,

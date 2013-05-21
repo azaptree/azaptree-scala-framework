@@ -21,6 +21,7 @@ trait MessageProcessor {
       messageReceived()
       try {
         processMessage(message.data)(message)
+        messageProcessed()
         val metrics = message.processingResults.head.metrics.updated
         if (message.processingResults.head.status.isDefined) {
           logMessage(message.update(metrics = metrics))

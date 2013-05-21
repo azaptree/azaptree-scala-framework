@@ -27,9 +27,8 @@ trait SystemMessageProcessing {
    * The response message gets logged
    */
   def processGetStats(implicit message: Message[_]): Unit = {
-    val responseData = MessageStats(messageCount, lastMessageReceivedOn, lastHeartbeatOn)
     val response = Message[MessageStats](
-      data = responseData,
+      data = messageStats,
       processingResults = message.processingResults.head.success :: message.processingResults.tail)
     sender ! response
     logMessage(response)
