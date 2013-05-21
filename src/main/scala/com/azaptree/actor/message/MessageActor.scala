@@ -7,6 +7,7 @@ import akka.actor.actorRef2Scala
 import com.azaptree.actor.message.system._
 import com.azaptree.actor.ConfigurableActor
 import com.azaptree.actor.config.ActorConfig
+import akka.actor.SupervisorStrategy
 
 /**
  * Only supports messages of type: com.azaptree.actors.message.Message
@@ -33,6 +34,8 @@ abstract class MessageActor(actorConfig: ActorConfig) extends ConfigurableActor(
     with SystemMessageProcessing
     with MessageLogging
     with MessageProcessor {
+
+  override val supervisorStrategy = actorConfig.superviorStrategy.getOrElse(SupervisorStrategy.defaultStrategy)
 
   val executeReceive: Receive = {
     if (actorConfig.loggingReceive) {

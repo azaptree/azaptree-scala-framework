@@ -9,6 +9,7 @@ import akka.actor.Stash
 import akka.actor.actorRef2Scala
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.ConfigurableActor
+import akka.actor.SupervisorStrategy
 
 /**
  * Only supports messages of types:
@@ -35,6 +36,8 @@ abstract class MessageActorFSM(actorConfig: ActorConfig) extends ConfigurableAct
     with SystemMessageProcessing
     with MessageLogging
     with MessageProcessor {
+
+  override val supervisorStrategy = actorConfig.superviorStrategy.getOrElse(SupervisorStrategy.defaultStrategy)
 
   /**
    * Override to perform intialization when transitioning from Constructed -> Idle.
