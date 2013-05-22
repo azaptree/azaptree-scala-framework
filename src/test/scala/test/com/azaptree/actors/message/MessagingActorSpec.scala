@@ -28,6 +28,8 @@ import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import com.azaptree.actor.config.ActorConfig
 import akka.actor.ActorSelection
+import com.azaptree.actor.message.system.GetActorConfig
+import scala.concurrent.Future
 
 object ActorSpec {
 
@@ -261,7 +263,10 @@ class ActorSpec(_system: ActorSystem) extends TestKit(_system)
 
   feature("""The ActorConfig can be requested by sending a message to the Actor""") {
     scenario("Send an Actor a GetConfig message") {
-      pending
+      import akka.pattern._
+      val future = ask(echoMessageActor, Message[GetActorConfig.type](data = GetActorConfig)).mapTo[Message[ActorConfig]]
+      val actorConfig = Await.result(future, 100.millis)
+      actorConfig.data.name should be(this.actorConfig.name)
     }
   }
 

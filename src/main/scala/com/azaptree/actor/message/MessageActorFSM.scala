@@ -30,7 +30,9 @@ import akka.actor.SupervisorStrategy
  * @author alfio
  *
  */
-abstract class MessageActorFSM(actorConfig: ActorConfig) extends ConfigurableActor(actorConfig)
+abstract class MessageActorFSM(config: ActorConfig) extends {
+  override val actorConfig = config
+} with ConfigurableActor
     with Stash
     with FSM[State, Any]
     with SystemMessageProcessing

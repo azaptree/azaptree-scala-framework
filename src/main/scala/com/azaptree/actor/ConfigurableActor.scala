@@ -6,7 +6,9 @@ import com.azaptree.actor.config.ActorConfig
 import akka.routing.NoRouter
 import akka.actor.actorRef2Scala
 
-abstract class ConfigurableActor(actorConfig: ActorConfig) extends Actor {
+trait ConfigurableActor extends Actor {
+
+  def actorConfig: ActorConfig
 
   /**
    * Used to send messages to other Actors.

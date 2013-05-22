@@ -8,9 +8,12 @@ import com.azaptree.actor.message.system.MessageStats
 import com.azaptree.actor.message.system.SystemMessage
 import akka.actor.ActorLogging
 import com.azaptree.actor.message.system.MessageProcessedEvent
+import com.azaptree.actor.ConfigurableActor
+import com.azaptree.actor.message.system.GetActorConfig
+import com.azaptree.actor.config.ActorConfig
 
 trait SystemMessageProcessing {
-  self: Actor with ActorLogging with MessageLogging =>
+  self: ConfigurableActor with ActorLogging with MessageLogging =>
 
   def processSystemMessage(sysMsg: SystemMessage)(implicit message: Message[_]): Unit = {
     sysMsg match {
@@ -18,8 +21,22 @@ trait SystemMessageProcessing {
         processHeartbeat
       case GetMessageStats =>
         processGetMessageStats
+      case GetActorConfig =>
+        processGetActorConfig
       case _ => log.warning("Received unknown SystemMessage : {}", sysMsg)
     }
+  }
+
+  /**
+   * Sends a Message[MessageStats] reply back to the sender.
+   * The response message gets logged
+   */
+  def processGetActorConfig(implicit message: Message[_]): Unit = {
+    val response = Message[ActorConfig](
+      data = actorConfig,
+      processingResults = message.processingResults.head.success :: message.processingResults.tail)
+    sender ! response
+    logMessage(response)
   }
 
   /**

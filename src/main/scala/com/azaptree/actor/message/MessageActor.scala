@@ -29,7 +29,9 @@ import akka.actor.SupervisorStrategy
  * @author alfio
  *
  */
-abstract class MessageActor(actorConfig: ActorConfig) extends ConfigurableActor(actorConfig)
+abstract class MessageActor(config: ActorConfig) extends {
+  override val actorConfig = config
+} with ConfigurableActor
     with ActorLogging
     with SystemMessageProcessing
     with MessageLogging

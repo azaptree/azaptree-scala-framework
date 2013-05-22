@@ -5,13 +5,16 @@ import com.azaptree.actor.message.Message
 sealed trait SystemMessage
 
 @SerialVersionUID(1L)
-case object HeartbeatRequest extends SystemMessage {}
+case object HeartbeatRequest extends SystemMessage
 
 @SerialVersionUID(1L)
-case object HeartbeatResponse extends SystemMessage {}
+case object HeartbeatResponse extends SystemMessage
 
 @SerialVersionUID(1L)
-case object GetMessageStats extends SystemMessage {}
+case object GetMessageStats extends SystemMessage
+
+@SerialVersionUID(1L)
+case object GetActorConfig extends SystemMessage
 
 /**
  * Response message for GetStats
