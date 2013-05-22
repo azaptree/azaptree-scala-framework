@@ -1,21 +1,28 @@
 package test.com.azaptree.actors.message
 
 import scala.concurrent.Await
+import scala.concurrent.Future
 import scala.concurrent.duration._
+
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
 import org.scalatest.matchers.ShouldMatchers
+
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfig
+import com.azaptree.actor.config.ActorConfig
+import com.azaptree.actor.message._
 import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.MessageActor
 import com.azaptree.actor.message.MessageProcessor
+import com.azaptree.actor.message.system.GetActorConfig
 import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.MessageStats
+
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.OneForOneStrategy
@@ -26,31 +33,26 @@ import akka.pattern._
 import akka.testkit.DefaultTimeout
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
-import com.azaptree.actor.config.ActorConfig
-import akka.actor.ActorSelection
-import com.azaptree.actor.message.system.GetActorConfig
-import scala.concurrent.Future
 
 object ActorSpec {
 
   import akka.actor.SupervisorStrategy._
 
   val resumeStrategy = OneForOneStrategy(maxNrOfRetries = Int.MaxValue, withinTimeRange = Duration.Inf) {
+    case e: IllegalStateException => Restart
     case _ => Resume
   }
 
   case object GetSupervisorStrategy
 
   class Printer(actorConfig: ActorConfig) extends MessageActor(actorConfig) {
-    override protected[this] def processMessage(messageData: Any)(implicit message: Message[_]) = {
-      import com.azaptree.actor.message._
-      messageData match {
-        case msg: String =>
-          val path = self.path
-          println(s"$path : msg = $msg")
-        case e: Exception =>
-          throw e
-      }
+
+    messageProcessingBuilder += {
+      case Message(msg: String, _) =>
+        val path = self.path
+        println(s"$path : msg = $msg")
+      case Message(e: Exception, _) =>
+        throw e
     }
   }
 
@@ -62,18 +64,20 @@ object ActorSpec {
       printerActor = context.actorOf(Props(new Printer(actorConfig)), actorConfig.name)
     }
 
-    override protected[this] def processMessage(messageData: Any)(implicit message: Message[_]) = {
-      import com.azaptree.actor.message._
-      messageData match {
-        case msg: String =>
-          message.update(SUCCESS_MESSAGE_STATUS)
-          tell(sender, message)
-        case e: Exception =>
-          throw e
-        case GetSupervisorStrategy => tell(sender, Message[SupervisorStrategy](data = supervisorStrategy))
-      }
+    messageProcessingBuilder += {
+      case message @ Message(msg: String, _) =>
+        message.update(SUCCESS_MESSAGE_STATUS)
+        tell(sender, message)
+      case Message(e: Exception, _) =>
+        throw e
+      case Message(GetSupervisorStrategy, _) => tell(sender, Message[SupervisorStrategy](data = supervisorStrategy))
     }
+
   }
+
+  //  class MessageLoggingTracker(actorConfig:ActorConfig)extends MessageActor(actorConfig){
+  //    
+  //  }
 
 }
 
@@ -244,7 +248,7 @@ class ActorSpec(_system: ActorSystem) extends TestKit(_system)
 
       val msgStatsBefore2 = getMessageActorStats(printer)
       println(s"*** msgStatsBefore2 = $msgStatsBefore2")
-
+      Thread.sleep(10l)
       printer ! Message[Exception](data = new Exception("Testing Message Failure"))
 
       val msgStats = getMessageActorStats(printer)

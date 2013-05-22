@@ -50,14 +50,15 @@ abstract class MessageActorFSM(config: ActorConfig) extends {
 
   /**
    * If the Message.data is a SystemMessage, then process it.
-   * Otherwise, stah the message until we transition over to the "Running" state
+   * Otherwise, stash the message until we transition over to the "Running" state
    *
    */
   def stashMessage(msg: Message[_]): State = {
-    implicit val message = msg.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.processingResults)
+    val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.metadata.processingResults)
+    val message = msg.copy(metadata = updatedMetadata)
     message.data match {
       case sysMsg: SystemMessage =>
-        processSystemMessage(sysMsg)
+        processSystemMessage(msg.asInstanceOf[Message[SystemMessage]])
       case _ =>
         stash()
     }

@@ -61,6 +61,6 @@ abstract class MessageActor(config: ActorConfig) extends {
    * If the message is successfully processed, i.e., no exception is thrown, but the Message status is None, then the Message status will be set to SUCCESS_MESSAGE_STATUS.
    *
    */
-  override def receive = { executeReceive }
+  override final def receive = { executeReceive }
 
 }

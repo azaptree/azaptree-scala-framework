@@ -15,24 +15,43 @@ import akka.actor.ActorPath
 @SerialVersionUID(1L)
 case class Message[A](
     data: A,
-    messageId: UUID = UUID.randomUUID,
+    metadata: MessageMetadata = MessageMetadata()) {
+
+  /**
+   * updates the metrics as well, i.e., updates metrics.lastUpdatedOn
+   */
+  def update(status: MessageStatus): Message[A] = {
+    copy(metadata = metadata.update(status))
+  }
+
+  def update(status: MessageStatus, metrics: MessageProcessingMetrics): Message[A] = {
+    copy(metadata = metadata.update(status, metrics))
+  }
+
+  def update(metrics: MessageProcessingMetrics): Message[A] = {
+    copy(metadata = metadata.update(metrics))
+  }
+}
+
+@SerialVersionUID(1L)
+case class MessageMetadata(messageId: UUID = UUID.randomUUID,
     createdOn: Long = System.currentTimeMillis,
     messageHeaders: Option[Map[Symbol, Any]] = None,
     processingResults: List[ProcessingResult] = Nil) {
 
   /**
-   * updates the metrics as well, using the current time to compute the processingTime
+   * updates the metrics as well, i.e., updates metrics.lastUpdatedOn
    */
-  def update(status: MessageStatus): Message[A] = {
+  def update(status: MessageStatus): MessageMetadata = {
     val metrics = processingResults.head.metrics.updated
     update(status, metrics)
   }
 
-  def update(status: MessageStatus, metrics: MessageProcessingMetrics): Message[A] = {
+  def update(status: MessageStatus, metrics: MessageProcessingMetrics): MessageMetadata = {
     copy(processingResults = processingResults.head.copy(status = Some(status), metrics = metrics) :: processingResults.tail)
   }
 
-  def update(metrics: MessageProcessingMetrics): Message[A] = {
+  def update(metrics: MessageProcessingMetrics): MessageMetadata = {
     copy(processingResults = processingResults.head.copy(metrics = metrics) :: processingResults.tail)
   }
 }

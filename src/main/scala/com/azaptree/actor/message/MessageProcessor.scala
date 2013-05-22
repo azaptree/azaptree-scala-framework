@@ -3,47 +3,109 @@ package com.azaptree.actor.message
 import com.azaptree.actor.ConfigurableActor
 import com.azaptree.actor.message.system.SystemMessage
 import akka.actor.Actor
+import akka.actor.ActorLogging
 
 trait MessageProcessor {
-  selfActor: ConfigurableActor with SystemMessageProcessing with MessageLogging =>
+  selfActor: ConfigurableActor with SystemMessageProcessing with MessageLogging with ActorLogging =>
+
+  protected lazy val messageProcessingBuilder = new PartialFunctionBuilder[Message[_], Unit]
 
   /**
-   * Sub-classes override this method to provide the message handling logic.
+   * Sub-classes can override this method to provide the message handling logic.
    *
    * The Message status should be updated by this method.
    * If not set, then it will be set to SUCCESS_MESSAGE_STATUS if no exception was thrown, and set to ERROR_MESSAGE_STATUS if this method throws an Exception.
    *
    */
-  protected[this] def processMessage(messageData: Any)(implicit message: Message[_]): Unit
+  def processMessage: PartialFunction[Message[_], Unit] = messageProcessingBuilder.result
 
-  def process(implicit msg: Message[_]): Unit = {
-    def execute(implicit message: Message[_]) = {
+  //  var processMessage: PartialFunction[Message[_], Unit] = _
+  //
+  //  override def preStart(): Unit = {
+  //    processMessage = messageProcessingBuilder.result
+  //  }
+
+  /**
+   * All exceptions are bubbled up to be handled by the SupervisorStrategy.
+   * Exceptions that occur while processing SystemMessages will be wrapped in a SystemMessageProcessingException,
+   * to enable detection and separate error handling for system message processing failures.
+   */
+  def process(msg: Message[_]): Unit = {
+
+    def handleMessage(message: Message[_]) = {
       messageReceived()
       try {
-        processMessage(message.data)(message)
+        processMessage(message)
         messageProcessed()
-        val metrics = message.processingResults.head.metrics.updated
-        if (message.processingResults.head.status.isDefined) {
-          logMessage(message.update(metrics = metrics))
-        } else {
-          logMessage(message.update(status = SUCCESS_MESSAGE_STATUS, metrics = metrics))
+        if (!message.metadata.processingResults.head.status.isDefined) {
+          logMessage(message.update(status = SUCCESS_MESSAGE_STATUS))
         }
       } catch {
         case e: Exception =>
           messageFailed()
-          val metrics = message.processingResults.head.metrics.updated
-          logMessage(message.update(status = ERROR_MESSAGE_STATUS, metrics = metrics))
+          logMessage(message.update(status = ERROR_MESSAGE_STATUS))
           throw e
       }
     }
 
-    implicit val message = msg.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.processingResults)
+    def handleSystemMessage(message: Message[SystemMessage]) = {
+      try {
+        processSystemMessage(message)
+        if (!message.metadata.processingResults.head.status.isDefined) {
+          log.info("{}", message.update(status = SUCCESS_MESSAGE_STATUS))
+        }
+      } catch {
+        case e: SystemMessageProcessingException =>
+          log.info("{}", message.update(status = ERROR_MESSAGE_STATUS))
+          throw e
+        case e: Exception =>
+          log.info("{}", message.update(status = ERROR_MESSAGE_STATUS))
+          throw new SystemMessageProcessingException(e)
+      }
+    }
+
+    val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.metadata.processingResults)
+    val message = msg.copy(metadata = updatedMetadata)
     message.data match {
       case sysMsg: SystemMessage =>
-        processSystemMessage(sysMsg)(message)
+        handleSystemMessage(message.asInstanceOf[Message[SystemMessage]])
       case _ =>
-        execute(message)
+        handleMessage(message)
     }
   }
 
 }
+
+class SystemMessageProcessingException(cause: Throwable) extends RuntimeException(cause) {}
+
+class PartialFunctionBuilder[A, B] {
+  import scala.collection.immutable.Vector
+
+  // Abbreviate to make code fit
+  type PF = PartialFunction[A, B]
+
+  private var pfsOption: Option[Vector[PF]] = Some(Vector.empty)
+
+  var processMessage: Option[PF] = None
+
+  private def mapPfs[C](f: Vector[PF] ⇒ (Option[Vector[PF]], C)): C = {
+    pfsOption.fold(throw new IllegalStateException("Already built"))(f) match {
+      case (newPfsOption, result) ⇒ {
+        pfsOption = newPfsOption
+        result
+      }
+    }
+  }
+
+  def +=(pf: PF): Unit =
+    mapPfs { case pfs ⇒ (Some(pfs :+ pf), ()) }
+
+  def result: PF = {
+    processMessage.getOrElse {
+      val pf = mapPfs { case pfs ⇒ (None, pfs.foldLeft[PF](Map.empty) { _ orElse _ }) }
+      processMessage = Some(pf)
+      pf
+    }
+  }
+}
+

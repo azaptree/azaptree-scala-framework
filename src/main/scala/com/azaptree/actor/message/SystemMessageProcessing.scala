@@ -15,8 +15,8 @@ import com.azaptree.actor.config.ActorConfig
 trait SystemMessageProcessing {
   self: ConfigurableActor with ActorLogging with MessageLogging =>
 
-  def processSystemMessage(sysMsg: SystemMessage)(implicit message: Message[_]): Unit = {
-    sysMsg match {
+  def processSystemMessage(implicit sysMsg: Message[SystemMessage]): Unit = {
+    sysMsg.data match {
       case HeartbeatRequest =>
         processHeartbeat
       case GetMessageStats =>
@@ -34,9 +34,8 @@ trait SystemMessageProcessing {
   def processGetActorConfig(implicit message: Message[_]): Unit = {
     val response = Message[ActorConfig](
       data = actorConfig,
-      processingResults = message.processingResults.head.success :: message.processingResults.tail)
+      metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
     sender ! response
-    logMessage(response)
   }
 
   /**
@@ -46,9 +45,8 @@ trait SystemMessageProcessing {
   def processGetMessageStats(implicit message: Message[_]): Unit = {
     val response = Message[MessageStats](
       data = messageStats,
-      processingResults = message.processingResults.head.success :: message.processingResults.tail)
+      metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
     sender ! response
-    logMessage(response)
   }
 
   /**
@@ -59,9 +57,8 @@ trait SystemMessageProcessing {
     lastHeartbeatOn = System.currentTimeMillis
     val response = Message[HeartbeatResponse.type](
       data = HeartbeatResponse,
-      processingResults = message.processingResults.head.success :: message.processingResults.tail)
+      metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
     sender ! response
-    logMessage(response)
   }
 
 }
