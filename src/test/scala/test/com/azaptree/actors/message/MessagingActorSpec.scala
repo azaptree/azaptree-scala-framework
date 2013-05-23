@@ -60,6 +60,7 @@ object ActorSpec {
     var printerActor: ActorRef = _
 
     override def preStart() = {
+      super.preStart()
       val actorConfig = ActorConfig("Printer")
       printerActor = context.actorOf(Props(new Printer(actorConfig)), actorConfig.name)
     }

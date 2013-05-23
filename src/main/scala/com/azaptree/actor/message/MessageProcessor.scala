@@ -8,6 +8,13 @@ import akka.actor.ActorLogging
 trait MessageProcessor {
   selfActor: ConfigurableActor with SystemMessageProcessing with MessageLogging with ActorLogging =>
 
+  /**
+   * Provides support to chain PartialFunctions for message processing.
+   *
+   * Subclasses will need to chain the partial functions using messageProcessingBuilder +=.
+   *
+   *
+   */
   protected lazy val messageProcessingBuilder = new PartialFunctionBuilder[Message[_], Unit]
 
   /**
@@ -17,13 +24,17 @@ trait MessageProcessor {
    * If not set, then it will be set to SUCCESS_MESSAGE_STATUS if no exception was thrown, and set to ERROR_MESSAGE_STATUS if this method throws an Exception.
    *
    */
-  def processMessage: PartialFunction[Message[_], Unit] = messageProcessingBuilder.result
 
-  //  var processMessage: PartialFunction[Message[_], Unit] = _
-  //
-  //  override def preStart(): Unit = {
-  //    processMessage = messageProcessingBuilder.result
-  //  }
+  var processMessage: PartialFunction[Message[_], Unit] = _
+
+  /**
+   * Builds the PartialFunction[Message[_], Unit] for processMessage.
+   *
+   * If subclasses override this method, make sure to call super.preStart()
+   */
+  override def preStart(): Unit = {
+    processMessage = messageProcessingBuilder.result
+  }
 
   /**
    * All exceptions are bubbled up to be handled by the SupervisorStrategy.
@@ -81,12 +92,11 @@ class SystemMessageProcessingException(cause: Throwable) extends RuntimeExceptio
 class PartialFunctionBuilder[A, B] {
   import scala.collection.immutable.Vector
 
-  // Abbreviate to make code fit
   type PF = PartialFunction[A, B]
 
-  private var pfsOption: Option[Vector[PF]] = Some(Vector.empty)
+  private[this] var pfsOption: Option[Vector[PF]] = Some(Vector.empty)
 
-  var processMessage: Option[PF] = None
+  private[this] var processMessage: Option[PF] = None
 
   private def mapPfs[C](f: Vector[PF] ⇒ (Option[Vector[PF]], C)): C = {
     pfsOption.fold(throw new IllegalStateException("Already built"))(f) match {
@@ -102,6 +112,7 @@ class PartialFunctionBuilder[A, B] {
 
   def result: PF = {
     processMessage.getOrElse {
+      assert(pfsOption.isDefined && pfsOption.get.size > 0, "At least one PartialFunction is required")
       val pf = mapPfs { case pfs ⇒ (None, pfs.foldLeft[PF](Map.empty) { _ orElse _ }) }
       processMessage = Some(pf)
       pf
