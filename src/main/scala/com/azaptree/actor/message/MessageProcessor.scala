@@ -9,15 +9,6 @@ trait MessageProcessor {
   selfActor: ConfigurableActor with SystemMessageProcessing with MessageLogging with ActorLogging =>
 
   /**
-   * Provides support to chain PartialFunctions for message processing.
-   *
-   * Subclasses will need to chain the partial functions using messageProcessingBuilder +=.
-   *
-   *
-   */
-  protected lazy val messageProcessingBuilder = new PartialFunctionBuilder[Message[_], Unit]
-
-  /**
    * Sub-classes can override this method to provide the message handling logic.
    *
    * The Message status should be updated by this method.
@@ -25,16 +16,16 @@ trait MessageProcessor {
    *
    */
 
-  var processMessage: PartialFunction[Message[_], Unit] = _
+  def processMessage: PartialFunction[Message[_], Unit]
 
   /**
-   * Builds the PartialFunction[Message[_], Unit] for processMessage.
-   *
-   * If subclasses override this method, make sure to call super.preStart()
+   * default implementation is to throw an UnsupportedMessageTypeException
    */
-  override def preStart(): Unit = {
-    processMessage = messageProcessingBuilder.result
+  def handleUnsupportedMessageType: PartialFunction[Message[_], Unit] = {
+    case msg => throw new UnsupportedMessageTypeException(msg)
   }
+
+  val processApplicationMessage = processMessage orElse handleUnsupportedMessageType
 
   /**
    * All exceptions are bubbled up to be handled by the SupervisorStrategy.
@@ -46,7 +37,7 @@ trait MessageProcessor {
     def handleMessage(message: Message[_]) = {
       messageReceived()
       try {
-        processMessage(message)
+        processApplicationMessage(message)
         messageProcessed()
         if (!message.metadata.processingResults.head.status.isDefined) {
           logMessage(message.update(status = SUCCESS_MESSAGE_STATUS))
@@ -87,36 +78,11 @@ trait MessageProcessor {
 
 }
 
+/**
+ * Thrown when a SystemMessage processing exception occurs.
+ * This can be used by the SupervisorStrategy to identify and handle a SystemMessage processing exception accordingly.
+ */
 class SystemMessageProcessingException(cause: Throwable) extends RuntimeException(cause) {}
 
-class PartialFunctionBuilder[A, B] {
-  import scala.collection.immutable.Vector
-
-  type PF = PartialFunction[A, B]
-
-  private[this] var pfsOption: Option[Vector[PF]] = Some(Vector.empty)
-
-  private[this] var processMessage: Option[PF] = None
-
-  private def mapPfs[C](f: Vector[PF] ⇒ (Option[Vector[PF]], C)): C = {
-    pfsOption.fold(throw new IllegalStateException("Already built"))(f) match {
-      case (newPfsOption, result) ⇒ {
-        pfsOption = newPfsOption
-        result
-      }
-    }
-  }
-
-  def +=(pf: PF): Unit =
-    mapPfs { case pfs ⇒ (Some(pfs :+ pf), ()) }
-
-  def result: PF = {
-    processMessage.getOrElse {
-      assert(pfsOption.isDefined && pfsOption.get.size > 0, "At least one PartialFunction is required")
-      val pf = mapPfs { case pfs ⇒ (None, pfs.foldLeft[PF](Map.empty) { _ orElse _ }) }
-      processMessage = Some(pf)
-      pf
-    }
-  }
-}
+class UnsupportedMessageTypeException(msg: Message[_]) extends RuntimeException {}
 

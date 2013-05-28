@@ -47,7 +47,7 @@ object ActorSpec {
 
   class Printer(actorConfig: ActorConfig) extends MessageActor(actorConfig) {
 
-    messageProcessingBuilder += {
+    override def processMessage = {
       case Message(msg: String, _) =>
         val path = self.path
         println(s"$path : msg = $msg")
@@ -65,7 +65,7 @@ object ActorSpec {
       printerActor = context.actorOf(Props(new Printer(actorConfig)), actorConfig.name)
     }
 
-    messageProcessingBuilder += {
+    override def processMessage = {
       case message @ Message(msg: String, _) =>
         message.update(SUCCESS_MESSAGE_STATUS)
         tell(sender, message)
