@@ -68,7 +68,9 @@ trait MessageProcessor {
  * Thrown when a SystemMessage processing exception occurs.
  * This can be used by the SupervisorStrategy to identify and handle a SystemMessage processing exception accordingly.
  */
+@SerialVersionUID(1L)
 class SystemMessageProcessingException(cause: Throwable) extends RuntimeException(cause) {}
 
+@SerialVersionUID(1L)
 class UnsupportedMessageTypeException(msg: Message[_]) extends RuntimeException {}
 
