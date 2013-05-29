@@ -1,17 +1,17 @@
 package test.com.azaptree.actors.message
 
-import akka.testkit.TestKit
-import akka.testkit.ImplicitSender
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.matchers.ShouldMatchers
-import akka.testkit.DefaultTimeout
 import org.scalatest.FeatureSpec
+import org.scalatest.matchers.ShouldMatchers
+
 import akka.actor.ActorSystem
-import scala.reflect.internal.util.StripMarginInterpolator
+import akka.testkit.DefaultTimeout
+import akka.testkit.ImplicitSender
+import akka.testkit.TestKit
 
 class MessageLoggingSpec(_system: ActorSystem) extends TestKit(_system)
-  with DefaultTimeout with ImplicitSender
-  with FeatureSpec with ShouldMatchers with BeforeAndAfterAll {
+    with DefaultTimeout with ImplicitSender
+    with FeatureSpec with ShouldMatchers with BeforeAndAfterAll {
 
   def this() = this(ActorSystem("MessageLoggingSpec"))
 
