@@ -23,7 +23,6 @@ trait MessageLogging {
    * logs the message, and then publishes a MessageEvent to the ActorSystem event stream
    */
   def logMessage(msg: Message[_]) = {
-    log.info("{}", msg)
     context.system.eventStream.publish(MessageProcessedEvent(msg))
   }
 

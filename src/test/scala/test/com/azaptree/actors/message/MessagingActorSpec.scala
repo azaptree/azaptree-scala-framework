@@ -1,40 +1,44 @@
 package test.com.azaptree.actors.message
 
 import scala.concurrent.Await
-import scala.concurrent.Future
-import scala.concurrent.duration._
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
 
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
 import org.scalatest.matchers.ShouldMatchers
 
 import com.azaptree.actor.config.ActorConfig
-import com.azaptree.actor.config.ActorConfig
-import com.azaptree.actor.config.ActorConfig
-import com.azaptree.actor.message._
-import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.MessageActor
-import com.azaptree.actor.message.MessageProcessor
+import com.azaptree.actor.message.SUCCESS_MESSAGE_STATUS
 import com.azaptree.actor.message.system.GetActorConfig
 import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.HeartbeatResponse
-import com.azaptree.actor.message.system.HeartbeatResponse
+import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.actor.message.system.MessageStats
 
+import akka.actor.Actor
+import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.OneForOneStrategy
-import akka.actor.OneForOneStrategy
 import akka.actor.Props
 import akka.actor.SupervisorStrategy
-import akka.pattern._
+import akka.actor.SupervisorStrategy.Restart
+import akka.actor.SupervisorStrategy.Resume
+import akka.actor.actorRef2Scala
+import akka.pattern.ask
 import akka.testkit.DefaultTimeout
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
+import com.azaptree.actor.message.system.GetActorConfig
+import com.azaptree.actor.message.system.GetMessageStats
+import com.azaptree.actor.message.system.HeartbeatRequest
+import test.com.azaptree.actors.message.MessagingActorSpec
 
-object ActorSpec {
+object MessagingActorSpec {
 
   import akka.actor.SupervisorStrategy._
 
@@ -76,27 +80,38 @@ object ActorSpec {
 
   }
 
-  //  class MessageLoggingTracker(actorConfig:ActorConfig)extends MessageActor(actorConfig){
-  //    
-  //  }
+  class MessageLoggingTracker extends Actor with ActorLogging {
+    var messageProcessedEventCount = 0
+
+    override def receive = {
+      case msg: MessageProcessedEvent =>
+        messageProcessedEventCount += 1
+        log.info("{} : {}", messageProcessedEventCount, msg)
+      case 'reset => messageProcessedEventCount = 0
+      case 'getCount => sender ! messageProcessedEventCount
+    }
+  }
 
 }
 
-class ActorSpec(_system: ActorSystem) extends TestKit(_system)
-    with DefaultTimeout with ImplicitSender
-    with FeatureSpec with ShouldMatchers with BeforeAndAfterAll {
+class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
+  with DefaultTimeout with ImplicitSender
+  with FeatureSpec with ShouldMatchers with BeforeAndAfterAll {
 
-  def this() = this(ActorSystem("ActorSpec"))
+  def this() = this(ActorSystem("MessagingActorSpec"))
 
   override def afterAll() = {
     system.shutdown()
   }
 
   val actorConfig = ActorConfig("EchoMessageActor")
-  val echoMessageActor = system.actorOf(Props(new ActorSpec.EchoMessageActor(actorConfig)), actorConfig.name)
+  val echoMessageActor = system.actorOf(Props(new MessagingActorSpec.EchoMessageActor(actorConfig)), actorConfig.name)
 
-  val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(name = "echoMessageActorWithResumeSupervisorStrategy", supervisorStrategy = Some(ActorSpec.resumeStrategy))
-  val echoMessageActorWithResumeSupervisorStrategy = system.actorOf(Props(new ActorSpec.EchoMessageActor(echoMessageActorWithResumeSupervisorStrategyConfig)), echoMessageActorWithResumeSupervisorStrategyConfig.name)
+  val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(name = "echoMessageActorWithResumeSupervisorStrategy", supervisorStrategy = Some(MessagingActorSpec.resumeStrategy))
+  val echoMessageActorWithResumeSupervisorStrategy = system.actorOf(Props(new MessagingActorSpec.EchoMessageActor(echoMessageActorWithResumeSupervisorStrategyConfig)), echoMessageActorWithResumeSupervisorStrategyConfig.name)
+
+  val messageLogger = system.actorOf(Props[MessagingActorSpec.MessageLoggingTracker], "MessageLoggingTracker")
+  system.eventStream.subscribe(messageLogger, classOf[MessageProcessedEvent])
 
   def getMessageActorStats(actor: ActorRef): MessageStats = {
     val messageStatsFuture = ask(actor, Message[GetMessageStats.type](GetMessageStats)).mapTo[Message[MessageStats]]
@@ -105,8 +120,8 @@ class ActorSpec(_system: ActorSystem) extends TestKit(_system)
   }
 
   def getEchoMessageActorSupervisorStrategy(actor: ActorRef): SupervisorStrategy = {
-    val future = ask(actor, Message[ActorSpec.GetSupervisorStrategy.type](ActorSpec.GetSupervisorStrategy)).mapTo[Message[SupervisorStrategy]]
     implicit val dispatcher = system.dispatcher
+    val future = ask(actor, Message[MessagingActorSpec.GetSupervisorStrategy.type](MessagingActorSpec.GetSupervisorStrategy)).mapTo[Message[SupervisorStrategy]]
     Await.result(future, 100 millis).data
   }
 
@@ -234,7 +249,7 @@ class ActorSpec(_system: ActorSystem) extends TestKit(_system)
 
       val supervisorStrategy = getEchoMessageActorSupervisorStrategy(echoMessageActorWithResumeSupervisorStrategy)
       println(s"echoMessageActorWithResumeSupervisorStrategy.supervisorStrategy = $supervisorStrategy")
-      supervisorStrategy should be(ActorSpec.resumeStrategy)
+      supervisorStrategy should be(MessagingActorSpec.resumeStrategy)
 
       val printer = system.actorFor("akka://%s/user/%s/Printer".format(system.name, echoMessageActorWithResumeSupervisorStrategyConfig.name))
       val msgStatsBefore = getMessageActorStats(printer)
@@ -277,38 +292,33 @@ class ActorSpec(_system: ActorSystem) extends TestKit(_system)
 
   feature("An Actor will log all messages that are received with processing metrics") {
     scenario("Send an Actor some application messages and check that they are logged.") {
-      pending
+      implicit val dispatcher = system.dispatcher
+
+      messageLogger ! 'reset
+      import akka.pattern._
+
+      Await.result(ask(messageLogger, 'getCount).mapTo[Int], 100 millis) should be(0)
+
+      val echoedMessage = ask(echoMessageActor, Message("An Actor will log all messages that are received with processing metrics")).mapTo[Message[String]]
+      Await.result(echoedMessage, 100.millis)
+      Thread.sleep(10l);
+
+      Await.result(ask(messageLogger, 'getCount).mapTo[Int], 100 millis) should be(1)
+
+      for (i <- 1 to 10) {
+        echoMessageActor ! Message(i.toString)
+      }
+      Thread.sleep(10l);
+
+      Await.result(ask(messageLogger, 'getCount).mapTo[Int], 100 millis) should be(11)
     }
 
-    scenario("Send an Actor some system messages and check that they are logged.") {
-      pending
-    }
-  }
-
-  feature("An ActorSystem can be configured to log to a database") {
-    scenario("Send an Actor some messages, then try to find them in the database") {
-      pending
-    }
-  }
-
-  feature("An ActorSystem can be configured to log all DeadLetters") {
-    scenario("Send a msg to a non-existent Actor, which will cause the message to be sent to published as a DeadLetter") {
-      pending
-    }
-
-    scenario("The ActorSystem is configured to log the dead letters to a database") {
-      pending
-    }
-  }
-
-  feature("Actors will publish MessageProcessedEvents to the ActorSystem's event stream") {
-    scenario("""Create an Actor that subscribes to MessageEvents. 
-        |Then send messages to another Actor, and check that MessageEvent's are published for each message """.stripMargin) {
+    scenario("Send an Actor some system messages and check that they are not logged.") {
       pending
     }
   }
 
-  feature("""Actors will register with an ActorRegistry as when started/restarted and unregister when stopped""") {
+  feature("""Actors will register with an ActorRegistry when started/restarted and unregister when stopped""") {
     scenario("Create an Actor and check that is has registered") {
       pending
     }

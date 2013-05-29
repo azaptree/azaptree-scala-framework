@@ -15,15 +15,22 @@ import com.azaptree.actor.config.ActorConfig
 trait SystemMessageProcessing {
   self: ConfigurableActor with ActorLogging with MessageLogging =>
 
-  def processSystemMessage(implicit sysMsg: Message[SystemMessage]): Unit = {
-    sysMsg.data match {
-      case HeartbeatRequest =>
-        processHeartbeat
-      case GetMessageStats =>
-        processGetMessageStats
-      case GetActorConfig =>
-        processGetActorConfig
-      case _ => log.warning("Received unknown SystemMessage : {}", sysMsg)
+  def processSystemMessage(implicit message: Message[SystemMessage]) = {
+    try {
+      message.data match {
+        case HeartbeatRequest => processHeartbeat
+        case GetMessageStats => processGetMessageStats
+        case GetActorConfig => processGetActorConfig
+        case _ => log.warning("Received unknown SystemMessage : {}", message)
+      }
+      log.debug("{}", message.update(status = SUCCESS_MESSAGE_STATUS))
+    } catch {
+      case e: SystemMessageProcessingException =>
+        log.error("{}", message.update(status = ERROR_MESSAGE_STATUS))
+        throw e
+      case e: Exception =>
+        log.error("{}", message.update(status = ERROR_MESSAGE_STATUS))
+        throw new SystemMessageProcessingException(e)
     }
   }
 

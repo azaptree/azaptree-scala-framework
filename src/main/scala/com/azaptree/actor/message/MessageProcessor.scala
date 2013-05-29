@@ -41,6 +41,8 @@ trait MessageProcessor {
         messageProcessed()
         if (!message.metadata.processingResults.head.status.isDefined) {
           logMessage(message.update(status = SUCCESS_MESSAGE_STATUS))
+        } else {
+          logMessage(message)
         }
       } catch {
         case e: Exception =>
@@ -50,30 +52,14 @@ trait MessageProcessor {
       }
     }
 
-    def handleSystemMessage(message: Message[SystemMessage]) = {
-      try {
-        processSystemMessage(message)
-        if (!message.metadata.processingResults.head.status.isDefined) {
-          log.info("{}", message.update(status = SUCCESS_MESSAGE_STATUS))
-        }
-      } catch {
-        case e: SystemMessageProcessingException =>
-          log.info("{}", message.update(status = ERROR_MESSAGE_STATUS))
-          throw e
-        case e: Exception =>
-          log.info("{}", message.update(status = ERROR_MESSAGE_STATUS))
-          throw new SystemMessageProcessingException(e)
-      }
-    }
-
     val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.metadata.processingResults)
     val message = msg.copy(metadata = updatedMetadata)
-    message.data match {
-      case sysMsg: SystemMessage =>
-        handleSystemMessage(message.asInstanceOf[Message[SystemMessage]])
-      case _ =>
-        handleMessage(message)
+
+    message match {
+      case m @ Message(sysMsg: SystemMessage, _) => processSystemMessage(message.asInstanceOf[Message[SystemMessage]])
+      case _ => handleMessage(message)
     }
+
   }
 
 }
