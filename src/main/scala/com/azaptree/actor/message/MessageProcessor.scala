@@ -19,10 +19,14 @@ trait MessageProcessor {
   def processMessage: PartialFunction[Message[_], Unit]
 
   /**
-   * default implementation is to throw an UnsupportedMessageTypeException
+   * default implementation is to log the message with an unsupportedMessageTypeError MessageStatus and throw an UnsupportedMessageTypeException,
+   * which will then be handled by the SupervisorStrategy.
+   *
    */
   def handleUnsupportedMessageType: PartialFunction[Message[_], Unit] = {
-    case msg => throw new UnsupportedMessageTypeException(msg)
+    case msg =>
+      logMessage(msg.update(unsupportedMessageTypeError(msg)))
+      throw new UnsupportedMessageTypeException(msg)
   }
 
   val processApplicationMessage = processMessage orElse handleUnsupportedMessageType
@@ -72,5 +76,7 @@ trait MessageProcessor {
 class SystemMessageProcessingException(cause: Throwable) extends RuntimeException(cause) {}
 
 @SerialVersionUID(1L)
-class UnsupportedMessageTypeException(msg: Message[_]) extends RuntimeException {}
+class UnsupportedMessageTypeException(val msg: Message[_]) extends RuntimeException {
+  override def getMessage() = "Message type is not supported : %s".format(msg.getClass().getName())
+}
 

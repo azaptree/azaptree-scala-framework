@@ -36,7 +36,6 @@ import akka.testkit.TestKit
 import com.azaptree.actor.message.system.GetActorConfig
 import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatRequest
-import test.com.azaptree.actors.message.MessagingActorSpec
 
 object MessagingActorSpec {
 
