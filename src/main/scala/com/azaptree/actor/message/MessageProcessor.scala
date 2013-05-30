@@ -47,7 +47,7 @@ trait MessageProcessor {
       } catch {
         case e: Exception =>
           messageFailed()
-          logMessage(message.update(status = ERROR_MESSAGE_STATUS))
+          logMessage(message.update(status = unexpectedError("Failed to process message", e)))
           throw e
       }
     }

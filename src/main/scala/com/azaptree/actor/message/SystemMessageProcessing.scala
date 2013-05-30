@@ -26,10 +26,10 @@ trait SystemMessageProcessing {
       log.debug("{}", message.update(status = SUCCESS_MESSAGE_STATUS))
     } catch {
       case e: SystemMessageProcessingException =>
-        log.error("{}", message.update(status = ERROR_MESSAGE_STATUS))
+        log.error("{}", message.update(status = unexpectedError("Failed to process SystemMessage", e)))
         throw e
       case e: Exception =>
-        log.error("{}", message.update(status = ERROR_MESSAGE_STATUS))
+        log.error("{}", message.update(status = unexpectedError("Failed to process SystemMessage", e)))
         throw new SystemMessageProcessingException(e)
     }
   }

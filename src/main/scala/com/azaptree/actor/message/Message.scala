@@ -73,7 +73,7 @@ case class ProcessingResult(
    * calls update(ERROR_MESSAGE_STATUS)
    */
   def error() = {
-    update(ERROR_MESSAGE_STATUS)
+    update(unexpectedError(exception = new Exception))
   }
 
   /**
@@ -86,7 +86,10 @@ case class ProcessingResult(
 }
 
 @SerialVersionUID(1L)
-case class MessageStatus(code: Int = 0, message: String = "success")
+case class MessageStatus(code: Int = 0, message: String = "success", error: Option[Error] = None)
+
+@SerialVersionUID(1L)
+case class Error(errorType: String, stackTrace: String)
 
 @SerialVersionUID(1L)
 case class MessageProcessingMetrics(receivedOn: Long = System.currentTimeMillis, lastUpdatedOn: Option[Long] = None) {
