@@ -9,5 +9,5 @@ case class ActorConfig(
   name: String,
   routedTo: Boolean = false,
   loggingReceive: Boolean = false,
-  supervisorStrategy: Option[SupervisorStrategy] = Some(defaultSupervisorStrategy))
+  supervisorStrategy: Option[SupervisorStrategy] = Some(DEFAULT_SUPERVISOR_STRATEGY))
 

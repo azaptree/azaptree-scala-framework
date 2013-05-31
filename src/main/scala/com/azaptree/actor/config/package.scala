@@ -8,9 +8,10 @@ import akka.actor.SupervisorStrategy
 
 package object config {
 
-  val defaultSupervisorStrategy = OneForOneStrategy(maxNrOfRetries = Int.MaxValue, withinTimeRange = Duration.Inf)(defaultDecider)
+  val unsupportedMessageTypeExceptionDecider: PartialFunction[Throwable, Directive] = { case e: UnsupportedMessageTypeException => Resume }
 
-  private[this] val unsupportedMessageTypeExceptionDecider: PartialFunction[Throwable, Directive] = { case e: UnsupportedMessageTypeException => Resume }
+  val DEFAULT_SUPERVISOR_STRATEGY = OneForOneStrategy(maxNrOfRetries = Int.MaxValue, withinTimeRange = Duration.Inf) {
+    unsupportedMessageTypeExceptionDecider orElse SupervisorStrategy.defaultStrategy.decider
+  }
 
-  private[this] val defaultDecider = unsupportedMessageTypeExceptionDecider orElse SupervisorStrategy.defaultStrategy.decider
 }

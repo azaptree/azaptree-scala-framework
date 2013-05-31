@@ -1,10 +1,9 @@
 package com.azaptree.actor.message
 
 import java.util.UUID
-
 import scala.concurrent.duration.Duration
-
 import akka.actor.ActorPath
+import akka.actor.ActorRef
 
 /**
  * The intent for messageHeaders is similar to HTTP headers.
@@ -54,6 +53,7 @@ case class MessageMetadata(messageId: UUID = UUID.randomUUID,
   def update(metrics: MessageProcessingMetrics): MessageMetadata = {
     copy(processingResults = processingResults.head.copy(metrics = metrics) :: processingResults.tail)
   }
+
 }
 
 @SerialVersionUID(1L)

@@ -15,7 +15,6 @@ trait MessageProcessor {
    * If not set, then it will be set to SUCCESS_MESSAGE_STATUS if no exception was thrown, and set to ERROR_MESSAGE_STATUS if this method throws an Exception.
    *
    */
-
   def processMessage: PartialFunction[Message[_], Unit]
 
   /**
