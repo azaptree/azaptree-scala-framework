@@ -8,16 +8,31 @@ import com.azaptree.actor.message.system.MessageStats
 trait MessageLogging {
   self: Actor with ActorLogging =>
 
-  protected[this] val actorCreatedOn = System.currentTimeMillis()
-  protected[this] var messageCount: Long = 0l
-  protected[this] var messageFailedCount: Long = 0l
-  protected[this] var lastMessageReceivedOn: Long = 0l
-  /**
-   * The last time a message finished processing without throwing an exception
-   */
-  protected[this] var lastMessageProcessedOn: Long = 0l
-  protected[this] var lastMessageFailedOn: Long = 0l
-  protected[this] var lastHeartbeatOn: Long = 0l
+  class MessageLoggingStats {
+    private[this] val actorCreatedOn: Long = System.currentTimeMillis()
+    var messageCount: Long = 0l
+    var lastMessageReceivedOn: Long = 0l
+    var lastHeartbeatOn: Long = 0l
+    /**
+     * The last time a message finished processing without throwing an exception
+     */
+    var lastMessageProcessedOn: Long = 0l
+    var messageFailedCount: Long = 0l
+    var lastMessageFailedOn: Long = 0l
+
+    def messageStats = {
+      MessageStats(
+        actorCreatedOn = actorCreatedOn,
+        messageCount = messageCount,
+        lastMessageReceivedOn = if (lastMessageReceivedOn > 0l) Some(lastMessageReceivedOn) else None,
+        lastMessageProcessedOn = if (lastMessageProcessedOn > 0l) Some(lastMessageProcessedOn) else None,
+        lastHeartbeatOn = if (lastHeartbeatOn > 0l) Some(lastHeartbeatOn) else None,
+        messageFailedCount = messageFailedCount,
+        lastMessageFailedOn = if (lastMessageFailedOn > 0l) Some(lastMessageFailedOn) else None)
+    }
+  }
+
+  protected[this] val stats = new MessageLoggingStats
 
   /**
    * logs the message, and then publishes a MessageEvent to the ActorSystem event stream
@@ -27,27 +42,19 @@ trait MessageLogging {
   }
 
   def messageReceived(): Unit = {
-    messageCount = messageCount + 1
-    lastMessageReceivedOn = System.currentTimeMillis()
+    stats.messageCount += 1
+    stats.lastMessageReceivedOn = System.currentTimeMillis()
   }
 
   def messageProcessed(): Unit = {
-    lastMessageProcessedOn = System.currentTimeMillis()
+    stats.lastMessageProcessedOn = System.currentTimeMillis()
   }
 
   def messageFailed(): Unit = {
-    lastMessageFailedOn = System.currentTimeMillis()
-    messageFailedCount = messageFailedCount + 1
+    stats.lastMessageFailedOn = System.currentTimeMillis()
+    stats.messageFailedCount += 1
   }
 
-  def messageStats: MessageStats = {
-    MessageStats(
-      actorCreatedOn = actorCreatedOn,
-      messageCount = messageCount,
-      lastMessageReceivedOn = if (lastMessageReceivedOn > 0l) Some(lastMessageReceivedOn) else None,
-      lastMessageProcessedOn = if (lastMessageProcessedOn > 0l) Some(lastMessageProcessedOn) else None,
-      lastHeartbeatOn = if (lastHeartbeatOn > 0l) Some(lastHeartbeatOn) else None,
-      messageFailedCount = messageFailedCount,
-      lastMessageFailedOn = if (lastMessageFailedOn > 0l) Some(lastMessageFailedOn) else None)
-  }
+  def messageStats: MessageStats = { stats.messageStats }
+
 }

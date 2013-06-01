@@ -17,6 +17,8 @@ import akka.actor.SupervisorStrategy
  * <ol>
  * <li>com.azaptree.actors.message.Message
  * <li>com.azaptree.actors.fsm.LifeCycleCommand
+ * <li>com.azaptree.actor.message.system.SystemMessage
+ * </ol>
  *
  * Keeps track of the following metrics:
  * <ul>
@@ -26,6 +28,14 @@ import akka.actor.SupervisorStrategy
  * <li> last time a message was processed unsuccessfully
  * </ul>
  *
+ * Actor LifeCycle State Transitions:
+ * <pre>
+ * Constructed --Initialize-->  Idle
+ * Idle --Start--> Running
+ * Running --Stop--> Idle
+ * Idle --Start--> Running
+ * Running --Destroy--> Destroyed
+ * </pre>
  *
  * @author alfio
  *

@@ -61,7 +61,7 @@ trait SystemMessageProcessing {
    * The response message gets logged.
    */
   def processHeartbeat(implicit message: Message[_]): Unit = {
-    lastHeartbeatOn = System.currentTimeMillis
+    stats.lastHeartbeatOn = System.currentTimeMillis
     val response = Message[HeartbeatResponse.type](
       data = HeartbeatResponse,
       metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
