@@ -348,6 +348,31 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     }
   }
 
+  feature("""SystemMessages can be sent directly to the MessageActor/systemMessageProcessor""") {
+    scenario("Send a GetChildrenActorPaths directly over to a MessageActor/systemMessageProcessor. ") {
+      val systemMessageProcessorActorPath = echoMessageActor.path / SystemMessageProcessorActor.SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME
+      val systemMessageProcessorActor = system.actorFor(systemMessageProcessorActorPath)
+      val response = ask(systemMessageProcessorActor, Message(HeartbeatRequest)).mapTo[Message[HeartbeatRequest.type]]
+      val responseMessage = Await.result(response, 100 millis)
+      responseMessage.metadata.processingResults.head.actorPath should be(systemMessageProcessorActorPath)
+    }
+
+    scenario("First cause the MessageActor to restart. Then, send a GetChildrenActorPaths directly over to a MessageActor/systemMessageProcessor.") {
+      val before = System.currentTimeMillis
+      Thread.sleep(2l)
+      echoMessageActor ! Message(new Exception("First cause the MessageActor to restart. Then, send a GetChildrenActorPaths directly over to a MessageActor/systemMessageProcessor."))
+      Thread.sleep(10l)
+      val systemMessageProcessorActorPath = echoMessageActor.path / SystemMessageProcessorActor.SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME
+      val systemMessageProcessorActor = system.actorFor(systemMessageProcessorActorPath)
+      val response = ask(systemMessageProcessorActor, Message(HeartbeatRequest)).mapTo[Message[HeartbeatRequest.type]]
+      val responseMessage = Await.result(response, 100 millis)
+      responseMessage.metadata.processingResults.head.actorPath should be(systemMessageProcessorActorPath)
+
+      val messageStatsResponse = Await.result(ask(systemMessageProcessorActor, Message(GetMessageStats)).mapTo[Message[MessageStats]], 100 millis)
+      messageStatsResponse.data.actorCreatedOn should be >= before
+    }
+  }
+
   feature("""Actors will register with an ActorRegistry when started/restarted and unregister when stopped""") {
     scenario("Create an Actor and check that is has registered") {
       pending

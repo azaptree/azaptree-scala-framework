@@ -39,6 +39,10 @@ abstract class MessageActor(config: ActorConfig) extends {
 
   override val supervisorStrategy = actorConfig.supervisorStrategy.getOrElse(SupervisorStrategy.defaultStrategy)
 
+  override def preStart() = {
+    createSystemMessageProcessorActor
+  }
+
   val executeReceive: Receive = {
     val processMessage: Receive = if (actorConfig.loggingReceive) {
       LoggingReceive {

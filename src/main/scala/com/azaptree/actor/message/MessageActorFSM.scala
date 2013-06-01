@@ -105,7 +105,9 @@ abstract class MessageActorFSM(config: ActorConfig) extends {
   }
 
   onTransition {
-    case Constructed -> Idle => initializeActor()
+    case Constructed -> Idle =>
+      createSystemMessageProcessorActor
+      initializeActor()
     case Idle -> Running => unstashAll()
   }
 

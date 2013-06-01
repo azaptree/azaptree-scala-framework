@@ -28,7 +28,7 @@ trait SystemMessageProcessing {
 
   def processSystemMessage(message: Message[SystemMessage]) = {
     val systemMessageProcessingActor = context.child(SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME).getOrElse(createSystemMessageProcessorActor)
-    systemMessageProcessingActor.forward(message)
+    systemMessageProcessingActor.forward(message.update(status = SUCCESS_MESSAGE_STATUS))
   }
 }
 
@@ -47,15 +47,17 @@ class SystemMessageProcessorActor(actorConfig: ActorConfig, stats: MessageLoggin
   }
 
   def tryProcessingSystemMessage(message: Message[_], f: Message[_] => Unit) = {
+    val updatedMetadata = message.metadata.copy(processingResults = ProcessingResult(actorPath = self.path) :: message.metadata.processingResults)
+    val messageWithUpdatedProcessingResults = message.copy(metadata = updatedMetadata)
     try {
-      f(message)
-      log.info("{}", message.update(status = SUCCESS_MESSAGE_STATUS))
+      f(messageWithUpdatedProcessingResults)
+      log.info("{}", messageWithUpdatedProcessingResults.update(status = SUCCESS_MESSAGE_STATUS))
     } catch {
       case e: SystemMessageProcessingException =>
-        log.error("{}", message.update(status = unexpectedError("Failed to process SystemMessage", e)))
+        log.error("{}", messageWithUpdatedProcessingResults.update(status = unexpectedError("Failed to process SystemMessage", e)))
         throw e
       case e: Exception =>
-        log.error("{}", message.update(status = unexpectedError("Failed to process SystemMessage", e)))
+        log.error("{}", messageWithUpdatedProcessingResults.update(status = unexpectedError("Failed to process SystemMessage", e)))
         throw new SystemMessageProcessingException(e)
     }
   }
