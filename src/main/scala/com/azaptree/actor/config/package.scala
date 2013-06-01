@@ -15,6 +15,10 @@ package object config {
     unsupportedMessageTypeExceptionDecider orElse SupervisorStrategy.defaultStrategy.decider
   }
 
+  /**
+   * For Actors that require custom ActorConfigs, they must be registered before the Actors are created  
+   * 
+   */
   object ActorConfigRegistry {
     private[this] var actorConfigs: Map[ActorPath, ActorConfig] = Map[ActorPath, ActorConfig]()
 
