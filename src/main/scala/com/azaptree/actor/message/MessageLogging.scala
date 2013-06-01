@@ -8,30 +8,6 @@ import com.azaptree.actor.message.system.MessageStats
 trait MessageLogging {
   self: Actor with ActorLogging =>
 
-  class MessageLoggingStats {
-    private[this] val actorCreatedOn: Long = System.currentTimeMillis()
-    var messageCount: Long = 0l
-    var lastMessageReceivedOn: Long = 0l
-    var lastHeartbeatOn: Long = 0l
-    /**
-     * The last time a message finished processing without throwing an exception
-     */
-    var lastMessageProcessedOn: Long = 0l
-    var messageFailedCount: Long = 0l
-    var lastMessageFailedOn: Long = 0l
-
-    def messageStats = {
-      MessageStats(
-        actorCreatedOn = actorCreatedOn,
-        messageCount = messageCount,
-        lastMessageReceivedOn = if (lastMessageReceivedOn > 0l) Some(lastMessageReceivedOn) else None,
-        lastMessageProcessedOn = if (lastMessageProcessedOn > 0l) Some(lastMessageProcessedOn) else None,
-        lastHeartbeatOn = if (lastHeartbeatOn > 0l) Some(lastHeartbeatOn) else None,
-        messageFailedCount = messageFailedCount,
-        lastMessageFailedOn = if (lastMessageFailedOn > 0l) Some(lastMessageFailedOn) else None)
-    }
-  }
-
   protected[this] val stats = new MessageLoggingStats
 
   /**
@@ -57,4 +33,28 @@ trait MessageLogging {
 
   def messageStats: MessageStats = { stats.messageStats }
 
+}
+
+class MessageLoggingStats {
+  private[this] val actorCreatedOn: Long = System.currentTimeMillis()
+  var messageCount: Long = 0l
+  var lastMessageReceivedOn: Long = 0l
+  var lastHeartbeatOn: Long = 0l
+  /**
+   * The last time a message finished processing without throwing an exception
+   */
+  var lastMessageProcessedOn: Long = 0l
+  var messageFailedCount: Long = 0l
+  var lastMessageFailedOn: Long = 0l
+
+  def messageStats = {
+    MessageStats(
+      actorCreatedOn = actorCreatedOn,
+      messageCount = messageCount,
+      lastMessageReceivedOn = if (lastMessageReceivedOn > 0l) Some(lastMessageReceivedOn) else None,
+      lastMessageProcessedOn = if (lastMessageProcessedOn > 0l) Some(lastMessageProcessedOn) else None,
+      lastHeartbeatOn = if (lastHeartbeatOn > 0l) Some(lastHeartbeatOn) else None,
+      messageFailedCount = messageFailedCount,
+      lastMessageFailedOn = if (lastMessageFailedOn > 0l) Some(lastMessageFailedOn) else None)
+  }
 }

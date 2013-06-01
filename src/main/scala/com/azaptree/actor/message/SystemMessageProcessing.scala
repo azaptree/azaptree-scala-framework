@@ -11,19 +11,37 @@ import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.actor.ConfigurableActor
 import com.azaptree.actor.message.system.GetActorConfig
 import com.azaptree.actor.config.ActorConfig
+import akka.actor.ActorRef
+import akka.actor.Props
 
 trait SystemMessageProcessing {
   self: ConfigurableActor with ActorLogging with MessageLogging =>
 
-  def processSystemMessage(implicit message: Message[SystemMessage]) = {
+  private[this] val SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME = "systemMessageProcessor"
+
+  def createSystemMessageProcessorActor: ActorRef = {
+    context.actorOf(Props(new SystemMessageProcessorActor(actorConfig, stats)), SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME)
+  }
+
+  def processSystemMessage(message: Message[SystemMessage]) = {
+    val systemMessageProcessingActor = context.child(SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME).getOrElse(createSystemMessageProcessorActor)
+    systemMessageProcessingActor.forward(message)
+  }
+}
+
+class SystemMessageProcessorActor(actorConfig: ActorConfig, stats: MessageLoggingStats) extends Actor with ActorLogging {
+
+  override def receive = {
+    case message @ Message(HeartbeatRequest, _) => tryProcessingSystemMessage(message, processHeartbeat)
+    case message @ Message(GetMessageStats, _) => tryProcessingSystemMessage(message, processGetMessageStats)
+    case message @ Message(GetActorConfig, _) => tryProcessingSystemMessage(message, processGetActorConfig)
+    case message => log.warning("Received unknown SystemMessage : {}", message)
+  }
+
+  def tryProcessingSystemMessage(message: Message[_], f: Message[_] => Unit) = {
     try {
-      message.data match {
-        case HeartbeatRequest => processHeartbeat
-        case GetMessageStats => processGetMessageStats
-        case GetActorConfig => processGetActorConfig
-        case _ => log.warning("Received unknown SystemMessage : {}", message)
-      }
-      log.debug("{}", message.update(status = SUCCESS_MESSAGE_STATUS))
+      f(message)
+      log.info("{}", message.update(status = SUCCESS_MESSAGE_STATUS))
     } catch {
       case e: SystemMessageProcessingException =>
         log.error("{}", message.update(status = unexpectedError("Failed to process SystemMessage", e)))
@@ -38,7 +56,7 @@ trait SystemMessageProcessing {
    * Sends a Message[MessageStats] reply back to the sender.
    * The response message gets logged
    */
-  def processGetActorConfig(implicit message: Message[_]): Unit = {
+  def processGetActorConfig(message: Message[_]): Unit = {
     val response = Message[ActorConfig](
       data = actorConfig,
       metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
@@ -49,9 +67,9 @@ trait SystemMessageProcessing {
    * Sends a Message[MessageStats] reply back to the sender.
    * The response message gets logged
    */
-  def processGetMessageStats(implicit message: Message[_]): Unit = {
+  def processGetMessageStats(message: Message[_]): Unit = {
     val response = Message[MessageStats](
-      data = messageStats,
+      data = stats.messageStats,
       metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
     sender ! response
   }
@@ -60,7 +78,7 @@ trait SystemMessageProcessing {
    * Sends a Message[HeartbeatResponse.type] reply back to the sender.
    * The response message gets logged.
    */
-  def processHeartbeat(implicit message: Message[_]): Unit = {
+  def processHeartbeat(message: Message[_]): Unit = {
     stats.lastHeartbeatOn = System.currentTimeMillis
     val response = Message[HeartbeatResponse.type](
       data = HeartbeatResponse,
