@@ -3,11 +3,9 @@ package test.com.azaptree.actors.message
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
 import org.scalatest.matchers.ShouldMatchers
-
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.MessageActor
@@ -18,7 +16,6 @@ import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.actor.message.system.MessageStats
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -36,6 +33,9 @@ import akka.testkit.TestKit
 import com.azaptree.actor.message.system.GetActorConfig
 import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatRequest
+import com.azaptree.actor.message.system.GetChildrenActorPaths
+import com.azaptree.actor.message.system.ChildrenActorPaths
+import com.azaptree.actor.message.SystemMessageProcessorActor
 
 object MessagingActorSpec {
 
@@ -314,6 +314,15 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
 
     scenario("Send an Actor some system messages and check that they are not logged.") {
       pending
+    }
+  }
+
+  feature("""The ActorPath's for a MessageActor's children can be retrieved """) {
+    scenario("Send a GetChildrenActorPaths to a MessageActor. All MessageActors should at least have a systemMessageProcessor child") {
+      val future = ask(echoMessageActor, Message(GetChildrenActorPaths)).mapTo[Message[ChildrenActorPaths]]
+      val response = Await.result(future, 100 millis)
+      response.data.actorPaths.filter(_.name == "Printer").isEmpty should be(false)
+      response.data.actorPaths.filter(_.name == SystemMessageProcessorActor.SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME).isEmpty should be(false)
     }
   }
 

@@ -13,14 +13,17 @@ import com.azaptree.actor.message.system.GetActorConfig
 import com.azaptree.actor.config.ActorConfig
 import akka.actor.ActorRef
 import akka.actor.Props
+import akka.actor.ActorContext
+import com.azaptree.actor.message.system.GetChildrenActorPaths
+import com.azaptree.actor.message.system.ChildrenActorPaths
 
 trait SystemMessageProcessing {
   self: ConfigurableActor with ActorLogging with MessageLogging =>
 
-  private[this] val SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME = "systemMessageProcessor"
+  import SystemMessageProcessorActor._
 
   def createSystemMessageProcessorActor: ActorRef = {
-    context.actorOf(Props(new SystemMessageProcessorActor(actorConfig, stats)), SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME)
+    context.actorOf(Props(new SystemMessageProcessorActor(actorConfig, stats, context)), SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME)
   }
 
   def processSystemMessage(message: Message[SystemMessage]) = {
@@ -29,12 +32,17 @@ trait SystemMessageProcessing {
   }
 }
 
-class SystemMessageProcessorActor(actorConfig: ActorConfig, stats: MessageLoggingStats) extends Actor with ActorLogging {
+object SystemMessageProcessorActor {
+  val SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME = "systemMessageProcessor"
+}
+
+class SystemMessageProcessorActor(actorConfig: ActorConfig, stats: MessageLoggingStats, parentContext: ActorContext) extends Actor with ActorLogging {
 
   override def receive = {
     case message @ Message(HeartbeatRequest, _) => tryProcessingSystemMessage(message, processHeartbeat)
     case message @ Message(GetMessageStats, _) => tryProcessingSystemMessage(message, processGetMessageStats)
     case message @ Message(GetActorConfig, _) => tryProcessingSystemMessage(message, processGetActorConfig)
+    case message @ Message(GetChildrenActorPaths, _) => tryProcessingSystemMessage(message, processGetChildrenActorPaths)
     case message => log.warning("Received unknown SystemMessage : {}", message)
   }
 
@@ -54,7 +62,6 @@ class SystemMessageProcessorActor(actorConfig: ActorConfig, stats: MessageLoggin
 
   /**
    * Sends a Message[MessageStats] reply back to the sender.
-   * The response message gets logged
    */
   def processGetActorConfig(message: Message[_]): Unit = {
     val response = Message[ActorConfig](
@@ -64,8 +71,18 @@ class SystemMessageProcessorActor(actorConfig: ActorConfig, stats: MessageLoggin
   }
 
   /**
+   * Sends a Message[ChildrenActorPaths] reply back to the sender.
+   */
+  def processGetChildrenActorPaths(message: Message[_]): Unit = {
+    val childActorPaths = parentContext.children.map(_.path)
+    val response = Message[ChildrenActorPaths](
+      data = ChildrenActorPaths(childActorPaths),
+      metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
+    sender ! response
+  }
+
+  /**
    * Sends a Message[MessageStats] reply back to the sender.
-   * The response message gets logged
    */
   def processGetMessageStats(message: Message[_]): Unit = {
     val response = Message[MessageStats](
@@ -76,7 +93,6 @@ class SystemMessageProcessorActor(actorConfig: ActorConfig, stats: MessageLoggin
 
   /**
    * Sends a Message[HeartbeatResponse.type] reply back to the sender.
-   * The response message gets logged.
    */
   def processHeartbeat(message: Message[_]): Unit = {
     stats.lastHeartbeatOn = System.currentTimeMillis
