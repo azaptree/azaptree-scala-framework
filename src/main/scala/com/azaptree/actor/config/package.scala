@@ -5,6 +5,7 @@ import scala.concurrent.duration.Duration
 import com.azaptree.actor.message.UnsupportedMessageTypeException
 import akka.actor.SupervisorStrategy._
 import akka.actor.SupervisorStrategy
+import akka.actor.ActorPath
 
 package object config {
 
@@ -12,6 +13,21 @@ package object config {
 
   val DEFAULT_SUPERVISOR_STRATEGY = OneForOneStrategy(maxNrOfRetries = Int.MaxValue, withinTimeRange = Duration.Inf) {
     unsupportedMessageTypeExceptionDecider orElse SupervisorStrategy.defaultStrategy.decider
+  }
+
+  object ActorConfigRegistry {
+    private[this] var actorConfigs: Map[ActorPath, ActorConfig] = Map[ActorPath, ActorConfig]()
+
+    def getActorConfig(actorPath: ActorPath): Option[ActorConfig] = {
+      actorConfigs.get(actorPath)
+    }
+
+    def actorPaths = { actorConfigs.keySet }
+
+    def register(actorPath: ActorPath, actorConfig: ActorConfig) = {
+      actorConfigs = actorConfigs + (actorPath -> actorConfig)
+    }
+
   }
 
 }

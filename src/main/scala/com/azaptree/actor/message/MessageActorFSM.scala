@@ -41,9 +41,7 @@ import akka.actor.DeadLetter
  * @author alfio
  *
  */
-abstract class MessageActorFSM(config: ActorConfig) extends {
-  override val actorConfig = config
-} with ConfigurableActor
+abstract class MessageActorFSM extends ConfigurableActor
     with Stash
     with FSM[State, Any]
     with SystemMessageProcessing

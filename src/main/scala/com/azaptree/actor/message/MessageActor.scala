@@ -1,11 +1,13 @@
 package com.azaptree.actor.message
 
-import akka.event.LoggingReceive
-import akka.actor.{ Actor, ActorRef }
-import akka.actor.ActorLogging
-import akka.actor.actorRef2Scala
-import com.azaptree.actor.message.system._
 import com.azaptree.actor.ConfigurableActor
+import com.azaptree.actor.config.ActorConfigRegistry
+import com.azaptree.actor.message.system._
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.actorRef2Scala
+import akka.event.LoggingReceive
 import com.azaptree.actor.config.ActorConfig
 import akka.actor.SupervisorStrategy
 
@@ -29,9 +31,7 @@ import akka.actor.SupervisorStrategy
  * @author alfio
  *
  */
-abstract class MessageActor(config: ActorConfig) extends {
-  override val actorConfig = config
-} with ConfigurableActor
+abstract class MessageActor extends ConfigurableActor
     with ActorLogging
     with SystemMessageProcessing
     with MessageLogging
