@@ -1,8 +1,8 @@
 package com.azaptree.actor.message.system
 
 import com.azaptree.actor.message.Message
-
 import akka.actor.ActorPath
+import akka.actor.ActorRef
 
 /**
  * System messages should be orthogonal to application messages.
@@ -20,6 +20,21 @@ case object HeartbeatResponse extends SystemMessage
 @SerialVersionUID(1L)
 case object GetMessageStats extends SystemMessage
 
+@SerialVersionUID(1L)
+case object GetActorConfig extends SystemMessage
+
+@SerialVersionUID(1L)
+case object GetChildrenActorPaths extends SystemMessage
+
+@SerialVersionUID(1L)
+case object GetSystemMessageProcessorActorRef extends SystemMessage
+
+@SerialVersionUID(1L)
+case class MessageProcessedEvent(message: Message[_]) extends SystemMessage
+
+@SerialVersionUID(1L)
+case class IsApplicationMessageSupported(message: Message[_]) extends SystemMessage
+
 /**
  * Response message for GetStats
  */
@@ -33,18 +48,21 @@ case class MessageStats(
   messageFailedCount: Long = 0,
   lastMessageFailedOn: Option[Long] = None)
 
-@SerialVersionUID(1L)
-case object GetActorConfig extends SystemMessage
-
-@SerialVersionUID(1L)
-case object GetChildrenActorPaths extends SystemMessage
-
 /**
  * Response message for GetChildrenActorPaths
  */
 @SerialVersionUID(1L)
 case class ChildrenActorPaths(actorPaths: Iterable[ActorPath])
 
+/**
+ * Response message for GetSystemMessageProcessorActorRef
+ */
 @SerialVersionUID(1L)
-case class MessageProcessedEvent(message: Message[_]) extends SystemMessage
+case class SystemMessageProcessor(actorRef: ActorRef)
+
+/**
+ * Response message for IsApplicationMessageSupported
+ */
+@SerialVersionUID(1L)
+case class ApplicationMessageSupported(message: Message[_], supported: Boolean)
 

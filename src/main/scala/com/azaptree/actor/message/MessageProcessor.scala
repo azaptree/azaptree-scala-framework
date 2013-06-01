@@ -38,7 +38,7 @@ trait MessageProcessor {
     case msg => context.system.eventStream.publish(new DeadLetter(msg, sender, context.self))
   }
 
-  val processApplicationMessage = processMessage orElse handleUnsupportedMessageType
+  val processApplicationMessage = processMessage orElse (handleUnsupportedMessageType andThen handleInvalidMessage)
 
   /**
    * All exceptions are bubbled up to be handled by the SupervisorStrategy.

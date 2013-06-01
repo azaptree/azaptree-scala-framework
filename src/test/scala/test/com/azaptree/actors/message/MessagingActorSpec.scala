@@ -3,11 +3,9 @@ package test.com.azaptree.actors.message
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
 import org.scalatest.matchers.ShouldMatchers
-
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.MessageActor
@@ -21,7 +19,6 @@ import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.actor.message.system.MessageStats
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -40,6 +37,10 @@ import akka.testkit.TestKit
 import com.azaptree.actor.message.system.GetActorConfig
 import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatRequest
+import com.azaptree.actor.message.system.GetSystemMessageProcessorActorRef
+import com.azaptree.actor.message.system.SystemMessageProcessor
+import com.azaptree.actor.message.system.IsApplicationMessageSupported
+import com.azaptree.actor.message.system.ApplicationMessageSupported
 
 object MessagingActorSpec {
 
@@ -325,7 +326,15 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     }
 
     scenario("Send an Actor some system messages and check that they are not logged.") {
-      pending
+      messageLogger ! 'reset
+
+      for (i <- 1 to 10) { echoMessageActor ! Message(s"HELLO - $i") }
+      Thread.sleep(10l);
+      Await.result(ask(messageLogger, 'getCount).mapTo[Int], 100 millis) should be(10)
+
+      for (i <- 1 to 10) { echoMessageActor ! Message(HeartbeatRequest) }
+      Thread.sleep(10l);
+      Await.result(ask(messageLogger, 'getCount).mapTo[Int], 100 millis) should be(10)
     }
   }
 
@@ -366,10 +375,35 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
       val systemMessageProcessorActor = system.actorFor(systemMessageProcessorActorPath)
       val response = ask(systemMessageProcessorActor, Message(HeartbeatRequest)).mapTo[Message[HeartbeatRequest.type]]
       val responseMessage = Await.result(response, 100 millis)
+      println("responseMessage.metadata.processingResults.head.actorPath) = " + responseMessage.metadata.processingResults.head.actorPath)
       responseMessage.metadata.processingResults.head.actorPath should be(systemMessageProcessorActorPath)
 
       val messageStatsResponse = Await.result(ask(systemMessageProcessorActor, Message(GetMessageStats)).mapTo[Message[MessageStats]], 100 millis)
       messageStatsResponse.data.actorCreatedOn should be >= before
+    }
+  }
+
+  feature("The MessageActor/systemMessageProcessor can be obtained from the MessageActor") {
+    scenario("Request the systemMessageProcessor ActorRef and send it some SystemMessages") {
+      val response = Await.result(ask(echoMessageActor, Message(GetSystemMessageProcessorActorRef)).mapTo[Message[SystemMessageProcessor]], 100 millis)
+      val sysMsgProcessor = response.data.actorRef
+      Await.result(ask(sysMsgProcessor, Message(HeartbeatRequest)).mapTo[Message[HeartbeatRequest.type]], 10 millis)
+    }
+  }
+
+  feature("You are able to check with the MessageActor/systemMessageProcessor whether or not an application message type is supported by the MessageActor") {
+    scenario("Check for some messages that are supported") {
+      val response = Await.result(ask(echoMessageActor, Message(GetSystemMessageProcessorActorRef)).mapTo[Message[SystemMessageProcessor]], 100 millis)
+      val sysMsgProcessor = response.data.actorRef
+      val appMsgSupportedResponse = Await.result(ask(sysMsgProcessor, Message(IsApplicationMessageSupported(Message[String]("IS SUPPORTED")))).mapTo[Message[ApplicationMessageSupported]], 10 millis)
+      appMsgSupportedResponse.data.supported should be(true)
+    }
+
+    scenario("Check for some messages that are not supported") {
+      val response = Await.result(ask(echoMessageActor, Message(GetSystemMessageProcessorActorRef)).mapTo[Message[SystemMessageProcessor]], 100 millis)
+      val sysMsgProcessor = response.data.actorRef
+      val appMsgSupportedResponse = Await.result(ask(sysMsgProcessor, Message(IsApplicationMessageSupported(Message[Long](200l)))).mapTo[Message[ApplicationMessageSupported]], 10 millis)
+      appMsgSupportedResponse.data.supported should be(false)
     }
   }
 

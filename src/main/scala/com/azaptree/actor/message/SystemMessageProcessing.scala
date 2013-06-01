@@ -1,29 +1,33 @@
 package com.azaptree.actor.message
 
-import akka.actor.Actor
+import com.azaptree.actor.ConfigurableActor
+import com.azaptree.actor.config.ActorConfig
+import com.azaptree.actor.message.system.ApplicationMessageSupported
+import com.azaptree.actor.message.system.ChildrenActorPaths
+import com.azaptree.actor.message.system.GetActorConfig
+import com.azaptree.actor.message.system.GetChildrenActorPaths
 import com.azaptree.actor.message.system.GetMessageStats
-import com.azaptree.actor.message.system.HeartbeatResponse
+import com.azaptree.actor.message.system.GetSystemMessageProcessorActorRef
 import com.azaptree.actor.message.system.HeartbeatRequest
+import com.azaptree.actor.message.system.HeartbeatResponse
+import com.azaptree.actor.message.system.IsApplicationMessageSupported
 import com.azaptree.actor.message.system.MessageStats
 import com.azaptree.actor.message.system.SystemMessage
+import com.azaptree.actor.message.system.SystemMessageProcessor
+
+import akka.actor.Actor
+import akka.actor.ActorContext
 import akka.actor.ActorLogging
-import com.azaptree.actor.message.system.MessageProcessedEvent
-import com.azaptree.actor.ConfigurableActor
-import com.azaptree.actor.message.system.GetActorConfig
-import com.azaptree.actor.config.ActorConfig
 import akka.actor.ActorRef
 import akka.actor.Props
-import akka.actor.ActorContext
-import com.azaptree.actor.message.system.GetChildrenActorPaths
-import com.azaptree.actor.message.system.ChildrenActorPaths
 
 trait SystemMessageProcessing {
-  self: ConfigurableActor with ActorLogging with MessageLogging =>
+  self: MessageProcessor with ConfigurableActor with ActorLogging with MessageLogging =>
 
   import SystemMessageProcessorActor._
 
   def createSystemMessageProcessorActor: ActorRef = {
-    context.actorOf(Props(new SystemMessageProcessorActor(actorConfig, stats, context)), SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME)
+    context.actorOf(Props(new SystemMessageProcessorActor(actorConfig, stats, context, self)), SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME)
   }
 
   def processSystemMessage(message: Message[SystemMessage]) = {
@@ -36,14 +40,30 @@ object SystemMessageProcessorActor {
   val SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME = "systemMessageProcessor"
 }
 
-class SystemMessageProcessorActor(actorConfig: ActorConfig, stats: MessageLoggingStats, parentContext: ActorContext) extends Actor with ActorLogging {
+class SystemMessageProcessorActor(
+  actorConfig: ActorConfig,
+  stats: MessageLoggingStats,
+  parentContext: ActorContext,
+  messageProcessor: MessageProcessor)
+    extends Actor with ActorLogging {
 
   override def receive = {
     case message @ Message(HeartbeatRequest, _) => tryProcessingSystemMessage(message, processHeartbeat)
     case message @ Message(GetMessageStats, _) => tryProcessingSystemMessage(message, processGetMessageStats)
     case message @ Message(GetActorConfig, _) => tryProcessingSystemMessage(message, processGetActorConfig)
     case message @ Message(GetChildrenActorPaths, _) => tryProcessingSystemMessage(message, processGetChildrenActorPaths)
+    case message @ Message(GetSystemMessageProcessorActorRef, _) => tryProcessingSystemMessage(message, getSystemMessageProcessorActorRef)
+    case message @ Message(IsApplicationMessageSupported(_), _) => tryProcessingSystemMessage(message, isApplicationMessageSupported)
     case message => log.warning("Received unknown SystemMessage : {}", message)
+  }
+
+  def isApplicationMessageSupported(message: Message[_]) = {
+    message.data match {
+      case IsApplicationMessageSupported(msg: Message[_]) =>
+        sender ! Message[ApplicationMessageSupported](
+          data = ApplicationMessageSupported(msg, messageProcessor.processMessage.isDefinedAt(msg)),
+          metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
+    }
   }
 
   def tryProcessingSystemMessage(message: Message[_], f: Message[_] => Unit) = {
@@ -62,14 +82,19 @@ class SystemMessageProcessorActor(actorConfig: ActorConfig, stats: MessageLoggin
     }
   }
 
+  def getSystemMessageProcessorActorRef(message: Message[_]) = {
+    sender ! Message[SystemMessageProcessor](
+      data = SystemMessageProcessor(context.self),
+      metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
+  }
+
   /**
    * Sends a Message[MessageStats] reply back to the sender.
    */
   def processGetActorConfig(message: Message[_]): Unit = {
-    val response = Message[ActorConfig](
+    sender ! Message[ActorConfig](
       data = actorConfig,
       metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
-    sender ! response
   }
 
   /**
@@ -77,20 +102,18 @@ class SystemMessageProcessorActor(actorConfig: ActorConfig, stats: MessageLoggin
    */
   def processGetChildrenActorPaths(message: Message[_]): Unit = {
     val childActorPaths = parentContext.children.map(_.path)
-    val response = Message[ChildrenActorPaths](
+    sender ! Message[ChildrenActorPaths](
       data = ChildrenActorPaths(childActorPaths),
       metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
-    sender ! response
   }
 
   /**
    * Sends a Message[MessageStats] reply back to the sender.
    */
   def processGetMessageStats(message: Message[_]): Unit = {
-    val response = Message[MessageStats](
+    sender ! Message[MessageStats](
       data = stats.messageStats,
       metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
-    sender ! response
   }
 
   /**
@@ -98,10 +121,9 @@ class SystemMessageProcessorActor(actorConfig: ActorConfig, stats: MessageLoggin
    */
   def processHeartbeat(message: Message[_]): Unit = {
     stats.lastHeartbeatOn = System.currentTimeMillis
-    val response = Message[HeartbeatResponse.type](
+    sender ! Message[HeartbeatResponse.type](
       data = HeartbeatResponse,
       metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
-    sender ! response
   }
 
 }
