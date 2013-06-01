@@ -4,6 +4,7 @@ import com.azaptree.actor.ConfigurableActor
 import com.azaptree.actor.message.system.SystemMessage
 import akka.actor.Actor
 import akka.actor.ActorLogging
+import akka.actor.DeadLetter
 
 trait MessageProcessor {
   selfActor: ConfigurableActor with SystemMessageProcessing with MessageLogging with ActorLogging =>
@@ -26,6 +27,15 @@ trait MessageProcessor {
     case msg =>
       logMessage(msg.update(unsupportedMessageTypeError(msg)))
       throw new UnsupportedMessageTypeException(msg)
+  }
+
+  /**
+   * default implementation is to log the message with an unsupportedMessageTypeError MessageStatus and throw an UnsupportedMessageTypeException,
+   * which will then be handled by the SupervisorStrategy.
+   *
+   */
+  def handleInvalidMessage: PartialFunction[Any, Unit] = {
+    case msg => context.system.eventStream.publish(new DeadLetter(msg, sender, context.self))
   }
 
   val processApplicationMessage = processMessage orElse handleUnsupportedMessageType

@@ -40,25 +40,21 @@ abstract class MessageActor(config: ActorConfig) extends {
   override val supervisorStrategy = actorConfig.supervisorStrategy.getOrElse(SupervisorStrategy.defaultStrategy)
 
   val executeReceive: Receive = {
-    if (actorConfig.loggingReceive) {
+    val processMessage: Receive = if (actorConfig.loggingReceive) {
       LoggingReceive {
         case msg: Message[_] => process(msg)
       }
     } else {
       case msg: Message[_] => process(msg)
     }
+
+    processMessage orElse handleInvalidMessage
   }
 
   /**
-   * Handles the following system messages :
-   * <ul>
-   * <li>com.azaptree.actors.message.Heartbeat
-   * <li>com.azaptree.actors.message.GetStats
-   * </ul>
+   * Handles the System messages automatically via SystemMessageProcessing.
    *
-   * All messages are logged after they are processed, which records the processing metrics and message processing status.
-   * The Message status is set to ERROR_MESSAGE_STATUS if an exception is thrown during message processing.
-   * If the message is successfully processed, i.e., no exception is thrown, but the Message status is None, then the Message status will be set to SUCCESS_MESSAGE_STATUS.
+   * MessageProcessor trait is used to process application messages.
    *
    */
   override final def receive = { executeReceive }

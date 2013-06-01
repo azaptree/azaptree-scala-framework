@@ -3,23 +3,30 @@ package test.com.azaptree.actors.message
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
+
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
 import org.scalatest.matchers.ShouldMatchers
+
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.MessageActor
 import com.azaptree.actor.message.SUCCESS_MESSAGE_STATUS
+import com.azaptree.actor.message.SystemMessageProcessorActor
+import com.azaptree.actor.message.system.ChildrenActorPaths
 import com.azaptree.actor.message.system.GetActorConfig
+import com.azaptree.actor.message.system.GetChildrenActorPaths
 import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.actor.message.system.MessageStats
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
+import akka.actor.DeadLetter
 import akka.actor.OneForOneStrategy
 import akka.actor.Props
 import akka.actor.SupervisorStrategy
@@ -33,9 +40,6 @@ import akka.testkit.TestKit
 import com.azaptree.actor.message.system.GetActorConfig
 import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatRequest
-import com.azaptree.actor.message.system.GetChildrenActorPaths
-import com.azaptree.actor.message.system.ChildrenActorPaths
-import com.azaptree.actor.message.SystemMessageProcessorActor
 
 object MessagingActorSpec {
 
@@ -81,13 +85,20 @@ object MessagingActorSpec {
 
   class MessageLoggingTracker extends Actor with ActorLogging {
     var messageProcessedEventCount = 0
+    var deadLetterCount = 0
 
     override def receive = {
       case msg: MessageProcessedEvent =>
         messageProcessedEventCount += 1
         log.info("{} : {}", messageProcessedEventCount, msg)
-      case 'reset => messageProcessedEventCount = 0
+      case 'reset =>
+        messageProcessedEventCount = 0
+        deadLetterCount = 0
       case 'getCount => sender ! messageProcessedEventCount
+      case 'getDeadLetterCount => sender ! deadLetterCount
+      case deadLetter: DeadLetter =>
+        deadLetterCount += 1
+        log.info("DeadLetter : {}", deadLetter)
     }
   }
 
@@ -111,6 +122,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
 
   val messageLogger = system.actorOf(Props[MessagingActorSpec.MessageLoggingTracker], "MessageLoggingTracker")
   system.eventStream.subscribe(messageLogger, classOf[MessageProcessedEvent])
+  system.eventStream.subscribe(messageLogger, classOf[DeadLetter])
 
   def getMessageActorStats(actor: ActorRef): MessageStats = {
     val messageStatsFuture = ask(actor, Message[GetMessageStats.type](GetMessageStats)).mapTo[Message[MessageStats]]
@@ -323,6 +335,16 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
       val response = Await.result(future, 100 millis)
       response.data.actorPaths.filter(_.name == "Printer").isEmpty should be(false)
       response.data.actorPaths.filter(_.name == SystemMessageProcessorActor.SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME).isEmpty should be(false)
+    }
+  }
+
+  feature("""Messages that are of not type com.azaptree.actor.message.Message will submit a DeadLetter event to the ActorSystem event stream""") {
+    scenario("Send a GetChildrenActorPaths to a MessageActor. All MessageActors should at least have a systemMessageProcessor child") {
+      messageLogger ! 'reset
+      Thread.sleep(5l)
+      echoMessageActor ! "INVALID MESSAGE"
+      Thread.sleep(10l)
+      Await.result(ask(messageLogger, 'getDeadLetterCount).mapTo[Int], 100 millis) should be(1)
     }
   }
 

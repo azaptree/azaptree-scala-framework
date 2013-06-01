@@ -10,6 +10,7 @@ import akka.actor.actorRef2Scala
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.ConfigurableActor
 import akka.actor.SupervisorStrategy
+import akka.actor.DeadLetter
 
 /**
  * Only supports messages of types:
@@ -99,7 +100,7 @@ abstract class MessageActorFSM(config: ActorConfig) extends {
       log.info("Destroy message was received - stopping Actor")
       stop
     case e: Event =>
-      log.warning("Invalid message was received while in state [{}] : {}", stateName, e.event)
+      context.system.eventStream.publish(new DeadLetter(e, sender, context.self))
       stay
   }
 
