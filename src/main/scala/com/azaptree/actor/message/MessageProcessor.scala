@@ -23,10 +23,11 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
     context.actorOf(Props(new SystemMessageProcessorActor(context, this)), SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME)
   }
 
-  val processApplicationMessage = processMessage orElse (handleUnsupportedMessageType andThen handleInvalidMessage)
+  val processApplicationMessage = processMessage orElse (handleInvalidMessage andThen unsupportedMessageTypeException)
 
   /**
    * Sub-classes can override this method to provide the message handling logic.
+   * This should handle all Message where Message.data is not of type: SystemMessage
    *
    * The Message status should be updated by this method.
    * If not set, then it will be set to SUCCESS_MESSAGE_STATUS if no exception was thrown, and set to ERROR_MESSAGE_STATUS if this method throws an Exception.
@@ -40,23 +41,18 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
   }
 
   /**
-   * default implementation is to log the message with an unsupportedMessageTypeError MessageStatus and throw an UnsupportedMessageTypeException,
-   * which will then be handled by the SupervisorStrategy.
+   * Records that that the message failed and logs a DeadLetter to the ActorSystem.eventStream
    *
    */
   def handleInvalidMessage: PartialFunction[Any, Unit] = {
-    case msg => context.system.eventStream.publish(new DeadLetter(msg, sender, context.self))
+    case msg =>
+      messageFailed()
+      context.system.eventStream.publish(new DeadLetter(msg, sender, context.self))
   }
 
-  /**
-   * default implementation is to log the message with an unsupportedMessageTypeError MessageStatus and throw an UnsupportedMessageTypeException,
-   * which will then be handled by the SupervisorStrategy.
-   *
-   */
-  def handleUnsupportedMessageType: PartialFunction[Message[_], Unit] = {
-    case msg =>
-      logMessage(msg.update(unsupportedMessageTypeError(msg)))
-      throw new UnsupportedMessageTypeException(msg)
+  def unsupportedMessageTypeException: PartialFunction[Any, Unit] = {
+    case _ =>
+      throw new UnsupportedMessageTypeException()
   }
 
   /**
@@ -80,6 +76,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
             logMessage(message)
           }
         } catch {
+          case e: UnsupportedMessageTypeException => //ignore - this is already handled within processApplicationMessage via handleInvalidMessage
           case e: Exception =>
             messageFailed()
             logMessage(message.update(status = unexpectedError("Failed to process message", e)))
@@ -92,7 +89,5 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
 }
 
 @SerialVersionUID(1L)
-class UnsupportedMessageTypeException(val msg: Message[_]) extends RuntimeException {
-  override def getMessage() = "Message type is not supported : %s".format(msg.getClass().getName())
-}
+class UnsupportedMessageTypeException() extends RuntimeException {}
 

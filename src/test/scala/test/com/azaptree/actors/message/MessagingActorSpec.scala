@@ -410,6 +410,15 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
       val sysMsgProcessor = response.data.actorRef
       val appMsgSupportedResponse = Await.result(ask(sysMsgProcessor, Message(IsApplicationMessageSupported(Message[Long](200l)))).mapTo[Message[ApplicationMessageSupported]], 10 millis)
       appMsgSupportedResponse.data.supported should be(false)
+
+      echoMessageActor ! Message("Valid Message")
+      val statsBefore = getMessageActorStats(echoMessageActor)
+      echoMessageActor ! Message(200l)
+      val statsAfter = getMessageActorStats(echoMessageActor)
+
+      statsAfter.messageCount should be(statsBefore.messageCount + 1)
+      statsAfter.messageFailedCount should be(statsBefore.messageFailedCount + 1)
+      statsAfter.lastMessageProcessedOn should be(statsBefore.lastMessageProcessedOn)
     }
   }
 
