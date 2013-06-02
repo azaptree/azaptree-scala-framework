@@ -32,16 +32,6 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
    */
   def processMessage: PartialFunction[Message[_], Unit]
 
-  def processSystemMessage: PartialFunction[Any, Unit] = {
-    case m @ Message(HeartbeatRequest, _) => tryProcessingSystemMessage(m, processHeartbeat)
-    case m @ Message(GetMessageStats, _) => tryProcessingSystemMessage(m, processGetMessageStats)
-    case m @ Message(GetActorConfig, _) => tryProcessingSystemMessage(m, processGetActorConfig)
-    case m @ Message(GetChildrenActorPaths, _) => tryProcessingSystemMessage(m, processGetChildrenActorPaths)
-    case m @ Message(GetSystemMessageProcessorActorRef, _) => tryProcessingSystemMessage(m, getSystemMessageProcessorActorRef)
-    case m @ Message(IsApplicationMessageSupported(_), _) => tryProcessingSystemMessage(m, isApplicationMessageSupported)
-    case m => log.warning("Received unknown SystemMessage : {}", m)
-  }
-
   /**
    * Records that that the message failed and logs a UnhandledMessage to the ActorSystem.eventStream
    *
@@ -86,6 +76,16 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
         }
     }
 
+  }
+
+  def processSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
+    case m @ Message(HeartbeatRequest, _) => tryProcessingSystemMessage(m, processHeartbeat)
+    case m @ Message(GetMessageStats, _) => tryProcessingSystemMessage(m, processGetMessageStats)
+    case m @ Message(GetActorConfig, _) => tryProcessingSystemMessage(m, processGetActorConfig)
+    case m @ Message(GetChildrenActorPaths, _) => tryProcessingSystemMessage(m, processGetChildrenActorPaths)
+    case m @ Message(GetSystemMessageProcessorActorRef, _) => tryProcessingSystemMessage(m, getSystemMessageProcessorActorRef)
+    case m @ Message(IsApplicationMessageSupported(_), _) => tryProcessingSystemMessage(m, isApplicationMessageSupported)
+    case m => log.warning("Received unknown SystemMessage : {}", m)
   }
 
   def isApplicationMessageSupported(message: Message[_]) = {
