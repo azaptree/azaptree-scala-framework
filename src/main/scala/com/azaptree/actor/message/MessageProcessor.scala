@@ -2,13 +2,11 @@ package com.azaptree.actor.message
 
 import com.azaptree.actor.ConfigurableActor
 import com.azaptree.actor.message.system.SystemMessage
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.DeadLetter
-import akka.actor.Props
+
+import SystemMessageProcessorActor.SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME
 import akka.actor.ActorRef
-import SystemMessageProcessorActor._
-import akka.actor.UntypedActorFactory
+import akka.actor.Props
+import akka.actor.UnhandledMessage
 
 trait MessageProcessor extends ConfigurableActor with MessageLogging {
 
@@ -24,7 +22,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
     context.actorOf(Props(new SystemMessageProcessorActor(context, this)), SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME)
   }
 
-  val processApplicationMessage = processMessage orElse (handleInvalidMessage andThen unsupportedMessageTypeException)
+  val processApplicationMessage = processMessage orElse (unhandledMessage andThen unsupportedMessageTypeException)
 
   /**
    * Sub-classes can override this method to provide the message handling logic.
@@ -42,13 +40,13 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
   }
 
   /**
-   * Records that that the message failed and logs a DeadLetter to the ActorSystem.eventStream
+   * Records that that the message failed and logs a UnhandledMessage to the ActorSystem.eventStream
    *
    */
-  def handleInvalidMessage: PartialFunction[Any, Unit] = {
+  def unhandledMessage: PartialFunction[Any, Unit] = {
     case msg =>
       messageFailed()
-      context.system.eventStream.publish(new DeadLetter(msg, sender, context.self))
+      context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
   }
 
   def unsupportedMessageTypeException: PartialFunction[Any, Unit] = {

@@ -36,7 +36,7 @@ abstract class MessageActor extends MessageProcessor {
       case msg: Message[_] => process(msg)
     }
 
-    processMessage orElse handleInvalidMessage
+    processMessage orElse unhandledMessage
   }
 
   /**
