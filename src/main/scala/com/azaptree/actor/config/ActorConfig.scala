@@ -4,6 +4,7 @@ import akka.actor.Address
 import akka.actor.Props
 import akka.actor.SupervisorStrategy
 import akka.actor.ActorPath
+import com.typesafe.config.Config
 
 @SerialVersionUID(1L)
 case class ActorConfig(
@@ -12,5 +13,5 @@ case class ActorConfig(
   loggingReceive: Boolean = false,
   supervisorStrategy: Option[SupervisorStrategy] = Some(DEFAULT_SUPERVISOR_STRATEGY),
   // config Map is used to provide any Actor specific config
-  config: Option[Map[Symbol, Any]] = None)
+  config: Option[Config] = None)
 
