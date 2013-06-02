@@ -16,9 +16,12 @@ import com.azaptree.actor.message.SUCCESS_MESSAGE_STATUS
 import com.azaptree.actor.message.system.ApplicationMessageSupported
 import com.azaptree.actor.message.system.ChildrenActorPaths
 import com.azaptree.actor.message.system.GetActorConfig
+import com.azaptree.actor.message.system.GetActorConfig
 import com.azaptree.actor.message.system.GetChildrenActorPaths
 import com.azaptree.actor.message.system.GetMessageStats
+import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.GetSystemMessageProcessorActorRef
+import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.IsApplicationMessageSupported
@@ -42,9 +45,6 @@ import akka.pattern.ask
 import akka.testkit.DefaultTimeout
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
-import com.azaptree.actor.message.system.GetActorConfig
-import com.azaptree.actor.message.system.GetMessageStats
-import com.azaptree.actor.message.system.HeartbeatRequest
 
 object MessagingActorSpec {
 
@@ -73,8 +73,8 @@ object MessagingActorSpec {
 
     override def preStart() = {
       super.preStart()
-      val actorConfig = ActorConfig("Printer")
-      printerActor = context.actorOf(Props[Printer], actorConfig.name)
+      val actorConfig = ActorConfig(classOf[Printer], "Printer")
+      printerActor = actorConfig.actorOfActorContext
     }
 
     override def processMessage = {
@@ -134,13 +134,11 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     system.shutdown()
   }
 
-  val actorConfig = ActorConfig("EchoMessageActor")
-  ActorConfigRegistry.register(system.name, system / actorConfig.name, actorConfig)
-  val echoMessageActor = system.actorOf(Props[MessagingActorSpec.EchoMessageActor], actorConfig.name)
+  val actorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "EchoMessageActor", topLevelActor = true)
+  val echoMessageActor = actorConfig.actorOfActorSystem
 
-  val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(name = "echoMessageActorWithResumeSupervisorStrategy", supervisorStrategy = Some(MessagingActorSpec.resumeStrategy))
-  ActorConfigRegistry.register(system.name, system / echoMessageActorWithResumeSupervisorStrategyConfig.name, echoMessageActorWithResumeSupervisorStrategyConfig)
-  val echoMessageActorWithResumeSupervisorStrategy = system.actorOf(Props[MessagingActorSpec.EchoMessageActor], echoMessageActorWithResumeSupervisorStrategyConfig.name)
+  val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "echoMessageActorWithResumeSupervisorStrategy", supervisorStrategy = Some(MessagingActorSpec.resumeStrategy), topLevelActor = true)
+  val echoMessageActorWithResumeSupervisorStrategy = echoMessageActorWithResumeSupervisorStrategyConfig.actorOfActorSystem
 
   val messageLogger = system.actorOf(Props[MessagingActorSpec.MessageLoggingTracker], "MessageLoggingTracker")
   system.eventStream.subscribe(messageLogger, classOf[MessageProcessedEvent])

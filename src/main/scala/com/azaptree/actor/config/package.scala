@@ -6,6 +6,9 @@ import com.azaptree.actor.message.UnsupportedMessageTypeException
 import akka.actor.SupervisorStrategy._
 import akka.actor.SupervisorStrategy
 import akka.actor.ActorPath
+import scala.collection.immutable.SortedMap
+import scala.collection.immutable.TreeMap
+import akka.actor.ActorSystem
 
 package object config {
 
@@ -21,7 +24,7 @@ package object config {
    *
    */
   object ActorConfigRegistry {
-    private[this] var actorConfigs: Map[String, Map[ActorPath, ActorConfig]] = Map[String, Map[ActorPath, ActorConfig]]()
+    private[this] var actorConfigs: Map[String, Map[ActorPath, ActorConfig]] = Map[String, SortedMap[ActorPath, ActorConfig]]()
 
     def getActorConfig(actorSystemName: String, actorPath: ActorPath): Option[ActorConfig] = {
       actorConfigs.get(actorSystemName).flatMap(_.get(actorPath))
@@ -36,9 +39,17 @@ package object config {
     }
 
     def register(actorSystemName: String, actorPath: ActorPath, actorConfig: ActorConfig) = {
-      var actorSystemActorConfigs = actorConfigs.get(actorSystemName).getOrElse(Map[ActorPath, ActorConfig]())
+      var actorSystemActorConfigs = actorConfigs.get(actorSystemName).getOrElse(TreeMap[ActorPath, ActorConfig]())
       actorSystemActorConfigs = actorSystemActorConfigs + (actorPath -> actorConfig)
       actorConfigs = actorConfigs + (actorSystemName -> actorSystemActorConfigs)
+    }
+
+    def createTopLevelActors(implicit actorSystem: ActorSystem) = {
+      val actorSystemActorConfigs = actorConfigs.get(actorSystem.name)
+      require(actorSystemActorConfigs.isDefined, "There are no ActorConfigs registered for ActorSystem : %s".format(actorSystem.name))
+      actorSystemActorConfigs.foreach {
+        _.values.filter(_.topLevelActor).foreach(_.actorOfActorSystem)
+      }
     }
 
   }

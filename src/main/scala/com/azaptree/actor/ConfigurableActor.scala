@@ -9,8 +9,9 @@ import com.azaptree.actor.config.ActorConfigRegistry
 import akka.actor.ActorLogging
 
 trait ConfigurableActor extends Actor with ActorLogging {
+  self =>
 
-  def actorConfig: ActorConfig = { ActorConfigRegistry.getActorConfig(context.system.name, context.self.path).getOrElse(ActorConfig(context.self.path.name)) }
+  def actorConfig: ActorConfig = { ActorConfigRegistry.getActorConfig(context.system.name, context.self.path).getOrElse(ActorConfig(actorClass = self.getClass(), name = context.self.path.name)) }
 
   /**
    * Used to send messages to other Actors.

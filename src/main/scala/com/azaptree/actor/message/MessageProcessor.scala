@@ -20,7 +20,7 @@ import com.azaptree.actor.message.system.GetChildrenActorPaths
 
 trait MessageProcessor extends ConfigurableActor with MessageLogging {
 
-  val processApplicationMessage = processMessage orElse (unhandledMessage andThen unsupportedMessageTypeException)
+  private[this] val processApplicationMessage = processMessage orElse (unhandledMessage andThen unsupportedMessageTypeException)
 
   /**
    * Sub-classes can override this method to provide the message handling logic.
@@ -30,19 +30,19 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
    * If not set, then it will be set to SUCCESS_MESSAGE_STATUS if no exception was thrown, and set to ERROR_MESSAGE_STATUS if this method throws an Exception.
    *
    */
-  def processMessage: PartialFunction[Message[_], Unit]
+  protected def processMessage: PartialFunction[Message[_], Unit]
 
   /**
    * Records that that the message failed and logs a UnhandledMessage to the ActorSystem.eventStream
    *
    */
-  def unhandledMessage: PartialFunction[Any, Unit] = {
+  protected def unhandledMessage: PartialFunction[Any, Unit] = {
     case msg =>
       messageFailed()
       context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
   }
 
-  def unsupportedMessageTypeException: PartialFunction[Any, Unit] = {
+  private def unsupportedMessageTypeException: PartialFunction[Any, Unit] = {
     case _ =>
       throw new UnsupportedMessageTypeException()
   }
@@ -78,7 +78,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
 
   }
 
-  def processSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
+  protected def processSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
     case m @ Message(HeartbeatRequest, _) => tryProcessingSystemMessage(m, processHeartbeat)
     case m @ Message(GetMessageStats, _) => tryProcessingSystemMessage(m, processGetMessageStats)
     case m @ Message(GetActorConfig, _) => tryProcessingSystemMessage(m, processGetActorConfig)
@@ -88,7 +88,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
     case m => log.warning("Received unknown SystemMessage : {}", m)
   }
 
-  def isApplicationMessageSupported(message: Message[_]) = {
+  private def isApplicationMessageSupported(message: Message[_]) = {
     message.data match {
       case IsApplicationMessageSupported(msg: Message[_]) =>
         sender ! Message[ApplicationMessageSupported](
@@ -97,7 +97,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
     }
   }
 
-  def tryProcessingSystemMessage(message: Message[_], f: Message[_] => Unit) = {
+  private def tryProcessingSystemMessage(message: Message[_], f: Message[_] => Unit) = {
     val updatedMetadata = message.metadata.copy(processingResults = ProcessingResult(senderActorPath = sender.path, actorPath = self.path) :: message.metadata.processingResults)
     val messageWithUpdatedProcessingResults = message.copy(metadata = updatedMetadata)
     try {
@@ -113,7 +113,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
     }
   }
 
-  def getSystemMessageProcessorActorRef(message: Message[_]) = {
+  private def getSystemMessageProcessorActorRef(message: Message[_]) = {
     sender ! Message[SystemMessageProcessor](
       data = SystemMessageProcessor(context.self),
       metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
@@ -122,7 +122,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
   /**
    * Sends a Message[MessageStats] reply back to the sender.
    */
-  def processGetActorConfig(message: Message[_]): Unit = {
+  private def processGetActorConfig(message: Message[_]): Unit = {
     sender ! Message[ActorConfig](
       data = actorConfig,
       metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
@@ -131,7 +131,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
   /**
    * Sends a Message[ChildrenActorPaths] reply back to the sender.
    */
-  def processGetChildrenActorPaths(message: Message[_]): Unit = {
+  private def processGetChildrenActorPaths(message: Message[_]): Unit = {
     val childActorPaths = context.children.map(_.path)
     sender ! Message[ChildrenActorPaths](
       data = ChildrenActorPaths(childActorPaths),
@@ -141,7 +141,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
   /**
    * Sends a Message[MessageStats] reply back to the sender.
    */
-  def processGetMessageStats(message: Message[_]): Unit = {
+  private def processGetMessageStats(message: Message[_]): Unit = {
     sender ! Message[MessageStats](
       data = messageStats,
       metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
@@ -150,7 +150,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
   /**
    * Sends a Message[HeartbeatResponse.type] reply back to the sender.
    */
-  def processHeartbeat(message: Message[_]): Unit = {
+  private def processHeartbeat(message: Message[_]): Unit = {
     heartbeatReceived()
     sender ! Message[HeartbeatResponse.type](
       data = HeartbeatResponse,
