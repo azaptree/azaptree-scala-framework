@@ -16,20 +16,29 @@ package object config {
   }
 
   /**
-   * For Actors that require custom ActorConfigs, they must be registered before the Actors are created
+   * For Actors that require custom ActorConfigs, they must be registered before the Actors are created.
+   * ActorConfigs are registered per ActorSystem
    *
    */
   object ActorConfigRegistry {
-    private[this] var actorConfigs: Map[ActorPath, ActorConfig] = Map[ActorPath, ActorConfig]()
+    private[this] var actorConfigs: Map[String, Map[ActorPath, ActorConfig]] = Map[String, Map[ActorPath, ActorConfig]]()
 
-    def getActorConfig(actorPath: ActorPath): Option[ActorConfig] = {
-      actorConfigs.get(actorPath)
+    def getActorConfig(actorSystemName: String, actorPath: ActorPath): Option[ActorConfig] = {
+      actorConfigs.get(actorSystemName).flatMap(_.get(actorPath))
     }
 
-    def actorPaths = { actorConfigs.keySet }
+    def actorSystemNames = {
+      actorConfigs.keySet
+    }
 
-    def register(actorPath: ActorPath, actorConfig: ActorConfig) = {
-      actorConfigs = actorConfigs + (actorPath -> actorConfig)
+    def actorPaths(actorSystemName: String) = {
+      actorConfigs.keySet
+    }
+
+    def register(actorSystemName: String, actorPath: ActorPath, actorConfig: ActorConfig) = {
+      var actorSystemActorConfigs = actorConfigs.get(actorSystemName).getOrElse(Map[ActorPath, ActorConfig]())
+      actorSystemActorConfigs = actorSystemActorConfigs + (actorPath -> actorConfig)
+      actorConfigs = actorConfigs + (actorSystemName -> actorSystemActorConfigs)
     }
 
   }

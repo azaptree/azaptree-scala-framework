@@ -135,11 +135,11 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
   }
 
   val actorConfig = ActorConfig("EchoMessageActor")
-  ActorConfigRegistry.register(system / actorConfig.name, actorConfig)
+  ActorConfigRegistry.register(system.name, system / actorConfig.name, actorConfig)
   val echoMessageActor = system.actorOf(Props[MessagingActorSpec.EchoMessageActor], actorConfig.name)
 
   val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(name = "echoMessageActorWithResumeSupervisorStrategy", supervisorStrategy = Some(MessagingActorSpec.resumeStrategy))
-  ActorConfigRegistry.register(system / echoMessageActorWithResumeSupervisorStrategyConfig.name, echoMessageActorWithResumeSupervisorStrategyConfig)
+  ActorConfigRegistry.register(system.name, system / echoMessageActorWithResumeSupervisorStrategyConfig.name, echoMessageActorWithResumeSupervisorStrategyConfig)
   val echoMessageActorWithResumeSupervisorStrategy = system.actorOf(Props[MessagingActorSpec.EchoMessageActor], echoMessageActorWithResumeSupervisorStrategyConfig.name)
 
   val messageLogger = system.actorOf(Props[MessagingActorSpec.MessageLoggingTracker], "MessageLoggingTracker")
