@@ -1,15 +1,7 @@
 package com.azaptree.actor.message
 
-import com.azaptree.actor.ConfigurableActor
-import com.azaptree.actor.config.ActorConfigRegistry
-import com.azaptree.actor.message.system._
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.actorRef2Scala
-import akka.event.LoggingReceive
-import com.azaptree.actor.config.ActorConfig
 import akka.actor.SupervisorStrategy
+import akka.event.LoggingReceive
 
 /**
  * Only supports messages of type: com.azaptree.actors.message.Message
@@ -31,17 +23,9 @@ import akka.actor.SupervisorStrategy
  * @author alfio
  *
  */
-abstract class MessageActor extends ConfigurableActor
-    with ActorLogging
-    with SystemMessageProcessing
-    with MessageLogging
-    with MessageProcessor {
+abstract class MessageActor extends MessageProcessor {
 
   override val supervisorStrategy = actorConfig.supervisorStrategy.getOrElse(SupervisorStrategy.defaultStrategy)
-
-  override def preStart() = {
-    createSystemMessageProcessorActor
-  }
 
   val executeReceive: Receive = {
     val processMessage: Receive = if (actorConfig.loggingReceive) {

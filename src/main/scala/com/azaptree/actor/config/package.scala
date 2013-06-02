@@ -16,8 +16,8 @@ package object config {
   }
 
   /**
-   * For Actors that require custom ActorConfigs, they must be registered before the Actors are created  
-   * 
+   * For Actors that require custom ActorConfigs, they must be registered before the Actors are created
+   *
    */
   object ActorConfigRegistry {
     private[this] var actorConfigs: Map[ActorPath, ActorConfig] = Map[ActorPath, ActorConfig]()

@@ -5,9 +5,25 @@ import com.azaptree.actor.message.system.SystemMessage
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.DeadLetter
+import akka.actor.Props
+import akka.actor.ActorRef
+import SystemMessageProcessorActor._
 
-trait MessageProcessor {
-  selfActor: ConfigurableActor with SystemMessageProcessing with MessageLogging with ActorLogging =>
+trait MessageProcessor extends ConfigurableActor with MessageLogging {
+
+  /**
+   * Creates the SystemMessageProcessorActor child Actor
+   */
+  override def preStart() = {
+    super.preStart()
+    createSystemMessageProcessorActor
+  }
+
+  def createSystemMessageProcessorActor: ActorRef = {
+    context.actorOf(Props(new SystemMessageProcessorActor(context, this)), SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME)
+  }
+
+  val processApplicationMessage = processMessage orElse (handleUnsupportedMessageType andThen handleInvalidMessage)
 
   /**
    * Sub-classes can override this method to provide the message handling logic.
@@ -17,6 +33,20 @@ trait MessageProcessor {
    *
    */
   def processMessage: PartialFunction[Message[_], Unit]
+
+  def processSystemMessage(message: Message[SystemMessage]) = {
+    val systemMessageProcessingActor = context.child(SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME).getOrElse(createSystemMessageProcessorActor)
+    systemMessageProcessingActor.forward(message.update(status = SUCCESS_MESSAGE_STATUS))
+  }
+
+  /**
+   * default implementation is to log the message with an unsupportedMessageTypeError MessageStatus and throw an UnsupportedMessageTypeException,
+   * which will then be handled by the SupervisorStrategy.
+   *
+   */
+  def handleInvalidMessage: PartialFunction[Any, Unit] = {
+    case msg => context.system.eventStream.publish(new DeadLetter(msg, sender, context.self))
+  }
 
   /**
    * default implementation is to log the message with an unsupportedMessageTypeError MessageStatus and throw an UnsupportedMessageTypeException,
@@ -30,59 +60,36 @@ trait MessageProcessor {
   }
 
   /**
-   * default implementation is to log the message with an unsupportedMessageTypeError MessageStatus and throw an UnsupportedMessageTypeException,
-   * which will then be handled by the SupervisorStrategy.
+   * All exceptions are bubbled up to be handled by the parent SupervisorStrategy.
    *
    */
-  def handleInvalidMessage: PartialFunction[Any, Unit] = {
-    case msg => context.system.eventStream.publish(new DeadLetter(msg, sender, context.self))
-  }
-
-  val processApplicationMessage = processMessage orElse (handleUnsupportedMessageType andThen handleInvalidMessage)
-
-  /**
-   * All exceptions are bubbled up to be handled by the SupervisorStrategy.
-   * Exceptions that occur while processing SystemMessages will be wrapped in a SystemMessageProcessingException,
-   * to enable detection and separate error handling for system message processing failures.
-   */
   def process(msg: Message[_]): Unit = {
-
-    def handleMessage(message: Message[_]) = {
-      messageReceived()
-      try {
-        processApplicationMessage(message)
-        messageProcessed()
-        if (!message.metadata.processingResults.head.status.isDefined) {
-          logMessage(message.update(status = SUCCESS_MESSAGE_STATUS))
-        } else {
-          logMessage(message)
-        }
-      } catch {
-        case e: Exception =>
-          messageFailed()
-          logMessage(message.update(status = unexpectedError("Failed to process message", e)))
-          throw e
-      }
-    }
-
     val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.metadata.processingResults)
     val message = msg.copy(metadata = updatedMetadata)
 
     message match {
       case m @ Message(sysMsg: SystemMessage, _) => processSystemMessage(message.asInstanceOf[Message[SystemMessage]])
-      case _ => handleMessage(message)
+      case _ =>
+        messageReceived()
+        try {
+          processApplicationMessage(message)
+          messageProcessed()
+          if (!message.metadata.processingResults.head.status.isDefined) {
+            logMessage(message.update(status = SUCCESS_MESSAGE_STATUS))
+          } else {
+            logMessage(message)
+          }
+        } catch {
+          case e: Exception =>
+            messageFailed()
+            logMessage(message.update(status = unexpectedError("Failed to process message", e)))
+            throw e
+        }
     }
 
   }
 
 }
-
-/**
- * Thrown when a SystemMessage processing exception occurs.
- * This can be used by the SupervisorStrategy to identify and handle a SystemMessage processing exception accordingly.
- */
-@SerialVersionUID(1L)
-class SystemMessageProcessingException(cause: Throwable) extends RuntimeException(cause) {}
 
 @SerialVersionUID(1L)
 class UnsupportedMessageTypeException(val msg: Message[_]) extends RuntimeException {

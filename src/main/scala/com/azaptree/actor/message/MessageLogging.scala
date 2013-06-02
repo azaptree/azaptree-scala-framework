@@ -10,6 +10,8 @@ trait MessageLogging {
 
   protected[this] val stats = new MessageLoggingStats
 
+  def messageStats: MessageStats = { stats.messageStats }
+
   /**
    * logs the message, and then publishes a MessageEvent to the ActorSystem event stream
    */
@@ -31,7 +33,9 @@ trait MessageLogging {
     stats.messageFailedCount += 1
   }
 
-  def messageStats: MessageStats = { stats.messageStats }
+  def heartbeatReceived() = {
+    stats.lastHeartbeatOn = System.currentTimeMillis()
+  }
 
 }
 

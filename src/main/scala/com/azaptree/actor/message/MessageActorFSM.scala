@@ -41,12 +41,9 @@ import akka.actor.DeadLetter
  * @author alfio
  *
  */
-abstract class MessageActorFSM extends ConfigurableActor
+abstract class MessageActorFSM extends MessageProcessor
     with Stash
-    with FSM[State, Any]
-    with SystemMessageProcessing
-    with MessageLogging
-    with MessageProcessor {
+    with FSM[State, Any] {
 
   override val supervisorStrategy = actorConfig.supervisorStrategy.getOrElse(SupervisorStrategy.defaultStrategy)
 
@@ -104,7 +101,6 @@ abstract class MessageActorFSM extends ConfigurableActor
 
   onTransition {
     case Constructed -> Idle =>
-      createSystemMessageProcessorActor
       initializeActor()
     case Idle -> Running => unstashAll()
   }

@@ -6,8 +6,9 @@ import com.azaptree.actor.config.ActorConfig
 import akka.routing.NoRouter
 import akka.actor.actorRef2Scala
 import com.azaptree.actor.config.ActorConfigRegistry
+import akka.actor.ActorLogging
 
-trait ConfigurableActor extends Actor {
+trait ConfigurableActor extends Actor with ActorLogging {
 
   def actorConfig: ActorConfig = { ActorConfigRegistry.getActorConfig(context.self.path).getOrElse(ActorConfig(context.self.path.name)) }
 
