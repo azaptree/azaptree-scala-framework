@@ -13,7 +13,6 @@ import com.azaptree.actor.config.ActorConfigRegistry
 import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.MessageActor
 import com.azaptree.actor.message.SUCCESS_MESSAGE_STATUS
-import com.azaptree.actor.message.SystemMessageProcessorActor
 import com.azaptree.actor.message.system.ApplicationMessageSupported
 import com.azaptree.actor.message.system.ChildrenActorPaths
 import com.azaptree.actor.message.system.GetActorConfig
@@ -115,7 +114,7 @@ object MessagingActorSpec {
         
     		actor{
     			serialize-messages = on
-    			serialize-creators = off
+    			serialize-creators = on
     		}
     	}
         """);
@@ -361,11 +360,10 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
   }
 
   feature("""The ActorPath's for a MessageActor's children can be retrieved """) {
-    scenario("Send a GetChildrenActorPaths to a MessageActor. All MessageActors should at least have a systemMessageProcessor child") {
+    scenario("Send a GetChildrenActorPaths to a MessageActor.") {
       val future = ask(echoMessageActor, Message(GetChildrenActorPaths)).mapTo[Message[ChildrenActorPaths]]
       val response = Await.result(future, 100 millis)
       response.data.actorPaths.filter(_.name == "Printer").isEmpty should be(false)
-      response.data.actorPaths.filter(_.name == SystemMessageProcessorActor.SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME).isEmpty should be(false)
     }
   }
 
@@ -376,32 +374,6 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
       echoMessageActor ! "INVALID MESSAGE"
       Thread.sleep(10l)
       Await.result(ask(messageLogger, 'getUnhandledMessage).mapTo[Int], 100 millis) should be(1)
-    }
-  }
-
-  feature("""SystemMessages can be sent directly to the MessageActor/systemMessageProcessor""") {
-    scenario("Send a GetChildrenActorPaths directly over to a MessageActor/systemMessageProcessor. ") {
-      val systemMessageProcessorActorPath = echoMessageActor.path / SystemMessageProcessorActor.SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME
-      val systemMessageProcessorActor = system.actorFor(systemMessageProcessorActorPath)
-      val response = ask(systemMessageProcessorActor, Message(HeartbeatRequest)).mapTo[Message[HeartbeatRequest.type]]
-      val responseMessage = Await.result(response, 100 millis)
-      responseMessage.metadata.processingResults.head.actorPath should be(systemMessageProcessorActorPath)
-    }
-
-    scenario("First cause the MessageActor to restart. Then, send a GetChildrenActorPaths directly over to a MessageActor/systemMessageProcessor.") {
-      val before = System.currentTimeMillis
-      Thread.sleep(2l)
-      echoMessageActor ! Message(new Exception("First cause the MessageActor to restart. Then, send a GetChildrenActorPaths directly over to a MessageActor/systemMessageProcessor."))
-      Thread.sleep(10l)
-      val systemMessageProcessorActorPath = echoMessageActor.path / SystemMessageProcessorActor.SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME
-      val systemMessageProcessorActor = system.actorFor(systemMessageProcessorActorPath)
-      val response = ask(systemMessageProcessorActor, Message(HeartbeatRequest)).mapTo[Message[HeartbeatRequest.type]]
-      val responseMessage = Await.result(response, 100 millis)
-      println("responseMessage.metadata.processingResults.head.actorPath) = " + responseMessage.metadata.processingResults.head.actorPath)
-      responseMessage.metadata.processingResults.head.actorPath should be(systemMessageProcessorActorPath)
-
-      val messageStatsResponse = Await.result(ask(systemMessageProcessorActor, Message(GetMessageStats)).mapTo[Message[MessageStats]], 100 millis)
-      messageStatsResponse.data.actorCreatedOn should be >= before
     }
   }
 
