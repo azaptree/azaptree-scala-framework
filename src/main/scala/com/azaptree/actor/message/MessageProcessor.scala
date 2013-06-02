@@ -8,6 +8,7 @@ import akka.actor.DeadLetter
 import akka.actor.Props
 import akka.actor.ActorRef
 import SystemMessageProcessorActor._
+import akka.actor.UntypedActorFactory
 
 trait MessageProcessor extends ConfigurableActor with MessageLogging {
 

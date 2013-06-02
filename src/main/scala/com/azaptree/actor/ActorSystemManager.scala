@@ -14,6 +14,7 @@ import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
 import com.azaptree.actor.message.system._
 import com.azaptree.actor.message.Message
+import com.typesafe.config.ConfigObject
 
 object ActorSystemManager {
 
@@ -54,13 +55,13 @@ object ActorSystemManager {
     actor ! PoisonPill
   }
 
-  def gracefulStop(actorSystemName: Symbol, actorPath: ActorPath, timeout: FiniteDuration): Unit = {
+  def gracefulStop(actorSystemName: Symbol, actorPath: ActorPath, timeout: FiniteDuration = 1 second): Unit = {
     import scala.concurrent.duration._
     implicit val actorSystem = actorSystems(actorSystemName)
     val actor = actorSystem.actorFor(actorPath)
     try {
       val stopped: Future[Boolean] = akka.pattern.gracefulStop(actor, timeout)
-      Await.result(stopped, timeout + 1.second)
+      Await.result(stopped, timeout)
     } catch {
       case e: AskTimeoutException =>
     }
@@ -72,7 +73,7 @@ object ActorSystemManager {
     actor ! Kill
   }
 
-  def sendHeartbeat(actorSystemName: Symbol, actorPath: ActorPath, timeout: FiniteDuration): Option[Message[HeartbeatResponse.type]] = {
+  def sendHeartbeat(actorSystemName: Symbol, actorPath: ActorPath, timeout: FiniteDuration = 1 second): Option[Message[HeartbeatResponse.type]] = {
     val actorSystem = actorSystems(actorSystemName)
     val actor = actorSystem.actorFor(actorPath)
 
@@ -81,10 +82,14 @@ object ActorSystemManager {
 
     try {
       val response = actor.ask(HeartbeatRequest)(timeout).mapTo[Message[HeartbeatResponse.type]]
-      Some(Await.result(response, timeout + 1.second))
+      Some(Await.result(response, timeout))
     } catch {
       case e: AskTimeoutException => None
     }
+  }
+
+  def getActorSystemConfig(actorSystemName: Symbol): Option[ConfigObject] = {
+    actorSystem(actorSystemName).map(_.settings.config.root())
   }
 
 }

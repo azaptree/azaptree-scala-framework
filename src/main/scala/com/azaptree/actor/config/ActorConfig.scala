@@ -10,5 +10,7 @@ case class ActorConfig(
   name: String,
   routedTo: Boolean = false,
   loggingReceive: Boolean = false,
-  supervisorStrategy: Option[SupervisorStrategy] = Some(DEFAULT_SUPERVISOR_STRATEGY))
+  supervisorStrategy: Option[SupervisorStrategy] = Some(DEFAULT_SUPERVISOR_STRATEGY),
+  // config Map is used to provide any Actor specific config
+  config: Option[Map[Symbol, Any]] = None)
 

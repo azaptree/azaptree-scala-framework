@@ -3,11 +3,9 @@ package test.com.azaptree.actors.message
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
 import org.scalatest.matchers.ShouldMatchers
-
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfigRegistry
 import com.azaptree.actor.message.Message
@@ -29,7 +27,6 @@ import com.azaptree.actor.message.system.IsApplicationMessageSupported
 import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.actor.message.system.MessageStats
 import com.azaptree.actor.message.system.SystemMessageProcessor
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -45,6 +42,8 @@ import akka.pattern.ask
 import akka.testkit.DefaultTimeout
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
 
 object MessagingActorSpec {
 
@@ -107,13 +106,28 @@ object MessagingActorSpec {
     }
   }
 
+  def createActorSystem() = {
+    val testConfig = ConfigFactory.parseString("""
+        akka {
+    		log-config-on-start = on
+        
+    		actor{
+    			serialize-messages = on
+    			serialize-creators = off
+    		}
+    	}
+        """);
+
+    ActorSystem("MessagingActorSpec", ConfigFactory.load(testConfig.withFallback(ConfigFactory.load())))
+  }
+
 }
 
 class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     with DefaultTimeout with ImplicitSender
     with FeatureSpec with ShouldMatchers with BeforeAndAfterAll {
 
-  def this() = this(ActorSystem("MessagingActorSpec"))
+  def this() = this(MessagingActorSpec.createActorSystem())
 
   override def afterAll() = {
     system.shutdown()

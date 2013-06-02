@@ -12,12 +12,12 @@ import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.IsApplicationMessageSupported
 import com.azaptree.actor.message.system.MessageStats
 import com.azaptree.actor.message.system.SystemMessageProcessor
-
 import akka.actor.Actor
 import akka.actor.ActorContext
 import akka.actor.ActorLogging
 import akka.actor.actorRef2Scala
 import com.azaptree.actor.message.system.HeartbeatResponse
+import akka.actor.UntypedActorFactory
 
 object SystemMessageProcessorActor {
   val SYSTEM_MESSAGE_PROCESSOR_ACTOR_NAME = "systemMessageProcessor"
