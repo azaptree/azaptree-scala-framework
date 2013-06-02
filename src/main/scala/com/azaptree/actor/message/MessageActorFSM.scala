@@ -60,7 +60,7 @@ abstract class MessageActorFSM extends MessageProcessor
    *
    */
   def stashMessage(msg: Message[_]): State = {
-    val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.metadata.processingResults)
+    val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(senderActorPath = sender.path, actorPath = self.path) :: msg.metadata.processingResults)
     val message = msg.copy(metadata = updatedMetadata)
     message.data match {
       case sysMsg: SystemMessage =>

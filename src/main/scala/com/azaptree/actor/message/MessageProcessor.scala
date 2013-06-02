@@ -64,7 +64,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
    *
    */
   def process(msg: Message[_]): Unit = {
-    val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(actorPath = self.path) :: msg.metadata.processingResults)
+    val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(senderActorPath = sender.path, actorPath = self.path) :: msg.metadata.processingResults)
     val message = msg.copy(metadata = updatedMetadata)
 
     message match {

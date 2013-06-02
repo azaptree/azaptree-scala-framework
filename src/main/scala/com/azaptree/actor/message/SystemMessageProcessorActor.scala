@@ -48,7 +48,7 @@ class SystemMessageProcessorActor(
   }
 
   def tryProcessingSystemMessage(message: Message[_], f: Message[_] => Unit) = {
-    val updatedMetadata = message.metadata.copy(processingResults = ProcessingResult(actorPath = self.path) :: message.metadata.processingResults)
+    val updatedMetadata = message.metadata.copy(processingResults = ProcessingResult(senderActorPath = sender.path, actorPath = self.path) :: message.metadata.processingResults)
     val messageWithUpdatedProcessingResults = message.copy(metadata = updatedMetadata)
     try {
       f(messageWithUpdatedProcessingResults)

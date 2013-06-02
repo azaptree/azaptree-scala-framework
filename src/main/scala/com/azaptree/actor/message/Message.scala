@@ -58,6 +58,7 @@ case class MessageMetadata(messageId: UUID = UUID.randomUUID,
 
 @SerialVersionUID(1L)
 case class ProcessingResult(
+    senderActorPath: ActorPath,
     actorPath: ActorPath,
     status: Option[MessageStatus] = None,
     metrics: MessageProcessingMetrics = MessageProcessingMetrics()) {
