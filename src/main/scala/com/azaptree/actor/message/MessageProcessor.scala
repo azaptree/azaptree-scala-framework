@@ -17,10 +17,15 @@ import com.azaptree.actor.message.system.GetSystemMessageProcessorActorRef
 import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.GetChildrenActorPaths
+import akka.actor.Terminated
+import com.azaptree.actor.registry.ActorRegistry
+import com.azaptree.actor.registry.ActorRegistry.RegisterActor
 
 trait MessageProcessor extends ConfigurableActor with MessageLogging {
 
-  private[this] val processApplicationMessage = processMessage orElse (unhandledMessage andThen unsupportedMessageTypeException)
+  private[this] val processApplicationMessage = receiveMessage orElse (unhandledMessage andThen unsupportedMessageTypeException)
+
+  protected val processSystemMessage = receiveSystemMessage orElse unhandledSystemMessage
 
   /**
    * Sub-classes can override this method to provide the message handling logic.
@@ -30,13 +35,23 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
    * If not set, then it will be set to SUCCESS_MESSAGE_STATUS if no exception was thrown, and set to ERROR_MESSAGE_STATUS if this method throws an Exception.
    *
    */
-  protected def processMessage: PartialFunction[Message[_], Unit]
+  protected def receiveMessage: PartialFunction[Message[_], Unit]
+
+  override def preStart() = {
+    context.actorSelection(ActorRegistry.ACTOR_PATH) ! Message(RegisterActor(context.self))
+  }
 
   /**
-   * Records that that the message failed and logs a UnhandledMessage to the ActorSystem.eventStream
+   * Wraps the following unhandledMessages within a Message and tries processApplicationMessage once more:
+   * <ul>
+   * <li>akka.actor.Terminated
+   * </ul>
+   *
+   * Otherwise, it records that that the message failed and logs an UnhandledMessage to the ActorSystem.eventStream
    *
    */
   protected def unhandledMessage: PartialFunction[Any, Unit] = {
+    case t: Terminated => processApplicationMessage(Message(t))
     case msg =>
       messageFailed()
       context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
@@ -75,24 +90,26 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
             throw e
         }
     }
-
   }
 
-  protected def processSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
+  protected def unhandledSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
+    case m => log.warning("Received unknown SystemMessage : {}", m)
+  }
+
+  protected def receiveSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
     case m @ Message(HeartbeatRequest, _) => tryProcessingSystemMessage(m, processHeartbeat)
     case m @ Message(GetMessageStats, _) => tryProcessingSystemMessage(m, processGetMessageStats)
     case m @ Message(GetActorConfig, _) => tryProcessingSystemMessage(m, processGetActorConfig)
     case m @ Message(GetChildrenActorPaths, _) => tryProcessingSystemMessage(m, processGetChildrenActorPaths)
     case m @ Message(GetSystemMessageProcessorActorRef, _) => tryProcessingSystemMessage(m, getSystemMessageProcessorActorRef)
     case m @ Message(IsApplicationMessageSupported(_), _) => tryProcessingSystemMessage(m, isApplicationMessageSupported)
-    case m => log.warning("Received unknown SystemMessage : {}", m)
   }
 
   private def isApplicationMessageSupported(message: Message[_]) = {
     message.data match {
       case IsApplicationMessageSupported(msg: Message[_]) =>
         sender ! Message[ApplicationMessageSupported](
-          data = ApplicationMessageSupported(msg, processMessage.isDefinedAt(msg)),
+          data = ApplicationMessageSupported(msg, receiveMessage.isDefinedAt(msg)),
           metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
     }
   }

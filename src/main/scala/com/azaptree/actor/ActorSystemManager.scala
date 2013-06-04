@@ -18,17 +18,15 @@ import com.typesafe.config.ConfigObject
 
 object ActorSystemManager {
 
-  private[this] var actorSystems = Map[Symbol, ActorSystem]()
+  private[this] var actorSystems = Map[String, ActorSystem]()
 
-  def actorSystem(name: Symbol): Option[ActorSystem] = actorSystems.get(name)
+  def actorSystem(name: String): Option[ActorSystem] = actorSystems.get(name)
 
-  def actorSystemNames: Set[Symbol] = actorSystems.keySet
+  def actorSystemNames: Set[String] = actorSystems.keySet
 
   def registerActorSystem(actorSystem: ActorSystem): Unit = {
-    val key = Symbol(actorSystem.name)
-    require(actorSystems.get(key) == None, "An ActorSystem by the same name is already registered")
-
-    actorSystems = actorSystems + (key -> actorSystem)
+    require(actorSystems.get(actorSystem.name) == None, "An ActorSystem by the same name is already registered")
+    actorSystems = actorSystems + (actorSystem.name -> actorSystem)
   }
 
   def shutdownAll(): Unit = {
@@ -39,7 +37,7 @@ object ActorSystemManager {
   /**
    * Any messages in the Actor's mailbox will be discarded
    */
-  def stopActorNow(actorSystemName: Symbol, actorPath: ActorPath): Unit = {
+  def stopActorNow(actorSystemName: String, actorPath: ActorPath): Unit = {
     val actorSystem = actorSystems(actorSystemName)
     val actor = actorSystem.actorFor(actorPath)
     actorSystem.stop(actor)
@@ -49,13 +47,13 @@ object ActorSystemManager {
    * Sends a PoisonPill message to the Actor, which will stop the Actor when the message is processed.
    * PoisonPill is enqueued as ordinary messages and will be handled after messages that were already queued in the mailbox
    */
-  def stopActor(actorSystemName: Symbol, actorPath: ActorPath): Unit = {
+  def stopActor(actorSystemName: String, actorPath: ActorPath): Unit = {
     val actorSystem = actorSystems(actorSystemName)
     val actor = actorSystem.actorFor(actorPath)
     actor ! PoisonPill
   }
 
-  def gracefulStop(actorSystemName: Symbol, actorPath: ActorPath, timeout: FiniteDuration = 1 second): Unit = {
+  def gracefulStop(actorSystemName: String, actorPath: ActorPath, timeout: FiniteDuration = 1 second): Unit = {
     import scala.concurrent.duration._
     implicit val actorSystem = actorSystems(actorSystemName)
     val actor = actorSystem.actorFor(actorPath)
@@ -67,13 +65,13 @@ object ActorSystemManager {
     }
   }
 
-  def restartActor(actorSystemName: Symbol, actorPath: ActorPath): Unit = {
+  def restartActor(actorSystemName: String, actorPath: ActorPath): Unit = {
     val actorSystem = actorSystems(actorSystemName)
     val actor = actorSystem.actorFor(actorPath)
     actor ! Kill
   }
 
-  def sendHeartbeat(actorSystemName: Symbol, actorPath: ActorPath, timeout: FiniteDuration = 1 second): Option[Message[HeartbeatResponse.type]] = {
+  def sendHeartbeat(actorSystemName: String, actorPath: ActorPath, timeout: FiniteDuration = 1 second): Option[Message[HeartbeatResponse.type]] = {
     val actorSystem = actorSystems(actorSystemName)
     val actor = actorSystem.actorFor(actorPath)
 
@@ -88,7 +86,7 @@ object ActorSystemManager {
     }
   }
 
-  def getActorSystemConfig(actorSystemName: Symbol): Option[ConfigObject] = {
+  def getActorSystemConfig(actorSystemName: String): Option[ConfigObject] = {
     actorSystem(actorSystemName).map(_.settings.config.root())
   }
 

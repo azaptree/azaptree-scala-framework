@@ -3,11 +3,9 @@ package test.com.azaptree.actors.message
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
 import org.scalatest.matchers.ShouldMatchers
-
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfigRegistry
 import com.azaptree.actor.message.Message
@@ -29,7 +27,6 @@ import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.actor.message.system.MessageStats
 import com.azaptree.actor.message.system.SystemMessageProcessor
 import com.typesafe.config.ConfigFactory
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -45,6 +42,15 @@ import akka.pattern.ask
 import akka.testkit.DefaultTimeout
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
+import com.azaptree.actor.message.system.SystemMessage
+import com.azaptree.actor.registry.ActorRegistry
+import com.azaptree.actor.ActorSystemManager
+import com.azaptree.actor.registry.ActorRegistry._
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Success
+import scala.collection.immutable.TreeSet
+import scala.math.Ordering
 
 object MessagingActorSpec {
 
@@ -59,7 +65,7 @@ object MessagingActorSpec {
 
   class Printer extends MessageActor {
 
-    override def processMessage = {
+    override def receiveMessage = {
       case Message(msg: String, _) =>
         val path = self.path
         println(s"$path : msg = $msg")
@@ -77,7 +83,7 @@ object MessagingActorSpec {
       printerActor = actorConfig.actorOfActorContext
     }
 
-    override def processMessage = {
+    override def receiveMessage = {
       case message @ Message(msg: String, _) =>
         message.update(SUCCESS_MESSAGE_STATUS)
         tell(sender, message)
@@ -130,19 +136,63 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
 
   def this() = this(MessagingActorSpec.createActorSystem())
 
-  override def afterAll() = {
-    system.shutdown()
-  }
-
-  val actorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "EchoMessageActor", topLevelActor = true)
-  val echoMessageActor = actorConfig.actorOfActorSystem
-
-  val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "echoMessageActorWithResumeSupervisorStrategy", supervisorStrategy = Some(MessagingActorSpec.resumeStrategy), topLevelActor = true)
-  val echoMessageActorWithResumeSupervisorStrategy = echoMessageActorWithResumeSupervisorStrategyConfig.actorOfActorSystem
+  //  override def beforeAll() = {
+  //    Await.result(echoMessageActor ? HeartbeatRequest, 100 millis)
+  //    Await.result(echoMessageActorWithResumeSupervisorStrategy ? HeartbeatRequest, 100 millis)
+  //  }
+  //
+  //  override def afterAll() = {
+  //    ActorSystemManager.shutdownAll()
+  //  }
+  //
+  //  val actorRegistry = system.actorOf(Props[ActorRegistry], ActorRegistry.ACTOR_NAME)
+  //
+  //  import system.dispatcher
+  //
+  //  val heartbeatResponseFuture = for (
+  //    actorRegistryHeartbeatFuture <- actorRegistry ? Message(HeartbeatRequest)
+  //  ) yield (actorRegistryHeartbeatFuture)
+  //
+  //  val echoMessageActorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "EchoMessageActor", topLevelActor = true)
+  //  val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "echoMessageActorWithResumeSupervisorStrategy", supervisorStrategy = Some(MessagingActorSpec.resumeStrategy), topLevelActor = true)
+  //
+  //  heartbeatResponseFuture.onComplete {
+  //    case Success(s) =>
+  //      val echoMessageActor = echoMessageActorConfig.actorOfActorSystem
+  //      println("*** echoMessageActor.path = " + echoMessageActor.path)
+  //      val echoMessageActorWithResumeSupervisorStrategy = echoMessageActorWithResumeSupervisorStrategyConfig.actorOfActorSystem
+  //      println("*** echoMessageActorWithResumeSupervisorStrategy.path = " + echoMessageActorWithResumeSupervisorStrategy.path)
+  //      ActorSystemManager.registerActorSystem(system)
+  //    case Failure(t) => throw t
+  //  }
+  //
+  //  val echoMessageActor = system.actorFor(system / echoMessageActorConfig.name)
+  //  val echoMessageActorWithResumeSupervisorStrategy = system.actorFor(system / echoMessageActorWithResumeSupervisorStrategyConfig.name)
 
   val messageLogger = system.actorOf(Props[MessagingActorSpec.MessageLoggingTracker], "MessageLoggingTracker")
   system.eventStream.subscribe(messageLogger, classOf[MessageProcessedEvent])
   system.eventStream.subscribe(messageLogger, classOf[UnhandledMessage])
+
+  ////////////////////////////
+  override def afterAll() = {
+    system.shutdown()
+  }
+
+  val actorRegistryConfig = ActorConfig(actorClass = classOf[ActorRegistry], name = ActorRegistry.ACTOR_NAME, topLevelActor = true)
+  val actorRegistry = actorRegistryConfig.actorOfActorSystem
+
+  import system.dispatcher
+  val heartbeatResponseFuture = for (
+    actorRegistryHeartbeatFuture <- actorRegistry ? Message(HeartbeatRequest)
+  ) yield (actorRegistryHeartbeatFuture)
+
+  val echoMessageActorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "EchoMessageActor", topLevelActor = true)
+  val echoMessageActor = echoMessageActorConfig.actorOfActorSystem
+
+  val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "EchoMessageActorWithResumeSupervisorStrategy", supervisorStrategy = Some(MessagingActorSpec.resumeStrategy), topLevelActor = true)
+  val echoMessageActorWithResumeSupervisorStrategy = echoMessageActorWithResumeSupervisorStrategyConfig.actorOfActorSystem
+
+  ////////////////
 
   def getMessageActorStats(actor: ActorRef): MessageStats = {
     val messageStatsFuture = ask(actor, Message[GetMessageStats.type](GetMessageStats)).mapTo[Message[MessageStats]]
@@ -317,7 +367,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
       import akka.pattern._
       val future = ask(echoMessageActor, Message[GetActorConfig.type](data = GetActorConfig)).mapTo[Message[ActorConfig]]
       val actorConfig = Await.result(future, 100.millis)
-      actorConfig.data.name should be(this.actorConfig.name)
+      actorConfig.data.name should be(this.echoMessageActorConfig.name)
     }
   }
 
@@ -408,9 +458,24 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     }
   }
 
-  feature("""Actors will register with an ActorRegistry when started/restarted and unregister when stopped""") {
+  feature("""Actors will register with an ActorRegistry when started/restarted and unregister when terminated""") {
     scenario("Create an Actor and check that is has registered") {
-      pending
+      val actorRegistry = system.actorFor(system / ActorRegistry.ACTOR_NAME)
+      val registeredActorsFuture = ask(actorRegistry, Message(ActorRegistry.GetRegisteredActors())).mapTo[Message[ActorRegistry.RegisteredActors]]
+
+      val actors = Await.result(registeredActorsFuture, 100 millis).data.actors
+      actors.size should be > (0)
+      actors.foreach {
+        actor =>
+          println(actor.path)
+
+          val actors2 = Await.result(ask(actorRegistry, Message(ActorRegistry.GetRegisteredActors(Some(actor.path)))).mapTo[Message[ActorRegistry.RegisteredActors]], 100 millis).data.actors
+          assert(actors2.contains(actor), "actor is expected in RegisteredActors response: " + actor.path)
+
+          var sortedActors = TreeSet[ActorRef]()
+          sortedActors = sortedActors ++ actors2
+          println(sortedActors.foldLeft("")((s, a) => s + "\n   |--" + a.path) + "\n")
+      }
     }
 
     scenario("Restart an Actor and check that is has unregistered and registered") {

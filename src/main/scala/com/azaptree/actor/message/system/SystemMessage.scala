@@ -12,28 +12,29 @@ import akka.actor.ActorRef
 sealed trait SystemMessage
 
 @SerialVersionUID(1L)
-case object HeartbeatRequest extends SystemMessage
-
-@SerialVersionUID(1L)
-case object HeartbeatResponse extends SystemMessage
-
-@SerialVersionUID(1L)
-case object GetMessageStats extends SystemMessage
-
-@SerialVersionUID(1L)
-case object GetActorConfig extends SystemMessage
-
-@SerialVersionUID(1L)
-case object GetChildrenActorPaths extends SystemMessage
-
-@SerialVersionUID(1L)
-case object GetSystemMessageProcessorActorRef extends SystemMessage
-
-@SerialVersionUID(1L)
 case class MessageProcessedEvent(message: Message[_]) extends SystemMessage
 
+sealed trait SystemMessageRequest extends SystemMessage
+
 @SerialVersionUID(1L)
-case class IsApplicationMessageSupported(message: Message[_]) extends SystemMessage
+case object HeartbeatRequest extends SystemMessageRequest
+
+@SerialVersionUID(1L)
+case object GetMessageStats extends SystemMessageRequest
+
+@SerialVersionUID(1L)
+case object GetActorConfig extends SystemMessageRequest
+
+@SerialVersionUID(1L)
+case object GetChildrenActorPaths extends SystemMessageRequest
+
+@SerialVersionUID(1L)
+case object GetSystemMessageProcessorActorRef extends SystemMessageRequest
+
+@SerialVersionUID(1L)
+case class IsApplicationMessageSupported(message: Message[_]) extends SystemMessageRequest
+
+sealed trait SystemMessageResponse extends SystemMessage
 
 /**
  * Response message for GetStats
@@ -46,23 +47,26 @@ case class MessageStats(
   lastHeartbeatOn: Option[Long] = None,
   lastMessageProcessedOn: Option[Long] = None,
   messageFailedCount: Long = 0,
-  lastMessageFailedOn: Option[Long] = None)
+  lastMessageFailedOn: Option[Long] = None) extends SystemMessageResponse
 
 /**
  * Response message for GetChildrenActorPaths
  */
 @SerialVersionUID(1L)
-case class ChildrenActorPaths(actorPaths: Iterable[ActorPath])
+case class ChildrenActorPaths(actorPaths: Iterable[ActorPath]) extends SystemMessageResponse
 
 /**
  * Response message for GetSystemMessageProcessorActorRef
  */
 @SerialVersionUID(1L)
-case class SystemMessageProcessor(actorRef: ActorRef)
+case class SystemMessageProcessor(actorRef: ActorRef) extends SystemMessageResponse
 
 /**
  * Response message for IsApplicationMessageSupported
  */
 @SerialVersionUID(1L)
-case class ApplicationMessageSupported(message: Message[_], supported: Boolean)
+case class ApplicationMessageSupported(message: Message[_], supported: Boolean) extends SystemMessageResponse
+
+@SerialVersionUID(1L)
+case object HeartbeatResponse extends SystemMessageResponse
 
