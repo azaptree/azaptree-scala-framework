@@ -25,8 +25,6 @@ import akka.event.LoggingReceive
  */
 abstract class MessageActor extends MessageProcessor {
 
-  override val supervisorStrategy = actorConfig.supervisorStrategy.getOrElse(SupervisorStrategy.defaultStrategy)
-
   val executeReceive: Receive = {
     val processMessage: Receive = if (actorConfig.loggingReceive) {
       LoggingReceive {

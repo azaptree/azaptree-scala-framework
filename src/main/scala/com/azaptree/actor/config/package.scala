@@ -12,11 +12,10 @@ import akka.actor.ActorSystem
 
 package object config {
 
+  /**
+   * for UnsupportedMessageTypeException, simply Resume actor processing
+   */
   val unsupportedMessageTypeExceptionDecider: PartialFunction[Throwable, Directive] = { case e: UnsupportedMessageTypeException => Resume }
-
-  val DEFAULT_SUPERVISOR_STRATEGY = OneForOneStrategy(maxNrOfRetries = Int.MaxValue, withinTimeRange = Duration.Inf) {
-    unsupportedMessageTypeExceptionDecider orElse SupervisorStrategy.defaultStrategy.decider
-  }
 
   /**
    * For Actors that require custom ActorConfigs, they must be registered before the Actors are created.

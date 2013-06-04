@@ -46,8 +46,6 @@ abstract class MessageActorFSM extends MessageProcessor
     with Stash
     with FSM[State, Any] {
 
-  override val supervisorStrategy = actorConfig.supervisorStrategy.getOrElse(SupervisorStrategy.defaultStrategy)
-
   /**
    * Override to perform intialization when transitioning from Constructed -> Idle.
    *

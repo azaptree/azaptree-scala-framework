@@ -189,7 +189,10 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
   val echoMessageActorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "EchoMessageActor", topLevelActor = true)
   val echoMessageActor = echoMessageActorConfig.actorOfActorSystem
 
-  val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "EchoMessageActorWithResumeSupervisorStrategy", supervisorStrategy = Some(MessagingActorSpec.resumeStrategy), topLevelActor = true)
+  val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor],
+    name = "EchoMessageActorWithResumeSupervisorStrategy",
+    supervisorStrategy = Right(MessagingActorSpec.resumeStrategy),
+    topLevelActor = true)
   val echoMessageActorWithResumeSupervisorStrategy = echoMessageActorWithResumeSupervisorStrategyConfig.actorOfActorSystem
 
   ////////////////
