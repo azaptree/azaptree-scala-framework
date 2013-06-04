@@ -42,7 +42,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
   }
 
   /**
-   * Wraps the following unhandledMessages within a Message and tries processApplicationMessage once more:
+   * Wraps the following unhandledMessages within a Message and retry to process it once more:
    * <ul>
    * <li>akka.actor.Terminated
    * </ul>
@@ -51,7 +51,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
    *
    */
   protected def unhandledMessage: PartialFunction[Any, Unit] = {
-    case t: Terminated => processApplicationMessage(Message(t))
+    case t: Terminated => process(Message(t))
     case msg =>
       messageFailed()
       context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
@@ -93,7 +93,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
   }
 
   protected def unhandledSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
-    case m => log.warning("Received unknown SystemMessage : {}", m)
+    case msg => context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
   }
 
   protected def receiveSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
