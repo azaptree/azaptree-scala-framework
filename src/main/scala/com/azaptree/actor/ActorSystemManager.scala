@@ -67,8 +67,7 @@ object ActorSystemManager {
 
   def restartActor(actorSystemName: String, actorPath: ActorPath): Unit = {
     val actorSystem = actorSystems(actorSystemName)
-    val actor = actorSystem.actorFor(actorPath)
-    actor ! Kill
+    actorSystem.actorSelection(actorPath.toString()) ! Kill
   }
 
   def sendHeartbeat(actorSystemName: String, actorPath: ActorPath, timeout: FiniteDuration = 1 second): Option[Message[HeartbeatResponse.type]] = {

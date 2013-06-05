@@ -134,8 +134,8 @@ object MessagingActorSpec {
 }
 
 class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
-  with DefaultTimeout with ImplicitSender
-  with FeatureSpec with ShouldMatchers with BeforeAndAfterAll {
+    with DefaultTimeout with ImplicitSender
+    with FeatureSpec with ShouldMatchers with BeforeAndAfterAll {
 
   def this() = this(MessagingActorSpec.createActorSystem())
 

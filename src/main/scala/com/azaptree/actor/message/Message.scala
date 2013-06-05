@@ -33,9 +33,10 @@ case class Message[A](
 }
 
 @SerialVersionUID(1L)
-case class MessageMetadata(messageId: UUID = UUID.randomUUID,
+case class MessageMetadata(
+    messageId: UUID = UUID.randomUUID,
     createdOn: Long = System.currentTimeMillis,
-    messageHeaders: Option[Map[Symbol, Any]] = None,
+    messageHeaders: Option[Map[String, Any]] = None,
     processingResults: List[ProcessingResult] = Nil) {
 
   /**

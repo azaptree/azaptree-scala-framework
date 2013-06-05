@@ -65,6 +65,13 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
   /**
    * All exceptions are bubbled up to be handled by the parent SupervisorStrategy.
    *
+   * <ul>Keeps track of the following metrics:
+   * <li> number of successfully processed messages
+   * <li> number of unsuccessfully processed messages
+   * <li> last time a message was processed successfully
+   * <li> last time a message was processed unsuccessfully
+   * </ul>
+   *
    */
   def process(msg: Message[_]): Unit = {
     val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(senderActorPath = sender.path, actorPath = self.path) :: msg.metadata.processingResults)
@@ -92,6 +99,9 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
     }
   }
 
+  /**
+   * Publishes an UnhandledMessage event to the ActorSystem.eventStream
+   */
   protected def unhandledSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
     case msg => context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
   }
