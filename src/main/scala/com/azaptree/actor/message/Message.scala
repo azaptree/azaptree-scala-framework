@@ -32,12 +32,17 @@ case class Message[A](
   }
 }
 
+/**
+ * When using the ask pattern, expectingReply should be set to true.
+ * If expectingReply is true and the message processing fails, the actor will return a akka.actor.Status.Failure response message.
+ */
 @SerialVersionUID(1L)
 case class MessageMetadata(
     messageId: UUID = UUID.randomUUID,
     createdOn: Long = System.currentTimeMillis,
     messageHeaders: Option[Map[String, Any]] = None,
-    processingResults: List[ProcessingResult] = Nil) {
+    processingResults: List[ProcessingResult] = Nil,
+    expectingReply: Boolean = false) {
 
   /**
    * updates the metrics as well, i.e., updates metrics.lastUpdatedOn

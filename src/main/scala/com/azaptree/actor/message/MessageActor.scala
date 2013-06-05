@@ -2,6 +2,7 @@ package com.azaptree.actor.message
 
 import akka.actor.SupervisorStrategy
 import akka.event.LoggingReceive
+import akka.actor.ReceiveTimeout
 
 /**
  * Only supports messages of type: com.azaptree.actors.message.Message
@@ -25,7 +26,11 @@ abstract class MessageActor extends MessageProcessor {
       case msg: Message[_] => process(msg)
     }
 
-    processMessage orElse unhandledMessage
+    val handleReceiveTimeout: PartialFunction[Any, Unit] = {
+      case ReceiveTimeout => receiveTimeout()
+    }
+
+    processMessage orElse handleReceiveTimeout orElse unhandledMessage
   }
 
   /**

@@ -12,6 +12,7 @@ import com.azaptree.actor.ConfigurableActor
 import akka.actor.SupervisorStrategy
 import akka.actor.DeadLetter
 import akka.actor.UnhandledMessage
+import akka.actor.ReceiveTimeout
 
 /**
  * Only supports messages of types:
@@ -93,6 +94,9 @@ abstract class MessageActorFSM extends MessageProcessor
     case Event(Destroy, _) =>
       log.info("Destroy message was received - stopping Actor")
       stop
+    case Event(ReceiveTimeout, _) =>
+      receiveTimeout()
+      stay
     case e: Event =>
       context.system.eventStream.publish(new UnhandledMessage(e, sender, context.self))
       stay

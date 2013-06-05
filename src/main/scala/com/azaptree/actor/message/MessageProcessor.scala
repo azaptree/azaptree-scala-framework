@@ -20,6 +20,7 @@ import com.azaptree.actor.message.system.GetChildrenActorPaths
 import akka.actor.Terminated
 import com.azaptree.actor.registry.ActorRegistry
 import com.azaptree.actor.registry.ActorRegistry.RegisterActor
+import akka.actor.ReceiveTimeout
 
 trait MessageProcessor extends ConfigurableActor with MessageLogging {
 
@@ -52,6 +53,10 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
    */
   protected def unhandledMessage: PartialFunction[Any, Unit] = {
     case t: Terminated => process(Message(t))
+    case msg: Message[_] if msg.metadata.expectingReply =>
+      sender ! akka.actor.Status.Failure(new IllegalArgumentException(s"Message was not handled: $msg"))
+      messageFailed()
+      context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
     case msg =>
       messageFailed()
       context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
@@ -60,6 +65,12 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
   private def unsupportedMessageTypeException: PartialFunction[Any, Unit] = {
     case _ =>
       throw new UnsupportedMessageTypeException()
+  }
+
+  /**
+   * invoked if a akka.actor.ReceiveTimeout message is received
+   */
+  def receiveTimeout(): Unit = {
   }
 
   /**
@@ -103,7 +114,11 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
    * Publishes an UnhandledMessage event to the ActorSystem.eventStream
    */
   protected def unhandledSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
-    case msg => context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
+    case msg =>
+      if (msg.metadata.expectingReply) {
+        sender ! akka.actor.Status.Failure(new IllegalArgumentException(s"Message was not handled: $msg"))
+      }
+      context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
   }
 
   protected def receiveSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
@@ -187,7 +202,8 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
 }
 
 @SerialVersionUID(1L)
-class UnsupportedMessageTypeException() extends RuntimeException {}
+class UnsupportedMessageTypeException() extends RuntimeException {
+}
 
 /**
  * Thrown when a SystemMessage processing exception occurs.
