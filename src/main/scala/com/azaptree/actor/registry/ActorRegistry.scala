@@ -18,7 +18,9 @@ class ActorRegistry extends MessageActor {
   var registeredActors = Set[ActorRef]()
 
   override def receiveMessage = {
-    case Message(m: RegisterActor, _) => registeredActors += m.actor
+    case Message(m: RegisterActor, _) =>
+      registeredActors += m.actor
+      context.watch(m.actor)
     case Message(t: Terminated, _) => registeredActors -= t.actor
 
     case Message(GetRegisteredActors(actorPath), _) => sender ! getRegisteredActors(actorPath)

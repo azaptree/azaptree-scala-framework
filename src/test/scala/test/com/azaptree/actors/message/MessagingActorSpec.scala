@@ -1,13 +1,21 @@
 package test.com.azaptree.actors.message
 
+import scala.collection.immutable.TreeSet
 import scala.concurrent.Await
+import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
+import scala.math.Ordering
+import scala.util.Success
+import scala.util.Try
+
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
 import org.scalatest.matchers.ShouldMatchers
+
 import com.azaptree.actor.config.ActorConfig
-import com.azaptree.actor.config.ActorConfigRegistry
+import com.azaptree.actor.config.ActorConfig
+import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.MessageActor
 import com.azaptree.actor.message.SUCCESS_MESSAGE_STATUS
@@ -25,8 +33,12 @@ import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.IsApplicationMessageSupported
 import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.actor.message.system.MessageStats
+import com.azaptree.actor.message.system.SystemMessage
 import com.azaptree.actor.message.system.SystemMessageProcessor
+import com.azaptree.actor.registry.ActorRegistry
+import com.azaptree.actor.registry.ActorRegistry._
 import com.typesafe.config.ConfigFactory
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -42,15 +54,6 @@ import akka.pattern.ask
 import akka.testkit.DefaultTimeout
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
-import com.azaptree.actor.message.system.SystemMessage
-import com.azaptree.actor.registry.ActorRegistry
-import com.azaptree.actor.ActorSystemManager
-import com.azaptree.actor.registry.ActorRegistry._
-import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Success
-import scala.collection.immutable.TreeSet
-import scala.math.Ordering
 
 object MessagingActorSpec {
 
@@ -131,8 +134,8 @@ object MessagingActorSpec {
 }
 
 class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
-    with DefaultTimeout with ImplicitSender
-    with FeatureSpec with ShouldMatchers with BeforeAndAfterAll {
+  with DefaultTimeout with ImplicitSender
+  with FeatureSpec with ShouldMatchers with BeforeAndAfterAll {
 
   def this() = this(MessagingActorSpec.createActorSystem())
 
@@ -182,9 +185,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
   val actorRegistry = actorRegistryConfig.actorOfActorSystem
 
   import system.dispatcher
-  val heartbeatResponseFuture = for (
-    actorRegistryHeartbeatFuture <- actorRegistry ? Message(HeartbeatRequest)
-  ) yield (actorRegistryHeartbeatFuture)
+  Await.result(actorRegistry ? Message(HeartbeatRequest), 100 millis)
 
   val echoMessageActorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "EchoMessageActor", topLevelActor = true)
   val echoMessageActor = echoMessageActorConfig.actorOfActorSystem
@@ -207,6 +208,20 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     implicit val dispatcher = system.dispatcher
     val future = ask(actor, Message[MessagingActorSpec.GetSupervisorStrategy.type](MessagingActorSpec.GetSupervisorStrategy)).mapTo[Message[SupervisorStrategy]]
     Await.result(future, 100 millis).data
+  }
+
+  def log(actors: Set[ActorRef]) = {
+    println(actors.foldLeft("\n")((s, a) => s + "\n" + a.path) + "\n")
+
+    actors.foreach {
+      actor =>
+        val actors2 = Await.result(ask(actorRegistry, Message(ActorRegistry.GetRegisteredActors(Some(actor.path)))).mapTo[Message[ActorRegistry.RegisteredActors]], 100 millis).data.actors
+        assert(actors2.contains(actor), "actor is expected in RegisteredActors response: " + actor.path)
+
+        var sortedActors = TreeSet[ActorRef]()
+        sortedActors = sortedActors ++ actors2
+        println(sortedActors.foldLeft("*** " + actor.path + " ***")((s, a) => s + "\n   |--" + a.path) + "\n")
+    }
   }
 
   feature("""Actors will keep track of counts for total number of messages processed successfully and messages processed unsucessfully. 
@@ -462,31 +477,29 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
   }
 
   feature("""Actors will register with an ActorRegistry when started/restarted and unregister when terminated""") {
-    scenario("Create an Actor and check that is has registered") {
+    scenario("Create an Actor and check that is has registered. Then stop the actor and check that is has unregistered") {
       val actorRegistry = system.actorFor(system / ActorRegistry.ACTOR_NAME)
       val registeredActorsFuture = ask(actorRegistry, Message(ActorRegistry.GetRegisteredActors())).mapTo[Message[ActorRegistry.RegisteredActors]]
 
       val actors = Await.result(registeredActorsFuture, 100 millis).data.actors
+      log(actors)
       actors.size should be > (0)
-      actors.foreach {
-        actor =>
-          println(actor.path)
 
-          val actors2 = Await.result(ask(actorRegistry, Message(ActorRegistry.GetRegisteredActors(Some(actor.path)))).mapTo[Message[ActorRegistry.RegisteredActors]], 100 millis).data.actors
-          assert(actors2.contains(actor), "actor is expected in RegisteredActors response: " + actor.path)
+      val actorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "ActorRegistryTest")
+      val actor = actorConfig.actorOfActorSystem
+      Await.result(actor ? Message(HeartbeatRequest), 100 millis)
+      Await.result(system.actorFor(system / actorConfig.name / "Printer") ? Message(HeartbeatRequest), 100 millis)
 
-          var sortedActors = TreeSet[ActorRef]()
-          sortedActors = sortedActors ++ actors2
-          println(sortedActors.foldLeft("")((s, a) => s + "\n   |--" + a.path) + "\n")
-      }
-    }
+      Thread.sleep(10l)
 
-    scenario("Restart an Actor and check that is has unregistered and registered") {
-      pending
-    }
+      val registeredActors2 = Await.result(ask(actorRegistry, Message(ActorRegistry.GetRegisteredActors())).mapTo[Message[ActorRegistry.RegisteredActors]], 10 millis).data.actors
+      log(registeredActors2)
+      registeredActors2.size should be(actors.size + 2)
 
-    scenario("Stop an Actor and check that is has unregistered") {
-      pending
+      system.stop(actor)
+      Thread.sleep(10l)
+      val registeredActorsAfterStoppingTestActor = Await.result(ask(actorRegistry, Message(ActorRegistry.GetRegisteredActors())).mapTo[Message[ActorRegistry.RegisteredActors]], 100 millis).data.actors
+      registeredActorsAfterStoppingTestActor.size should be(actors.size)
     }
   }
 
