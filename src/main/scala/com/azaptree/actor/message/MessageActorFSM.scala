@@ -47,6 +47,8 @@ abstract class MessageActorFSM extends MessageProcessor
     with Stash
     with FSM[State, Any] {
 
+  val executeReceive: Receive = process
+
   /**
    * Override to perform intialization when transitioning from Constructed -> Idle.
    *
@@ -86,7 +88,7 @@ abstract class MessageActorFSM extends MessageProcessor
   when(Running) {
     case Event(Stop, _) => goto(Idle)
     case Event(msg: Message[_], _) =>
-      process(msg)
+      executeReceive(msg)
       stay
   }
 

@@ -21,6 +21,7 @@ import akka.actor.Terminated
 import com.azaptree.actor.application.ActorRegistry
 import com.azaptree.actor.application.ActorRegistry.RegisterActor
 import akka.actor.ReceiveTimeout
+import akka.event.LoggingReceive
 
 trait MessageProcessor extends ConfigurableActor with MessageLogging {
 
@@ -51,7 +52,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
    * Otherwise, it records that that the message failed and logs an UnhandledMessage to the ActorSystem.eventStream
    *
    */
-  protected def unhandledMessage: PartialFunction[Any, Unit] = {
+  protected def unhandledMessage: Receive = {
     case t: Terminated => process(Message(t))
     case msg: Message[_] if msg.metadata.expectingReply =>
       sender ! akka.actor.Status.Failure(new IllegalArgumentException(s"Message was not handled: $msg"))
@@ -62,7 +63,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
       context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
   }
 
-  private def unsupportedMessageTypeException: PartialFunction[Any, Unit] = {
+  private def unsupportedMessageTypeException: Receive = {
     case _ =>
       throw new UnsupportedMessageTypeException()
   }
@@ -74,6 +75,11 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
   }
 
   /**
+   *
+   * If actorConfig.loggingReceive = true, then the receive is wrapped in a akka.event.LoggingReceive which then logs message invocations.
+   * This is enabled by a setting in the Configuration : akka.actor.debug.receive = on
+   * *** NOTE: enabling it uniformly on all actors is not usually what you need, and it would lead to endless loops if it were applied to EventHandler listeners.
+   *
    * All exceptions are bubbled up to be handled by the parent SupervisorStrategy.
    *
    * <ul>Keeps track of the following metrics:
@@ -84,30 +90,43 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
    * </ul>
    *
    */
-  def process(msg: Message[_]): Unit = {
-    val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(senderActorPath = sender.path, actorPath = self.path) :: msg.metadata.processingResults)
-    val message = msg.copy(metadata = updatedMetadata)
+  def process: Receive = {
+    def receive: Receive = {
+      case msg: Message[_] =>
+        val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(senderActorPath = sender.path, actorPath = self.path) :: msg.metadata.processingResults)
+        val message = msg.copy(metadata = updatedMetadata)
 
-    message match {
-      case m @ Message(sysMsg: SystemMessage, _) => processSystemMessage(message.asInstanceOf[Message[SystemMessage]])
-      case _ =>
-        messageReceived()
-        try {
-          processApplicationMessage(message)
-          messageProcessed()
-          if (!message.metadata.processingResults.head.status.isDefined) {
-            logMessage(message.update(status = SUCCESS_MESSAGE_STATUS))
-          } else {
-            logMessage(message)
-          }
-        } catch {
-          case e: UnsupportedMessageTypeException => //ignore - this is already handled within processApplicationMessage via handleInvalidMessage
-          case e: Exception =>
-            messageFailed()
-            logMessage(message.update(status = unexpectedError("Failed to process message", e)))
-            throw e
+        message match {
+          case m @ Message(sysMsg: SystemMessage, _) => processSystemMessage(message.asInstanceOf[Message[SystemMessage]])
+          case _ =>
+            messageReceived()
+            try {
+              processApplicationMessage(message)
+              messageProcessed()
+              if (!message.metadata.processingResults.head.status.isDefined) {
+                logMessage(message.update(status = SUCCESS_MESSAGE_STATUS))
+              } else {
+                logMessage(message)
+              }
+            } catch {
+              case e: UnsupportedMessageTypeException => //ignore - this is already handled within processApplicationMessage via handleInvalidMessage
+              case e: Exception =>
+                messageFailed()
+                logMessage(message.update(status = unexpectedError("Failed to process message", e)))
+                throw e
+            }
         }
     }
+
+    val processMessage: Receive = if (actorConfig.loggingReceive) {
+      LoggingReceive { receive }
+    } else { receive }
+
+    val handleReceiveTimeout: PartialFunction[Any, Unit] = {
+      case ReceiveTimeout => receiveTimeout()
+    }
+
+    processMessage orElse handleReceiveTimeout orElse unhandledMessage
   }
 
   /**
