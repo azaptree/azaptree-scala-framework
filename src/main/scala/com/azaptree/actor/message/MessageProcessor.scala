@@ -18,8 +18,8 @@ import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.GetChildrenActorPaths
 import akka.actor.Terminated
-import com.azaptree.actor.registry.ActorRegistry
-import com.azaptree.actor.registry.ActorRegistry.RegisterActor
+import com.azaptree.actor.application.ActorRegistry
+import com.azaptree.actor.application.ActorRegistry.RegisterActor
 import akka.actor.ReceiveTimeout
 
 trait MessageProcessor extends ConfigurableActor with MessageLogging {

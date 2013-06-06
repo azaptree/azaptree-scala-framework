@@ -35,8 +35,8 @@ import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.actor.message.system.MessageStats
 import com.azaptree.actor.message.system.SystemMessage
 import com.azaptree.actor.message.system.SystemMessageProcessor
-import com.azaptree.actor.registry.ActorRegistry
-import com.azaptree.actor.registry.ActorRegistry._
+import com.azaptree.actor.application.ActorRegistry
+import com.azaptree.actor.application.ActorRegistry._
 import com.typesafe.config.ConfigFactory
 
 import akka.actor.Actor
@@ -139,44 +139,10 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
 
   def this() = this(MessagingActorSpec.createActorSystem())
 
-  //  override def beforeAll() = {
-  //    Await.result(echoMessageActor ? HeartbeatRequest, 100 millis)
-  //    Await.result(echoMessageActorWithResumeSupervisorStrategy ? HeartbeatRequest, 100 millis)
-  //  }
-  //
-  //  override def afterAll() = {
-  //    ActorSystemManager.shutdownAll()
-  //  }
-  //
-  //  val actorRegistry = system.actorOf(Props[ActorRegistry], ActorRegistry.ACTOR_NAME)
-  //
-  //  import system.dispatcher
-  //
-  //  val heartbeatResponseFuture = for (
-  //    actorRegistryHeartbeatFuture <- actorRegistry ? Message(HeartbeatRequest)
-  //  ) yield (actorRegistryHeartbeatFuture)
-  //
-  //  val echoMessageActorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "EchoMessageActor", topLevelActor = true)
-  //  val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "echoMessageActorWithResumeSupervisorStrategy", supervisorStrategy = Some(MessagingActorSpec.resumeStrategy), topLevelActor = true)
-  //
-  //  heartbeatResponseFuture.onComplete {
-  //    case Success(s) =>
-  //      val echoMessageActor = echoMessageActorConfig.actorOfActorSystem
-  //      println("*** echoMessageActor.path = " + echoMessageActor.path)
-  //      val echoMessageActorWithResumeSupervisorStrategy = echoMessageActorWithResumeSupervisorStrategyConfig.actorOfActorSystem
-  //      println("*** echoMessageActorWithResumeSupervisorStrategy.path = " + echoMessageActorWithResumeSupervisorStrategy.path)
-  //      ActorSystemManager.registerActorSystem(system)
-  //    case Failure(t) => throw t
-  //  }
-  //
-  //  val echoMessageActor = system.actorFor(system / echoMessageActorConfig.name)
-  //  val echoMessageActorWithResumeSupervisorStrategy = system.actorFor(system / echoMessageActorWithResumeSupervisorStrategyConfig.name)
-
   val messageLogger = system.actorOf(Props[MessagingActorSpec.MessageLoggingTracker], "MessageLoggingTracker")
   system.eventStream.subscribe(messageLogger, classOf[MessageProcessedEvent])
   system.eventStream.subscribe(messageLogger, classOf[UnhandledMessage])
 
-  ////////////////////////////
   override def afterAll() = {
     system.shutdown()
   }
@@ -195,8 +161,6 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     supervisorStrategy = Right(MessagingActorSpec.resumeStrategy),
     topLevelActor = true)
   val echoMessageActorWithResumeSupervisorStrategy = echoMessageActorWithResumeSupervisorStrategyConfig.actorOfActorSystem
-
-  ////////////////
 
   def getMessageActorStats(actor: ActorRef): MessageStats = {
     val messageStatsFuture = ask(actor, Message[GetMessageStats.type](GetMessageStats)).mapTo[Message[MessageStats]]

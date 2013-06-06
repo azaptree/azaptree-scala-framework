@@ -1,4 +1,4 @@
-package com.azaptree.actor.registry
+package com.azaptree.actor.application
 
 import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.MessageActor
