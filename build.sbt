@@ -10,6 +10,8 @@ resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/release
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "1.9.1" % "test" 
 
+libraryDependencies += "com.typesafe" % "config" % "1.0.1"
+
 libraryDependencies ++= Seq("com.typesafe.akka" %% "akka-actor" % akkaVersion,
 						    "com.typesafe.akka" %% "akka-remote" % akkaVersion,
                             "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test",  

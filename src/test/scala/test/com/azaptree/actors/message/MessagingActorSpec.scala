@@ -8,11 +8,9 @@ import scala.concurrent.duration.DurationInt
 import scala.math.Ordering
 import scala.util.Success
 import scala.util.Try
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
 import org.scalatest.matchers.ShouldMatchers
-
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfig
@@ -38,7 +36,6 @@ import com.azaptree.actor.message.system.SystemMessageProcessor
 import com.azaptree.actor.application.ActorRegistry
 import com.azaptree.actor.application.ActorRegistry._
 import com.typesafe.config.ConfigFactory
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -54,6 +51,7 @@ import akka.pattern.ask
 import akka.testkit.DefaultTimeout
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
+import com.azaptree.actor.application.ApplicationActor
 
 object MessagingActorSpec {
 
@@ -161,6 +159,17 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     supervisorStrategy = Right(MessagingActorSpec.resumeStrategy),
     topLevelActor = true)
   val echoMessageActorWithResumeSupervisorStrategy = echoMessageActorWithResumeSupervisorStrategyConfig.actorOfActorSystem
+
+  val appActorConfig = ActorConfig(actorClass = classOf[ApplicationActor],
+    name = "Application",
+    topLevelActor = true,
+    config = Some(ConfigFactory.parseString("""
+        app{
+    		name = "MessagingActorSpec"        
+    		version = "0.0.1-SNAPSHOT"
+    	}
+        """)))
+  val appActor = appActorConfig.actorOfActorSystem
 
   def getMessageActorStats(actor: ActorRef): MessageStats = {
     val messageStatsFuture = ask(actor, Message[GetMessageStats.type](GetMessageStats)).mapTo[Message[MessageStats]]
@@ -467,17 +476,29 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     }
   }
 
-  feature("The mailbox size, i.e., the number of messages queued in a mailbox, can be inspected at runtime") {
-    scenario("""1. Create an Actor with Stash, and send it messages. 
-        |2. Check the mailbox size. 
-        |3. Send the Actor a message to unstash the messages. Then confirm that the mailbox has been flushed.""".stripMargin) {
-      pending
+  feature("""From an ApplicationActor you can obtain the app name and version that is deployed""") {
+
+    scenario("Submit a GetApplicationInfo request and check that a ApplicationInfo response is returned") {
+      import ApplicationActor._
+      val appInfo = Await.result(ask(appActor, Message(GetApplicationInfo)).mapTo[Message[ApplicationInfo]], 100 millis).data
+      println(s"\nappInfo = $appInfo\n")
+
+      appInfo.appName should be(appActorConfig.config.get.getString(ApplicationActor.ConfigKeys.APP_NAME))
+      appInfo.appVersion should be(appActorConfig.config.get.getString(ApplicationActor.ConfigKeys.APP_VERSION))
     }
+
   }
 
-  feature("An Actor defines the messages it supports within its companion object") {
-    scenario("Send messages to the Actor using message types defined within its companion object") {
-      pending
+  feature("""From an ApplicationActor you can obtain JVM runtime info""") {
+
+    scenario("Submit a GetJvmInfo request and check that a Seq[JvmInfo]  response is returned") {
+      import ApplicationActor._
+      val response = Await.result(ask(appActor, Message(GetJvmInfo(RuntimeInfoRequest :: ClassLoadingInfoRequest :: Nil))).mapTo[Message[Seq[JvmInfo]]], 100 millis).data
+      println(s"\n response = $response\n")
+
+      response.size should be(2)
+      response(0).isInstanceOf[RuntimeInfo] should be(true)
+      response(1).isInstanceOf[ClassLoadingInfo] should be(true)
     }
 
   }
