@@ -23,11 +23,9 @@ import com.azaptree.actor.application.ActorRegistry.RegisterActor
 import akka.actor.ReceiveTimeout
 import akka.event.LoggingReceive
 
-trait MessageProcessor extends ConfigurableActor with MessageLogging {
+trait MessageProcessor extends ConfigurableActor with MessageLogging with SystemMessageProcessing {
 
   private[this] val processApplicationMessage = receiveMessage orElse (unhandledMessage andThen unsupportedMessageTypeException)
-
-  protected val processSystemMessage = receiveSystemMessage orElse unhandledSystemMessage
 
   /**
    * Sub-classes can override this method to provide the message handling logic.
@@ -127,95 +125,6 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging {
     }
 
     processMessage orElse handleReceiveTimeout orElse unhandledMessage
-  }
-
-  /**
-   * Publishes an UnhandledMessage event to the ActorSystem.eventStream
-   */
-  protected def unhandledSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
-    case msg =>
-      if (msg.metadata.expectingReply) {
-        sender ! akka.actor.Status.Failure(new IllegalArgumentException(s"Message was not handled: $msg"))
-      }
-      context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
-  }
-
-  protected def receiveSystemMessage: PartialFunction[Message[SystemMessage], Unit] = {
-    case m @ Message(HeartbeatRequest, _) => tryProcessingSystemMessage(m, processHeartbeat)
-    case m @ Message(GetMessageStats, _) => tryProcessingSystemMessage(m, processGetMessageStats)
-    case m @ Message(GetActorConfig, _) => tryProcessingSystemMessage(m, processGetActorConfig)
-    case m @ Message(GetChildrenActorPaths, _) => tryProcessingSystemMessage(m, processGetChildrenActorPaths)
-    case m @ Message(GetSystemMessageProcessorActorRef, _) => tryProcessingSystemMessage(m, getSystemMessageProcessorActorRef)
-    case m @ Message(IsApplicationMessageSupported(_), _) => tryProcessingSystemMessage(m, isApplicationMessageSupported)
-  }
-
-  private def isApplicationMessageSupported(message: Message[_]) = {
-    message.data match {
-      case IsApplicationMessageSupported(msg: Message[_]) =>
-        sender ! Message[ApplicationMessageSupported](
-          data = ApplicationMessageSupported(msg, receiveMessage.isDefinedAt(msg)),
-          metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
-    }
-  }
-
-  private def tryProcessingSystemMessage(message: Message[_], f: Message[_] => Unit) = {
-    val updatedMetadata = message.metadata.copy(processingResults = ProcessingResult(senderActorPath = sender.path, actorPath = self.path) :: message.metadata.processingResults)
-    val messageWithUpdatedProcessingResults = message.copy(metadata = updatedMetadata)
-    try {
-      f(messageWithUpdatedProcessingResults)
-      log.info("{}", messageWithUpdatedProcessingResults.update(status = SUCCESS_MESSAGE_STATUS))
-    } catch {
-      case e: SystemMessageProcessingException =>
-        log.error("{}", messageWithUpdatedProcessingResults.update(status = unexpectedError("Failed to process SystemMessage", e)))
-        throw e
-      case e: Exception =>
-        log.error("{}", messageWithUpdatedProcessingResults.update(status = unexpectedError("Failed to process SystemMessage", e)))
-        throw new SystemMessageProcessingException(e)
-    }
-  }
-
-  private def getSystemMessageProcessorActorRef(message: Message[_]) = {
-    sender ! Message[SystemMessageProcessor](
-      data = SystemMessageProcessor(context.self),
-      metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
-  }
-
-  /**
-   * Sends a Message[MessageStats] reply back to the sender.
-   */
-  private def processGetActorConfig(message: Message[_]): Unit = {
-    sender ! Message[ActorConfig](
-      data = actorConfig,
-      metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
-  }
-
-  /**
-   * Sends a Message[ChildrenActorPaths] reply back to the sender.
-   */
-  private def processGetChildrenActorPaths(message: Message[_]): Unit = {
-    val childActorPaths = context.children.map(_.path)
-    sender ! Message[ChildrenActorPaths](
-      data = ChildrenActorPaths(childActorPaths),
-      metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
-  }
-
-  /**
-   * Sends a Message[MessageStats] reply back to the sender.
-   */
-  private def processGetMessageStats(message: Message[_]): Unit = {
-    sender ! Message[MessageStats](
-      data = messageStats,
-      metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
-  }
-
-  /**
-   * Sends a Message[HeartbeatResponse.type] reply back to the sender.
-   */
-  private def processHeartbeat(message: Message[_]): Unit = {
-    heartbeatReceived()
-    sender ! Message[HeartbeatResponse.type](
-      data = HeartbeatResponse,
-      metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
   }
 
 }
