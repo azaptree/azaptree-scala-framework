@@ -24,7 +24,10 @@ libraryDependencies += compilerPlugin("org.scala-lang.plugins" % "continuations"
 
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.12"
 
-scalacOptions += "-P:continuations:enable"
+scalacOptions ++= Seq("-P:continuations:enable",
+					  "-optimise",
+					  "-feature",
+					  "-language:postfixOps")
 
 scalariformSettings
 

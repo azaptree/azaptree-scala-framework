@@ -4,6 +4,8 @@ import com.azaptree.actor.message.Message
 import akka.actor.ActorPath
 import akka.actor.ActorRef
 
+import scala.language.existentials
+
 /**
  * System messages should be orthogonal to application messages.
  * System message processing should not hold up application message processing,

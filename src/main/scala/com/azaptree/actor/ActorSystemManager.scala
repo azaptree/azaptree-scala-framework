@@ -16,6 +16,8 @@ import com.azaptree.actor.message.system._
 import com.azaptree.actor.message.Message
 import com.typesafe.config.ConfigObject
 
+import scala.language.postfixOps
+
 object ActorSystemManager {
 
   private[this] var actorSystems = Map[String, ActorSystem]()

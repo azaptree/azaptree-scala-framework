@@ -10,6 +10,8 @@ import akka.actor.SupervisorStrategy
 import akka.actor.OneForOneStrategy
 import akka.actor.Actor
 
+import scala.language.existentials
+
 @SerialVersionUID(1L)
 case class ActorConfig(
     actorClass: Class[_ <: Actor],
