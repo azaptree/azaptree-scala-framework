@@ -2,59 +2,50 @@ package com.azaptree.application
 
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import com.azaptree.application.lifecycle._
-import akka.actor.ActorSystem
+import com.azaptree.application.lifecycle.LifeCycle._
 
-trait Component[C[S <: State] <: ComponentInstance[_]] {
+trait Component[A] {
+
   def name: String
 
-  protected def logger: Logger = { LoggerFactory.getLogger(s"Component[$name]") }
+  def instance: Option[A]
 
-  protected def create(): C[Constructed]
+  def state: State
 
-  protected def init(comp: C[Constructed]): C[Initialized]
+  protected def logger: Logger = { LoggerFactory.getLogger(s"Component[name]") }
 
-  protected def start(comp: C[Initialized]): C[Started]
+  protected def create(): Component[A]
 
-  protected def stop(comp: C[Started]): C[Stopped]
+  protected def init(): Component[A]
+
+  protected def start(): Component[A]
+
+  protected def stop(): Component[A]
 
   /**
    * Starts up a new ComponentInstance instance.
    */
-  def startup(): C[Started] = {
-    val appConstructed = create()
+  final def startup(): Component[A] = {
+    val compConstructed = create()
     val log = logger
     log.info("CONSTRUCTED")
 
-    val appInitialized = init(appConstructed)
+    val compInitialized = compConstructed.init()
     log.info("INITIALIZED")
 
-    val appStarted = start(appInitialized)
+    val compStarted = compInitialized.start()
     log.info("STARTED")
 
-    appStarted
+    compStarted
   }
 
-  def shutdown(appCtx: C[Started]): C[Stopped] = {
+  final def shutdown(): Component[A] = {
     val log = logger
 
-    val appStopped = stop(appCtx)
+    val compStopped = stop()
     log.info("STOPPED")
 
-    appStopped
+    compStopped
   }
 }
 
-trait ComponentInstance[S <: State] {
-  type A
-
-  type Callback = () => Unit
-
-  def apply(): A
-
-  def initCallback: Option[Callback] = None
-
-  def startCallback: Option[Callback] = None
-
-  def stopCallback: Option[Callback] = None
-}

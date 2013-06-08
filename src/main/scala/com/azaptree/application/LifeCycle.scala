@@ -1,11 +1,20 @@
 package com.azaptree.application.lifecycle
 
-sealed trait State
+object LifeCycle {
 
-sealed trait Constructed extends State
+  sealed trait State
 
-sealed trait Initialized extends State
+  case object NotConstructed extends State
+  case object Constructed extends State
+  case object Initialized extends State
+  case object Started extends State
+  case object Stopped extends State
+}
 
-sealed trait Started extends State
+sealed trait ComponentState
 
-sealed trait Stopped extends State
+case object ComponentNotConstructed extends ComponentState
+case object ComponentConstructed extends ComponentState
+case object ComponentInitialized extends ComponentState
+case object ComponentStarted extends ComponentState
+case object ComponentStopped extends ComponentState
