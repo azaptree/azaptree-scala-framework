@@ -9,13 +9,13 @@ import akka.actor.Props
 import akka.actor.SupervisorStrategy
 import akka.actor.OneForOneStrategy
 import akka.actor.Actor
-
 import scala.language.existentials
+import akka.actor.ActorPath
 
 @SerialVersionUID(1L)
 case class ActorConfig(
     actorClass: Class[_ <: Actor],
-    name: String,
+    actorPath: ActorPath,
     routedTo: Boolean = false,
     loggingReceive: Boolean = false,
     supervisorStrategy: Either[SupervisorStrategyConfig, SupervisorStrategy] = Right(new OneForOneStrategy()(
@@ -25,18 +25,20 @@ case class ActorConfig(
     // used to provide any Actor specific config
     config: Option[Config] = None) {
 
+  def name: String = actorPath.name
+
   def actorOfActorSystem(implicit actorSystem: ActorSystem): ActorRef = {
-    ActorConfigRegistry.register(actorSystem.name, actorSystem / name, this)
+    ActorConfigRegistry.register(actorSystem.name, this)
     actorSystem.actorOf(Props(actorClass), name)
   }
 
   def actorOfActorContext(implicit actorContext: ActorContext): ActorRef = {
-    ActorConfigRegistry.register(actorContext.system.name, actorContext.self.path / name, this)
+    ActorConfigRegistry.register(actorContext.system.name, this)
     actorContext.actorOf(Props(actorClass), name)
   }
 
   def registerIfTopLevelActor(implicit actorSystem: ActorSystem) = {
-    if (topLevelActor) ActorConfigRegistry.register(actorSystem.name, actorSystem / name, this)
+    if (topLevelActor) ActorConfigRegistry.register(actorSystem.name, this)
   }
 }
 

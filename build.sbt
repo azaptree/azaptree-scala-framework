@@ -27,7 +27,8 @@ libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.12"
 scalacOptions ++= Seq("-P:continuations:enable",
 					  "-optimise",
 					  "-feature",
-					  "-language:postfixOps")
+					  "-language:postfixOps",
+					  "-language:higherKinds")
 
 scalariformSettings
 

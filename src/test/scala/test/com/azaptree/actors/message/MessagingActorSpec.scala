@@ -80,7 +80,7 @@ object MessagingActorSpec {
 
     override def preStart() = {
       super.preStart()
-      val actorConfig = ActorConfig(classOf[Printer], "Printer")
+      val actorConfig = ActorConfig(classOf[Printer], context.self.path / "Printer")
       printerActor = actorConfig.actorOfActorContext
     }
 
@@ -145,23 +145,23 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     system.shutdown()
   }
 
-  val actorRegistryConfig = ActorConfig(actorClass = classOf[ActorRegistry], name = ActorRegistry.ACTOR_NAME, topLevelActor = true)
+  val actorRegistryConfig = ActorConfig(actorClass = classOf[ActorRegistry], actorPath = system / ActorRegistry.ACTOR_NAME, topLevelActor = true)
   val actorRegistry = actorRegistryConfig.actorOfActorSystem
 
   import system.dispatcher
   Await.result(actorRegistry ? Message(HeartbeatRequest), 100 millis)
 
-  val echoMessageActorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "EchoMessageActor", topLevelActor = true)
+  val echoMessageActorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], actorPath = system / "EchoMessageActor", topLevelActor = true)
   val echoMessageActor = echoMessageActorConfig.actorOfActorSystem
 
   val echoMessageActorWithResumeSupervisorStrategyConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor],
-    name = "EchoMessageActorWithResumeSupervisorStrategy",
+    actorPath = system / "EchoMessageActorWithResumeSupervisorStrategy",
     supervisorStrategy = Right(MessagingActorSpec.resumeStrategy),
     topLevelActor = true)
   val echoMessageActorWithResumeSupervisorStrategy = echoMessageActorWithResumeSupervisorStrategyConfig.actorOfActorSystem
 
   val appActorConfig = ActorConfig(actorClass = classOf[ApplicationActor],
-    name = "Application",
+    actorPath = system / "Application",
     topLevelActor = true,
     config = Some(ConfigFactory.parseString("""
         app{
@@ -458,7 +458,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
       log(actors)
       actors.size should be > (0)
 
-      val actorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], name = "ActorRegistryTest")
+      val actorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], actorPath = system / "ActorRegistryTest")
       val actor = actorConfig.actorOfActorSystem
       Await.result(actor ? Message(HeartbeatRequest), 100 millis)
       Await.result(system.actorFor(system / actorConfig.name / "Printer") ? Message(HeartbeatRequest), 100 millis)

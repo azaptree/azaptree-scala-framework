@@ -37,9 +37,9 @@ package object config {
       actorConfigs.keySet
     }
 
-    def register(actorSystemName: String, actorPath: ActorPath, actorConfig: ActorConfig) = {
+    def register(actorSystemName: String, actorConfig: ActorConfig) = {
       var actorSystemActorConfigs = actorConfigs.get(actorSystemName).getOrElse(TreeMap[ActorPath, ActorConfig]())
-      actorSystemActorConfigs = actorSystemActorConfigs + (actorPath -> actorConfig)
+      actorSystemActorConfigs = actorSystemActorConfigs + (actorConfig.actorPath -> actorConfig)
       actorConfigs = actorConfigs + (actorSystemName -> actorSystemActorConfigs)
     }
 

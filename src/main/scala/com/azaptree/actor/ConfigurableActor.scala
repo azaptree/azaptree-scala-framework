@@ -14,7 +14,7 @@ import akka.actor.AllForOneStrategy
 trait ConfigurableActor extends Actor with ActorLogging {
   self =>
 
-  def actorConfig: ActorConfig = { ActorConfigRegistry.getActorConfig(context.system.name, context.self.path).getOrElse(ActorConfig(actorClass = self.getClass(), name = context.self.path.name)) }
+  def actorConfig: ActorConfig = { ActorConfigRegistry.getActorConfig(context.system.name, context.self.path).getOrElse(ActorConfig(actorClass = self.getClass(), actorPath = context.self.path)) }
 
   override val supervisorStrategy = {
     import com.azaptree.actor.config._
