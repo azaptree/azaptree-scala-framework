@@ -8,15 +8,15 @@ import akka.actor.ActorSystem
 trait Component[C[S <: State] <: ComponentInstance[_]] {
   def name: String
 
-  def logger: Logger = { LoggerFactory.getLogger(s"Component[$name]") }
+  protected def logger: Logger = { LoggerFactory.getLogger(s"Component[$name]") }
 
-  def create(): C[Constructed]
+  protected def create(): C[Constructed]
 
-  def init(comp: C[Constructed]): C[Initialized]
+  protected def init(comp: C[Constructed]): C[Initialized]
 
-  def start(comp: C[Initialized]): C[Started]
+  protected def start(comp: C[Initialized]): C[Started]
 
-  def stop(comp: C[Started]): C[Stopped]
+  protected def stop(comp: C[Started]): C[Stopped]
 
   /**
    * Starts up a new ComponentInstance instance.

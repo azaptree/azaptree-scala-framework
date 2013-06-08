@@ -37,6 +37,9 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
    */
   protected def receiveMessage: PartialFunction[Message[_], Unit]
 
+  /**
+   * Registers with the ActorRegistry
+   */
   override def preStart() = {
     context.actorSelection(ActorRegistry.ACTOR_PATH) ! Message(RegisterActor(context.self))
   }
