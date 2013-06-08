@@ -138,7 +138,7 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
 
   val actorSystemComponentInstanceStarted = actorSystemComponent.startup()
 
-  val actorSystem = actorSystemComponentInstanceStarted.actorSystem
+  val actorSystem = actorSystemComponentInstanceStarted()
 
   override def afterAll() = {
     actorSystemComponent.shutdown(actorSystemComponentInstanceStarted)

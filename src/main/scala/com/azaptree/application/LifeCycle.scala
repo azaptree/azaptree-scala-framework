@@ -2,8 +2,6 @@ package com.azaptree.application.lifecycle
 
 sealed trait State
 
-sealed trait NotConstructed extends State
-
 sealed trait Constructed extends State
 
 sealed trait Initialized extends State
