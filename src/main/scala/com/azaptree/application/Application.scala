@@ -1,16 +1,5 @@
 package com.azaptree.application
 
-import scala.reflect.ClassTag
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import com.azaptree.application.lifecycle._
-import scala.annotation.tailrec
-
-//object types {
-//  type AnyComponent = Component[_]
-//
-//  type AnyStartedComponentInstance = ComponentInstance[Started, _]
-//}
 //
 //import types._
 //

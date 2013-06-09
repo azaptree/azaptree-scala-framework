@@ -4,22 +4,24 @@ import scala.collection.immutable.TreeSet
 import scala.collection.immutable.VectorBuilder
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
 import org.scalatest.FunSpec
 import org.scalatest.matchers.ShouldMatchers
+
 import com.azaptree.actor.application.ActorRegistry
 import com.azaptree.actor.application.ApplicationActor
-import com.azaptree.actor.component.ActorSystemComponent
 import com.azaptree.actor.config.ActorConfig
-import com.azaptree.actor.config.ActorConfigRegistry
 import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.MessageActor
 import com.azaptree.actor.message.SUCCESS_MESSAGE_STATUS
 import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.typesafe.config.ConfigFactory
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
+import akka.actor.ActorPath
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.OneForOneStrategy
@@ -29,8 +31,6 @@ import akka.actor.SupervisorStrategy.Resume
 import akka.actor.UnhandledMessage
 import akka.actor.actorRef2Scala
 import akka.util.Timeout
-//import com.azaptree.application.ApplicationBuilder
-import akka.actor.ActorPath
 
 object ApplicationSpec_Actors {
   import akka.actor.SupervisorStrategy._

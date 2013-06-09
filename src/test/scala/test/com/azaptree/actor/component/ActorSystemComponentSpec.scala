@@ -4,22 +4,28 @@ import scala.collection.immutable.TreeSet
 import scala.collection.immutable.VectorBuilder
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
+
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FeatureSpec
 import org.scalatest.FunSpec
 import org.scalatest.matchers.ShouldMatchers
+
 import com.azaptree.actor.application.ActorRegistry
 import com.azaptree.actor.application.ApplicationActor
-import com.azaptree.actor.component.ActorSystemComponent
+import com.azaptree.actor.component.ActorSystemComponentLifeCycle
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfigRegistry
 import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.MessageActor
 import com.azaptree.actor.message.SUCCESS_MESSAGE_STATUS
 import com.azaptree.actor.message.system.MessageProcessedEvent
+import com.azaptree.application.Component
+import com.azaptree.application.ComponentNotConstructed
 import com.typesafe.config.ConfigFactory
+
 import akka.actor.Actor
 import akka.actor.ActorLogging
+import akka.actor.ActorPath
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.OneForOneStrategy
@@ -28,8 +34,8 @@ import akka.actor.SupervisorStrategy.Restart
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor.UnhandledMessage
 import akka.actor.actorRef2Scala
+import akka.pattern.ask
 import akka.util.Timeout
-import akka.actor.ActorPath
 
 object Actors {
   import akka.actor.SupervisorStrategy._
@@ -132,18 +138,18 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
 
   import ActorSystemComponentConfig._
 
-  val actorSystemComponent = ActorSystemComponent("ActorSystemComponentTest")
+  val actorSystemComponent = Component[ComponentNotConstructed, ActorSystem]("ActorSystemComponentTest", ActorSystemComponentLifeCycle())
 
-  val actorSystemComponentInstanceStarted = actorSystemComponent.startup()
+  val actorSystemComponentInstanceStarted = actorSystemComponent.componentLifeCycle.startUp(actorSystemComponent)
 
-  val actorSystem = actorSystemComponentInstanceStarted.instance.get
+  val actorSystem = actorSystemComponentInstanceStarted.componentObject.get
 
   def actorRegistryActor: ActorRef = actorSystem.actorFor(actorRegistryActorPath)
 
   def actorRegistryActorPath: ActorPath = actorSystem / ActorRegistry.ACTOR_NAME
 
   override def afterAll() = {
-    actorSystemComponentInstanceStarted.shutdown()
+    actorSystemComponent.componentLifeCycle.shutdown(actorSystemComponentInstanceStarted)
   }
 
   import akka.pattern.ask

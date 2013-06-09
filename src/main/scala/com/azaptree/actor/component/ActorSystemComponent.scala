@@ -5,32 +5,34 @@ import java.util.concurrent.TimeoutException
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
+import org.slf4j.LoggerFactory
+
 import com.azaptree.actor.application.ActorRegistry
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfigRegistry
 import com.azaptree.actor.message.Message
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.application.Component
-import com.azaptree.application.lifecycle.LifeCycle._
+import com.azaptree.application.ComponentConstructed
+import com.azaptree.application.ComponentInitialized
+import com.azaptree.application.ComponentLifeCycle
+import com.azaptree.application.ComponentNotConstructed
+import com.azaptree.application.ComponentStarted
+import com.azaptree.application.ComponentStopped
 import com.typesafe.config.Config
 
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
 
-case class ActorSystemComponent(
-  override val name: String,
-  override val instance: Option[ActorSystem] = None,
-  override val state: State = NotConstructed)(
-    implicit config: Config, createActorConfigs: ActorSystem => Iterable[ActorConfig])
-    extends Component[ActorSystem] {
+case class ActorSystemComponentLifeCycle(implicit config: Config, createActorConfigs: ActorSystem => Iterable[ActorConfig]) extends ComponentLifeCycle[ActorSystem] {
 
-  override protected def create(): ActorSystemComponent = {
-    val actorSystem = ActorSystem(name, config)
-    copy(instance = Some(actorSystem), state = Constructed)
+  override def create(comp: Component[ComponentNotConstructed, ActorSystem]): Component[ComponentConstructed, ActorSystem] = {
+    val actorSystem = ActorSystem(comp.name, config)
+    comp.copy[ComponentConstructed, ActorSystem](componentObject = Some(actorSystem))
   }
 
-  override protected def init(): ActorSystemComponent = {
+  override def init(comp: Component[ComponentConstructed, ActorSystem]): Component[ComponentInitialized, ActorSystem] = {
     def createActorRegistryActor(actorSystem: ActorSystem) = {
       val actorRegistryConfig = ActorConfig(actorClass = classOf[ActorRegistry],
         topLevelActor = true,
@@ -42,39 +44,32 @@ case class ActorSystemComponent(
       Await.result(reply, 1 second)
     }
 
-    createActorRegistryActor(instance.get)
-    copy(state = Initialized)
+    createActorRegistryActor(comp.componentObject.get)
+    comp.copy[ComponentInitialized, ActorSystem]()
   }
 
-  override protected def start(): ActorSystemComponent = {
-    implicit val actorSystem = instance.get
+  override def start(comp: Component[ComponentInitialized, ActorSystem]): Component[ComponentStarted, ActorSystem] = {
+    implicit val actorSystem = comp.componentObject.get
     val actorConfigs = createActorConfigs(actorSystem)
     actorConfigs.foreach(ActorConfigRegistry.register(actorSystem.name, _))
     actorConfigs.filter(actorConfig => actorConfig.topLevelActor).foreach(_.actorOfActorSystem)
-    copy(state = Started)
+    comp.copy[ComponentStarted, ActorSystem]()
   }
 
-  override protected def stop(): ActorSystemComponent = {
-    state match {
-      case Started =>
-        val actorSystem = instance.get
-        actorSystem.shutdown()
-        while (!actorSystem.isTerminated) {
-          logger.info("Waiting for ActorSystem to shutdown : {}", name)
-          try {
-            actorSystem.awaitTermination(30 second)
-          } catch {
-            case e: TimeoutException => // ignore
-          }
-        }
-
-        copy(state = Stopped, instance = None)
-      case Stopped =>
-        logger.info("Component is already stopped")
-        this
-      case _ => throw new IllegalStateException(s"Trying to stop the component while in state [{$state}] is invalid")
+  override def stop(comp: Component[ComponentStarted, ActorSystem]): Component[ComponentStopped, ActorSystem] = {
+    val actorSystem = comp.componentObject.get
+    actorSystem.shutdown()
+    val logger = LoggerFactory.getLogger(getClass())
+    while (!actorSystem.isTerminated) {
+      logger.info("Waiting for ActorSystem to shutdown : {}", comp.name)
+      try {
+        actorSystem.awaitTermination(30 second)
+      } catch {
+        case e: TimeoutException => // ignore
+      }
     }
 
+    comp.copy[ComponentStopped, ActorSystem](componentObject = None)
   }
 
 }

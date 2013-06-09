@@ -1,51 +1,50 @@
 package com.azaptree.application
 
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import com.azaptree.application.lifecycle.LifeCycle._
 
-trait Component[A] {
+case class Component[s <: ComponentState, A](name: String, componentLifeCycle: ComponentLifeCycle[A], componentObject: Option[A] = None)
 
-  def name: String
+sealed trait ComponentState
+sealed trait ComponentNotConstructed extends ComponentState
+sealed trait ComponentConstructed extends ComponentState
+sealed trait ComponentInitialized extends ComponentState
+sealed trait ComponentStarted extends ComponentState
+sealed trait ComponentStopped extends ComponentState
 
-  def instance: Option[A]
+trait ComponentLifeCycle[A] {
 
-  def state: State
+  protected def create(comp: Component[ComponentNotConstructed, A]): Component[ComponentConstructed, A]
 
-  protected def logger: Logger = { LoggerFactory.getLogger(s"Component[name]") }
+  protected def init(comp: Component[ComponentConstructed, A]): Component[ComponentInitialized, A] = comp.copy[ComponentInitialized, A]()
 
-  protected def create(): Component[A]
+  protected def start(comp: Component[ComponentInitialized, A]): Component[ComponentStarted, A] = comp.copy[ComponentStarted, A]()
 
-  protected def init(): Component[A]
-
-  protected def start(): Component[A]
-
-  protected def stop(): Component[A]
+  protected def stop(comp: Component[ComponentStarted, A]): Component[ComponentStopped, A] = comp.copy[ComponentStopped, A]()
 
   /**
-   * Starts up a new ComponentInstance instance.
+   * This will startup a new instance of the component
    */
-  final def startup(): Component[A] = {
-    val compConstructed = create()
-    val log = logger
-    log.info("CONSTRUCTED")
+  final def startUp(comp: Component[ComponentNotConstructed, A]): Component[ComponentStarted, A] = {
+    val log = LoggerFactory.getLogger("%s.%s".format(getClass(), comp.name))
 
-    val compInitialized = compConstructed.init()
-    log.info("INITIALIZED")
+    val constructed = comp.componentLifeCycle.create(comp)
+    log.debug("ComponentConstructed")
 
-    val compStarted = compInitialized.start()
-    log.info("STARTED")
+    val initialized = constructed.componentLifeCycle.init(constructed)
+    log.debug("ComponentInitialized")
 
-    compStarted
+    val started = initialized.componentLifeCycle.start(initialized)
+    log.info("ComponentStarted")
+
+    started
   }
 
-  final def shutdown(): Component[A] = {
-    val log = logger
-
-    val compStopped = stop()
-    log.info("STOPPED")
-
-    compStopped
+  final def shutdown(comp: Component[ComponentStarted, A]): Component[ComponentStopped, A] = {
+    val log = LoggerFactory.getLogger("%s.%s".format(getClass(), comp.name))
+    val stopped = comp.componentLifeCycle.stop(comp)
+    log.info("ComponentStopped")
+    stopped
   }
+
 }
 
