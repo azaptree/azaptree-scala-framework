@@ -11,6 +11,7 @@ import akka.actor.OneForOneStrategy
 import akka.actor.Actor
 import scala.language.existentials
 import akka.actor.ActorPath
+import scala.concurrent.duration.FiniteDuration
 
 @SerialVersionUID(1L)
 case class ActorConfig(
@@ -19,11 +20,16 @@ case class ActorConfig(
     routedTo: Boolean = false,
     loggingReceive: Boolean = false,
     supervisorStrategy: Either[SupervisorStrategyConfig, SupervisorStrategy] = Right(new OneForOneStrategy()(
-      unsupportedMessageTypeExceptionDecider orElse SupervisorStrategy.defaultStrategy.decider
-    )),
+      unsupportedMessageTypeExceptionDecider orElse SupervisorStrategy.defaultStrategy.decider)),
     topLevelActor: Boolean = false,
     // used to provide any Actor specific config
-    config: Option[Config] = None) {
+    config: Option[Config] = None,
+    /*
+   * If specified, then the Actor will be gracefully stopped before the ActorSystem shutdown commences.
+   *
+   * If not specified, then the Actor will be shutdown upon ActorSystem shutdown.
+   */
+    gracefulStopTimeout: Option[FiniteDuration] = None) {
 
   def name: String = actorPath.name
 

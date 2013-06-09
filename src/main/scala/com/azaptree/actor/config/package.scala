@@ -29,18 +29,20 @@ package object config {
       actorConfigs.get(actorSystemName).flatMap(_.get(actorPath))
     }
 
-    def actorSystemNames = {
+    def actorSystemNames: Set[String] = {
       actorConfigs.keySet
     }
 
-    def actorPaths(actorSystemName: String) = {
-      actorConfigs.keySet
+    def actorPaths(actorSystemName: String): Option[Set[ActorPath]] = {
+      for (
+        actorSystemActorConfigs <- actorConfigs.get(actorSystemName)
+      ) yield (actorSystemActorConfigs.keySet)
     }
 
     def register(actorSystemName: String, actorConfig: ActorConfig) = {
       var actorSystemActorConfigs = actorConfigs.get(actorSystemName).getOrElse(TreeMap[ActorPath, ActorConfig]())
-      actorSystemActorConfigs = actorSystemActorConfigs + (actorConfig.actorPath -> actorConfig)
-      actorConfigs = actorConfigs + (actorSystemName -> actorSystemActorConfigs)
+      actorSystemActorConfigs += (actorConfig.actorPath -> actorConfig)
+      actorConfigs += (actorSystemName -> actorSystemActorConfigs)
     }
 
     def createTopLevelActors(implicit actorSystem: ActorSystem) = {

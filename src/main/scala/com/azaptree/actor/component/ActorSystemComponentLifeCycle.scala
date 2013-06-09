@@ -25,13 +25,16 @@ import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
 
-case class ActorSystemComponentLifeCycle(implicit config: Config, createActorConfigs: ActorSystem => Iterable[ActorConfig]) extends ComponentLifeCycle[ActorSystem] {
+case class ActorSystemComponentLifeCycle(createActorConfigs: Option[ActorSystem => Iterable[ActorConfig]] = None)(implicit config: Config) extends ComponentLifeCycle[ActorSystem] {
 
   override def create(comp: Component[ComponentNotConstructed, ActorSystem]): Component[ComponentConstructed, ActorSystem] = {
     val actorSystem = ActorSystem(comp.name, config)
     comp.copy[ComponentConstructed, ActorSystem](componentObject = Some(actorSystem))
   }
 
+  /**
+   * Creates the ActorRegistry Actor
+   */
   override def init(comp: Component[ComponentConstructed, ActorSystem]): Component[ComponentInitialized, ActorSystem] = {
     def createActorRegistryActor(actorSystem: ActorSystem) = {
       val actorRegistryConfig = ActorConfig(actorClass = classOf[ActorRegistry],
@@ -49,10 +52,13 @@ case class ActorSystemComponentLifeCycle(implicit config: Config, createActorCon
   }
 
   override def start(comp: Component[ComponentInitialized, ActorSystem]): Component[ComponentStarted, ActorSystem] = {
-    implicit val actorSystem = comp.componentObject.get
-    val actorConfigs = createActorConfigs(actorSystem)
-    actorConfigs.foreach(ActorConfigRegistry.register(actorSystem.name, _))
-    actorConfigs.filter(actorConfig => actorConfig.topLevelActor).foreach(_.actorOfActorSystem)
+    createActorConfigs.foreach(f => {
+      implicit val actorSystem = comp.componentObject.get
+      val actorConfigs = f(actorSystem)
+      actorConfigs.foreach(ActorConfigRegistry.register(actorSystem.name, _))
+      actorConfigs.filter(actorConfig => actorConfig.topLevelActor).foreach(_.actorOfActorSystem)
+    })
+
     comp.copy[ComponentStarted, ActorSystem]()
   }
 

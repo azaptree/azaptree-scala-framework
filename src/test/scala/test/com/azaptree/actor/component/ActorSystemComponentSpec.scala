@@ -5,11 +5,9 @@ import scala.collection.immutable.VectorBuilder
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FunSpec
 import org.scalatest.matchers.ShouldMatchers
-
 import com.azaptree.actor.application.ActorRegistry
 import com.azaptree.actor.application.ApplicationActor
 import com.azaptree.actor.component.ActorSystemComponentLifeCycle
@@ -22,7 +20,6 @@ import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.application.Component
 import com.azaptree.application.ComponentNotConstructed
 import com.typesafe.config.ConfigFactory
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorPath
@@ -36,6 +33,7 @@ import akka.actor.UnhandledMessage
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
+import com.azaptree.actor.component.ActorComponentLifeCycle
 
 object Actors {
   import akka.actor.SupervisorStrategy._
@@ -142,7 +140,32 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
 
   val actorSystemComponentInstanceStarted = actorSystemComponent.componentLifeCycle.startUp(actorSystemComponent)
 
-  val actorSystem = actorSystemComponentInstanceStarted.componentObject.get
+  implicit val actorSystem = actorSystemComponentInstanceStarted.componentObject.get
+
+  import Actors._
+  val echoMessageActorConfig = ActorConfig(actorClass = classOf[EchoMessageActor], actorPath = actorSystem / "EchoMessageActor", topLevelActor = true)
+  val echoMessageActorComponent = Component[ComponentNotConstructed, ActorRef](echoMessageActorConfig.name, ActorComponentLifeCycle(echoMessageActorConfig))
+  echoMessageActorComponent.componentLifeCycle.startUp(echoMessageActorComponent)
+
+  val echoMessageActor2Config = ActorConfig(
+    actorClass = classOf[EchoMessageActor],
+    actorPath = actorSystem / "EchoMessageActorWithResumeSupervisorStrategy",
+    supervisorStrategy = Right(resumeStrategy),
+    topLevelActor = true)
+  val echoMessageActor2Comp = Component[ComponentNotConstructed, ActorRef](echoMessageActor2Config.name, ActorComponentLifeCycle(echoMessageActor2Config))
+  echoMessageActor2Comp.componentLifeCycle.startUp(echoMessageActor2Comp)
+
+  val appActorConfig = ActorConfig(actorClass = classOf[ApplicationActor],
+    actorPath = actorSystem / "Application",
+    topLevelActor = true,
+    config = Some(ConfigFactory.parseString("""
+        app{
+    		name = "MessagingActorSpec"        
+    		version = "0.0.1-SNAPSHOT"
+    	}
+        """)))
+  val appActorComp = Component[ComponentNotConstructed, ActorRef](appActorConfig.name, ActorComponentLifeCycle(appActorConfig))
+  appActorComp.componentLifeCycle.startUp(appActorComp)
 
   def actorRegistryActor: ActorRef = actorSystem.actorFor(actorRegistryActorPath)
 
@@ -158,7 +181,7 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
   implicit val defaultTimeout = new Timeout(1 second)
 
   def log(actors: Set[ActorRef])(implicit actorRegistry: ActorRef) = {
-    println(actors.foldLeft("\n")((s, a) => s + "\n" + a.path) + "\n")
+    println(actors.mkString("\n**************** ACTORS ***************\n", "\n", "\n**************** END - ACTORS ***************\n"))
 
     actors.foreach {
       actor =>
@@ -167,7 +190,7 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
 
         var sortedActors = TreeSet[ActorRef]()
         sortedActors = sortedActors ++ actors2
-        println(sortedActors.foldLeft("*** " + actor.path + " ***")((s, a) => s + "\n   |--" + a.path) + "\n")
+        println(sortedActors.foldLeft("\n*** " + actor.path + " ***")((s, a) => s + "\n   |--" + a.path) + "\n")
     }
   }
 
@@ -183,7 +206,8 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
       val actors = Await.result(registeredActorsFuture, 100 millis).data.actors
       log(actors)
       info("Check that the number of actors registered equals the number of ActorConfigs that are registered")
-      actors.size should be > (ActorConfigRegistry.actorPaths(actorSystem.name).size)
+      ActorConfigRegistry.actorPaths(actorSystem.name).foreach(actorPaths => println(actorPaths.mkString("\n*******  ActorConfigRegistry  ***********\n", "\n", "\n*******  END - ActorConfigRegistry  ***********\n")))
+      actors.size should be(ActorConfigRegistry.actorPaths(actorSystem.name).get.size)
     }
   }
 

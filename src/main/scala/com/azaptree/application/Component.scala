@@ -2,7 +2,11 @@ package com.azaptree.application
 
 import org.slf4j.LoggerFactory
 
-case class Component[s <: ComponentState, A](name: String, componentLifeCycle: ComponentLifeCycle[A], componentObject: Option[A] = None)
+case class Component[S <: ComponentState, A](
+  name: String,
+  componentLifeCycle: ComponentLifeCycle[A],
+  componentObject: Option[A] = None,
+  dependsOn: Option[Iterable[Component[_, _]]] = None)
 
 sealed trait ComponentState
 sealed trait ComponentNotConstructed extends ComponentState
@@ -19,7 +23,7 @@ trait ComponentLifeCycle[A] {
 
   protected def start(comp: Component[ComponentInitialized, A]): Component[ComponentStarted, A] = comp.copy[ComponentStarted, A]()
 
-  protected def stop(comp: Component[ComponentStarted, A]): Component[ComponentStopped, A] = comp.copy[ComponentStopped, A]()
+  protected def stop(comp: Component[ComponentStarted, A]): Component[ComponentStopped, A] = comp.copy[ComponentStopped, A](componentObject = None)
 
   /**
    * This will startup a new instance of the component
@@ -28,13 +32,13 @@ trait ComponentLifeCycle[A] {
     val log = LoggerFactory.getLogger("%s.%s".format(getClass(), comp.name))
 
     val constructed = comp.componentLifeCycle.create(comp)
-    log.debug("ComponentConstructed")
+    log.debug("ComponentConstructed : {}", comp.name)
 
     val initialized = constructed.componentLifeCycle.init(constructed)
-    log.debug("ComponentInitialized")
+    log.debug("ComponentInitialized : {}", comp.name)
 
     val started = initialized.componentLifeCycle.start(initialized)
-    log.info("ComponentStarted")
+    log.info("ComponentStarted : {}", comp.name)
 
     started
   }
@@ -42,7 +46,7 @@ trait ComponentLifeCycle[A] {
   final def shutdown(comp: Component[ComponentStarted, A]): Component[ComponentStopped, A] = {
     val log = LoggerFactory.getLogger("%s.%s".format(getClass(), comp.name))
     val stopped = comp.componentLifeCycle.stop(comp)
-    log.info("ComponentStopped")
+    log.info("ComponentStopped : {}", comp.name)
     stopped
   }
 
