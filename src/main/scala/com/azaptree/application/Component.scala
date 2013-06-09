@@ -3,10 +3,26 @@ package com.azaptree.application
 import org.slf4j.LoggerFactory
 
 case class Component[S <: ComponentState, A](
-  name: String,
-  componentLifeCycle: ComponentLifeCycle[A],
-  componentObject: Option[A] = None,
-  dependsOn: Option[Iterable[Component[_, _]]] = None)
+    name: String,
+    componentLifeCycle: ComponentLifeCycle[A],
+    componentObject: Option[A] = None,
+    dependsOn: Option[Iterable[Component[_, _]]] = None) {
+
+  def startup(): Component[ComponentStarted, A] = {
+    assert(componentObject.isEmpty, "It is invalid to startup a Component that is not in the NotConstructed state or already has some component object")
+
+    componentLifeCycle.startUp(copy[ComponentNotConstructed, A]())
+  }
+
+  def shutdown(): Component[ComponentStopped, A] = {
+    componentObject.foreach(o => {
+      componentLifeCycle.shutdown(copy[ComponentStarted, A]())
+    })
+
+    copy[ComponentStopped, A](componentObject = None)
+  }
+
+}
 
 sealed trait ComponentState
 sealed trait ComponentNotConstructed extends ComponentState
@@ -29,7 +45,7 @@ trait ComponentLifeCycle[A] {
    * This will startup a new instance of the component
    */
   final def startUp(comp: Component[ComponentNotConstructed, A]): Component[ComponentStarted, A] = {
-    val log = LoggerFactory.getLogger("%s.%s".format(getClass(), comp.name))
+    val log = LoggerFactory.getLogger(getClass())
 
     val constructed = comp.componentLifeCycle.create(comp)
     log.debug("ComponentConstructed : {}", comp.name)
@@ -44,7 +60,7 @@ trait ComponentLifeCycle[A] {
   }
 
   final def shutdown(comp: Component[ComponentStarted, A]): Component[ComponentStopped, A] = {
-    val log = LoggerFactory.getLogger("%s.%s".format(getClass(), comp.name))
+    val log = LoggerFactory.getLogger(getClass())
     val stopped = comp.componentLifeCycle.stop(comp)
     log.info("ComponentStopped : {}", comp.name)
     stopped
