@@ -15,6 +15,7 @@ import com.azaptree.application.ComponentStartedEvent
 import com.azaptree.application.ComponentShutdownEvent
 import com.azaptree.application.PreApplicationShutdownEvent
 import com.azaptree.application.PostApplicationShutdownEvent
+import com.azaptree.application.ComponentShutdownFailedEvent
 
 object ApplicationSpec {
   val started = "ComponentStarted"
@@ -49,6 +50,27 @@ object ApplicationSpec {
       val compStopped = comp.copy[ComponentStopped, CompA](componentObject = None)
       reverseShutdownOrder = comp.name :: reverseShutdownOrder
       compStopped
+    }
+  }
+
+  class CompALifeCycleWithShutdownFailure extends ComponentLifeCycle[CompA] {
+    protected def create(comp: Component[ComponentNotConstructed, CompA]): Component[ComponentConstructed, CompA] = {
+      comp.copy[ComponentConstructed, CompA](componentLifeCycle = this, componentObject = Some(CompA(constructed :: Nil)))
+    }
+
+    override protected def init(comp: Component[ComponentConstructed, CompA]): Component[ComponentInitialized, CompA] = {
+      val compA = comp.componentObject.get
+      comp.copy[ComponentInitialized, CompA](componentObject = Some(compA.addState(initialized)))
+    }
+
+    override protected def start(comp: Component[ComponentInitialized, CompA]): Component[ComponentStarted, CompA] = {
+      val compA = comp.componentObject.get
+      val compStarted = comp.copy[ComponentStarted, CompA](componentObject = Some(compA.addState(started)))
+      compStarted
+    }
+
+    override protected def stop(comp: Component[ComponentStarted, CompA]): Component[ComponentStopped, CompA] = {
+      throw new RuntimeException("SHUTDOWN ERROR")
     }
   }
 }
@@ -189,5 +211,42 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       PreApplicationShutdownEventCount should be(1)
       PostApplicationShutdownEventCount should be(1)
     }
+  }
+
+  it("will publish events when a component is stopped") {
+    val compA = Component[ComponentNotConstructed, CompA]("CompA", new CompALifeCycle())
+    val compAWithShutdownFailure = Component[ComponentNotConstructed, CompA]("CompA-BAD", new CompALifeCycleWithShutdownFailure())
+    val compB = Component[ComponentNotConstructed, CompA]("CompB", new CompALifeCycle())
+    val compC = Component[ComponentNotConstructed, CompA]("CompC", new CompALifeCycle())
+
+    var compRegisteredCount = 0
+    var ComponentShutdownEventCount = 0
+    var ComponentShutdownFailedEventCount = 0
+    val subscriber: Any => Unit = event => {
+      event match {
+        case e: ComponentStartedEvent => compRegisteredCount += 1
+        case e: ComponentShutdownEvent => ComponentShutdownEventCount += 1
+        case e: ComponentShutdownFailedEvent => ComponentShutdownFailedEventCount += 1
+      }
+
+      println((compRegisteredCount + ComponentShutdownEventCount + ComponentShutdownFailedEventCount) + " : " + event)
+
+    }
+
+    var app = Application()
+    app.subscribe(subscriber, classOf[ComponentStartedEvent]);
+    app.subscribe(subscriber, classOf[ComponentShutdownEvent]);
+    app.subscribe(subscriber, classOf[ComponentShutdownFailedEvent]);
+    val comps = (compA :: compB :: compC :: compAWithShutdownFailure :: Nil)
+    app = comps.foldLeft(app) { (app, comp) =>
+      println("\n" + app + "\n")
+      app.register(comp)
+    }
+
+    app.shutdown()
+
+    compRegisteredCount should be(comps.size)
+    ComponentShutdownEventCount should be(comps.size - 1)
+    ComponentShutdownFailedEventCount should be(1)
   }
 }
