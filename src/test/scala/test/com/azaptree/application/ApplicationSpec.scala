@@ -94,7 +94,22 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
         case ("CompA" :: "CompE" :: "CompD" :: "CompB" :: "CompC" :: Nil) =>
         case _ => fail("Shutdown order is not correct")
       }
+    }
 
+    it("will publish events when a component is registered") {
+      pending
+    }
+
+    it("will publish events when a component is started") {
+      pending
+    }
+
+    it("will publish events when a component is stopped") {
+      pending
+    }
+
+    it("will publish events before and after the application is shutdown") {
+      pending
     }
   }
 }
