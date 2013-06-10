@@ -9,9 +9,12 @@ import com.azaptree.application.ComponentStarted
 import com.azaptree.application.Component
 import com.azaptree.application.ComponentConstructed
 import com.azaptree.application.ComponentNotConstructed
-
 import ApplicationSpec._
 import com.azaptree.application.Application
+import com.azaptree.application.ComponentStartedEvent
+import com.azaptree.application.ComponentShutdownEvent
+import com.azaptree.application.PreApplicationShutdownEvent
+import com.azaptree.application.PostApplicationShutdownEvent
 
 object ApplicationSpec {
   val started = "ComponentStarted"
@@ -39,14 +42,12 @@ object ApplicationSpec {
     override protected def start(comp: Component[ComponentInitialized, CompA]): Component[ComponentStarted, CompA] = {
       val compA = comp.componentObject.get
       val compStarted = comp.copy[ComponentStarted, CompA](componentObject = Some(compA.addState(started)))
-      println("Started Component : " + comp.name)
       compStarted
     }
 
     override protected def stop(comp: Component[ComponentStarted, CompA]): Component[ComponentStopped, CompA] = {
       val compStopped = comp.copy[ComponentStopped, CompA](componentObject = None)
       reverseShutdownOrder = comp.name :: reverseShutdownOrder
-      println("Stopped Component : " + comp.name)
       compStopped
     }
   }
@@ -97,19 +98,96 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
     }
 
     it("will publish events when a component is registered") {
-      pending
-    }
+      val compA = Component[ComponentNotConstructed, CompA]("CompA", new CompALifeCycle())
+      val compB = Component[ComponentNotConstructed, CompA]("CompB", new CompALifeCycle())
+      val compC = Component[ComponentNotConstructed, CompA]("CompC", new CompALifeCycle())
 
-    it("will publish events when a component is started") {
-      pending
+      var compRegisteredCount = 0
+      val subscriber: Any => Unit = event => {
+        compRegisteredCount += 1
+        println(compRegisteredCount + " : " + event)
+      }
+
+      var app = Application()
+      app.subscribe(subscriber, classOf[ComponentStartedEvent]);
+      val comps = (compA :: compB :: compC :: Nil)
+      app = comps.foldLeft(app) { (app, comp) =>
+        println("\n" + app + "\n")
+        app.register(comp)
+      }
+
+      compRegisteredCount should be(comps.size)
+
     }
 
     it("will publish events when a component is stopped") {
-      pending
+      val compA = Component[ComponentNotConstructed, CompA]("CompA", new CompALifeCycle())
+      val compB = Component[ComponentNotConstructed, CompA]("CompB", new CompALifeCycle())
+      val compC = Component[ComponentNotConstructed, CompA]("CompC", new CompALifeCycle())
+
+      var compRegisteredCount = 0
+      var ComponentShutdownEventCount = 0
+      val subscriber: Any => Unit = event => {
+        event match {
+          case e: ComponentStartedEvent => compRegisteredCount += 1
+          case e: ComponentShutdownEvent => ComponentShutdownEventCount += 1
+        }
+
+        println((compRegisteredCount + ComponentShutdownEventCount) + " : " + event)
+
+      }
+
+      var app = Application()
+      app.subscribe(subscriber, classOf[ComponentStartedEvent]);
+      app.subscribe(subscriber, classOf[ComponentShutdownEvent]);
+      val comps = (compA :: compB :: compC :: Nil)
+      app = comps.foldLeft(app) { (app, comp) =>
+        println("\n" + app + "\n")
+        app.register(comp)
+      }
+
+      app.shutdown()
+
+      (compRegisteredCount + ComponentShutdownEventCount) should be(comps.size * 2)
     }
 
     it("will publish events before and after the application is shutdown") {
-      pending
+      val compA = Component[ComponentNotConstructed, CompA]("CompA", new CompALifeCycle())
+      val compB = Component[ComponentNotConstructed, CompA]("CompB", new CompALifeCycle())
+      val compC = Component[ComponentNotConstructed, CompA]("CompC", new CompALifeCycle())
+
+      var compRegisteredCount = 0
+      var ComponentShutdownEventCount = 0
+      var PreApplicationShutdownEventCount = 0
+      var PostApplicationShutdownEventCount = 0
+      val subscriber: Any => Unit = event => {
+        event match {
+          case e: ComponentStartedEvent => compRegisteredCount += 1
+          case e: ComponentShutdownEvent => ComponentShutdownEventCount += 1
+          case e: PreApplicationShutdownEvent => PreApplicationShutdownEventCount += 1
+          case e: PostApplicationShutdownEvent => PostApplicationShutdownEventCount += 1
+        }
+
+        println((compRegisteredCount + ComponentShutdownEventCount + PreApplicationShutdownEventCount + PostApplicationShutdownEventCount) + " : " + event)
+      }
+
+      var app = Application()
+      app.subscribe(subscriber, classOf[ComponentStartedEvent]);
+      app.subscribe(subscriber, classOf[ComponentShutdownEvent]);
+      app.subscribe(subscriber, classOf[PreApplicationShutdownEvent]);
+      app.subscribe(subscriber, classOf[PostApplicationShutdownEvent]);
+      val comps = (compA :: compB :: compC :: Nil)
+      app = comps.foldLeft(app) { (app, comp) =>
+        println("\n" + app + "\n")
+        app.register(comp)
+      }
+
+      app.shutdown()
+
+      compRegisteredCount should be(comps.size)
+      ComponentShutdownEventCount should be(comps.size)
+      PreApplicationShutdownEventCount should be(1)
+      PostApplicationShutdownEventCount should be(1)
     }
   }
 }

@@ -1,17 +1,32 @@
 package com.azaptree.application
 
 import scala.annotation.tailrec
-import org.slf4j.LoggerFactory
-import akka.event.LookupClassification
-import akka.event.EventBus
 
-case class Application(components: List[Component[ComponentStarted, _]] = Nil) extends ApplicationEventBus {
+import org.slf4j.LoggerFactory
+
+import akka.event.EventBus
+import akka.event.japi.LookupEventBus
+
+case class Application(components: List[Component[ComponentStarted, _]] = Nil, eventBus: LookupEventBus[Any, Any => Unit, Class[_]] = new ApplicationEventBus()) extends EventBus {
+
+  type Event = Any
+  type Subscriber = Any => Unit
+  type Classifier = Class[_]
+
+  override def publish(event: Event): Unit = eventBus.publish(event)
+
+  override def subscribe(subscriber: Subscriber, to: Classifier): Boolean = eventBus.subscribe(subscriber, to)
+
+  override def unsubscribe(subscriber: Subscriber): Unit = eventBus.unsubscribe(subscriber)
+
+  override def unsubscribe(subscriber: Subscriber, from: Classifier): Boolean = eventBus.unsubscribe(subscriber, from)
+
   def register(comp: Component[ComponentNotConstructed, _]): Application = {
     assert(components.find(_.name == comp.name).isEmpty, "A component with the same name is already registered: " + comp.name)
 
     val compStarted = comp.startup()
     val appWithNewComp = copy(components = compStarted :: components)
-    publish(ComponentRegistered(appWithNewComp, compStarted))
+    publish(ComponentStartedEvent(appWithNewComp, compStarted))
     appWithNewComp
   }
 
@@ -24,18 +39,18 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil) e
       try {
         val compStopped = componentToShutdown.get.shutdown()
         val appWithCompRemoved = copy(components = components.filterNot(containsComp))
-        publish(ComponentShutdown(appWithCompRemoved, compStopped))
+        publish(ComponentShutdownEvent(appWithCompRemoved, compStopped))
         Right(appWithCompRemoved)
       } catch {
         case e: Exception =>
-          publish(ComponentShutdownFailed(this, componentToShutdown.get, e))
+          publish(ComponentShutdownFailedEvent(this, componentToShutdown.get, e))
           Left(e)
       }
     }
   }
 
   def shutdown(): Application = {
-    publish(BeforeApplicationShutdown(this))
+    publish(PreApplicationShutdownEvent(this))
     val log = LoggerFactory.getLogger(getClass())
 
     @tailrec
@@ -95,7 +110,7 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil) e
       case None => shutdownComponentsWithoutDependents(this, components, Map[String, List[String]]())
     }
 
-    publish(AfterApplicationShutdown(this))
+    publish(PostApplicationShutdownEvent(this))
     app
   }
 
