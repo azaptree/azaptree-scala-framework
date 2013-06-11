@@ -7,7 +7,31 @@ import org.slf4j.LoggerFactory
 import akka.event.EventBus
 import akka.event.japi.LookupEventBus
 
+object Application {
+  def componentDependencies(components: List[Component[_, _]]): Option[Map[String, List[String]]] = {
+    var dependencyMap = Map[String, List[String]]()
+    components.foreach { comp =>
+      comp.dependsOn match {
+        case Some(compDependencies) =>
+          val compDependencyNames = compDependencies.map(_.name)
+          dependencyMap += (comp.name -> compDependencyNames.toList)
+        case None =>
+      }
+      val dependencies = dependencyMap.getOrElse(comp.name, Nil)
+    }
+
+    if (dependencyMap.isEmpty) None else Some(dependencyMap)
+  }
+}
+
+import Application._
+
 case class Application(components: List[Component[ComponentStarted, _]] = Nil, eventBus: LookupEventBus[Any, Any => Unit, Class[_]] = new ApplicationEventBus()) extends EventBus {
+
+  val componentMap: Map[String, Component[ComponentStarted, _]] = {
+    val componentMapEntries = components.map(c => (c.name, c)).toArray
+    Map[String, Component[ComponentStarted, _]](componentMapEntries: _*)
+  }
 
   type Event = Any
   type Subscriber = Any => Unit
@@ -21,8 +45,22 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
 
   override def unsubscribe(subscriber: Subscriber, from: Classifier): Boolean = eventBus.unsubscribe(subscriber, from)
 
+  def getComponentObject[A](name: String): Option[A] = {
+    componentMap.get(name) match {
+      case Some(obj) => Some[A](obj.asInstanceOf[A])
+      case None => None
+    }
+  }
+
+  def getComponentObjectClass(name: String): Option[Class[_]] = {
+    componentMap.get(name) match {
+      case Some(obj) => Some(obj.getClass())
+      case None => None
+    }
+  }
+
   def register(comp: Component[ComponentNotConstructed, _]): Application = {
-    assert(components.find(_.name == comp.name).isEmpty, "A component with the same name is already registered: " + comp.name)
+    assert(componentMap.get(comp.name).isEmpty, "A component with the same name is already registered: " + comp.name)
 
     val compStarted = comp.startup()
     val appWithNewComp = copy(components = compStarted :: components)
@@ -31,14 +69,13 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
   }
 
   def shutdownComponent(componentName: String): Either[Exception, Application] = {
-    val containsComp: Component[ComponentStarted, _] => Boolean = c => c.name == componentName
-    val componentToShutdown = components.find(containsComp)
+    val componentToShutdown = componentMap.get(componentName)
     if (componentToShutdown.isEmpty) {
       Left(new ComponentNotFoundException(componentName))
     } else {
       try {
         val compStopped = componentToShutdown.get.shutdown()
-        val appWithCompRemoved = copy(components = components.filterNot(containsComp))
+        val appWithCompRemoved = copy(components = components.filterNot(c => c.name == componentName))
         publish(ComponentShutdownEvent(appWithCompRemoved, compStopped))
         Right(appWithCompRemoved)
       } catch {
@@ -83,22 +120,7 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
       }
     }
 
-    def componentDependencies(): Option[Map[String, List[String]]] = {
-      var dependencyMap = Map[String, List[String]]()
-      components.foreach { comp =>
-        comp.dependsOn match {
-          case Some(compDependencies) =>
-            val compDependencyNames = compDependencies.map(_.name)
-            dependencyMap += (comp.name -> compDependencyNames.toList)
-          case None =>
-        }
-        val dependencies = dependencyMap.getOrElse(comp.name, Nil)
-      }
-
-      if (dependencyMap.isEmpty) None else Some(dependencyMap)
-    }
-
-    val compDependencyMap = componentDependencies
+    val compDependencyMap = componentDependencies(components)
 
     if (log.isDebugEnabled()) {
       log.debug("componentDependencies = {}", compDependencyMap)
