@@ -2,7 +2,6 @@ package test.com.azaptree.application
 
 import org.scalatest.FunSpec
 import org.scalatest.matchers.ShouldMatchers
-
 import com.azaptree.application.Component
 import com.azaptree.application.ComponentConstructed
 import com.azaptree.application.ComponentInitialized
@@ -10,6 +9,8 @@ import com.azaptree.application.ComponentLifeCycle
 import com.azaptree.application.ComponentNotConstructed
 import com.azaptree.application.ComponentStarted
 import com.azaptree.application.ComponentStopped
+import ApplicationServiceSpec._
+import com.azaptree.application.ApplicationService
 
 object ApplicationServiceSpec {
   val started = "ComponentStarted"
@@ -73,7 +74,44 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
 
   describe("An ApplicationService") {
     it("is used to start and stop components defined for an Application") {
-      pending
+      val compA = Component[ComponentNotConstructed, Comp]("CompA", new CompLifeCycle())
+      val compB = Component[ComponentNotConstructed, Comp]("CompB", new CompLifeCycle())
+      val compC = Component[ComponentNotConstructed, Comp]("CompC", new CompLifeCycle())
+      val compD = Component[ComponentNotConstructed, Comp]("CompD", new CompLifeCycle())
+      val compE = Component[ComponentNotConstructed, Comp]("CompE", new CompLifeCycle())
+
+      var comps = Vector[Component[ComponentNotConstructed, Comp]]()
+      comps = comps :+ compA.copy[ComponentNotConstructed, Comp](dependsOn = Some((compB :: compD :: Nil)))
+      comps = comps :+ compB.copy[ComponentNotConstructed, Comp](dependsOn = Some((compC :: Nil)))
+      comps = comps :+ compC
+      comps = comps :+ compD.copy[ComponentNotConstructed, Comp](dependsOn = Some((compB :: Nil)))
+      comps = comps :+ compE.copy[ComponentNotConstructed, Comp](dependsOn = Some((compD :: Nil)))
+
+      println(comps.mkString("\n\n***************** comps *****************\n", "\n\n", "\n*************************************\n"))
+
+      val compCreator: ApplicationService.ComponentCreator = () => comps.toList
+      val app = new ApplicationService(compCreator)
+
+      app.start()
+
+      println("*** app components = " + app.componentNames.mkString("\n\n", "\n", "\n\n"))
+
+      app.stop()
+
+      val shutdownOrder = reverseShutdownOrder.reverse
+      println("*** shutdownOrder = " + shutdownOrder)
+
+      shutdownOrder.indexOf("CompA") should be < 2
+      shutdownOrder.indexOf("CompE") should be < 2
+      shutdownOrder.indexOf("CompD") should be(2)
+      shutdownOrder.indexOf("CompB") should be(3)
+      shutdownOrder.indexOf("CompC") should be(4)
+
+      shutdownOrder match {
+        case ("CompE" :: "CompA" :: "CompD" :: "CompB" :: "CompC" :: Nil) =>
+        case ("CompA" :: "CompE" :: "CompD" :: "CompB" :: "CompC" :: Nil) =>
+        case _ => fail("Shutdown order is not correct")
+      }
     }
 
     it("can return the names of components that have been registered with the ApplicationService") {
