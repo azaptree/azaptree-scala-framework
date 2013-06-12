@@ -139,12 +139,24 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
    */
   def isComponentStarted(compName: String): Boolean = startedComponentNames.find(_ == compName).isDefined
 
-  def getComponentObjectClass(compName: String): Option[Class[_]] = {
-    components().find(_.name == compName).map(_.getClass())
+  /**
+   * only returns the component object if the component is started
+   */
+  def getStartedComponentObjectClass(compName: String): Option[Class[_]] = {
+    app.components.find(_.name == compName) match {
+      case Some(o) => Some(o.componentObject.getClass())
+      case _ => None
+    }
   }
 
-  def getComponentObject[A](compName: String): Option[A] = {
-    components().find(_.name == compName).map(_.asInstanceOf[A])
+  /**
+   * only returns the component object if the component is started
+   */
+  def getStartedComponentObject[A](compName: String): Option[A] = {
+    app.components.find(_.name == compName) match {
+      case Some(o) => Some(o.componentObject.get.asInstanceOf[A])
+      case _ => None
+    }
   }
 
   def stoppedComponentNames: Iterable[String] = {
@@ -178,7 +190,6 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
             dependentName <- dependents.keys.toList
           } yield {
             val dependents = componentDependents(dependentName)
-            println(s"============ $dependentName <- $dependents")
             dependents match {
               case None => dependentName :: Nil
               case Some(d) => dependentName :: d

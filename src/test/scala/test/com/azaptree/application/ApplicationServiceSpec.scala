@@ -46,6 +46,7 @@ object ApplicationServiceSpec {
       reverseShutdownOrder = comp.name :: reverseShutdownOrder
       compStopped
     }
+
   }
 
   class CompLifeCycleWithShutdownFailure extends ComponentLifeCycle[Comp] {
@@ -68,7 +69,19 @@ object ApplicationServiceSpec {
       throw new RuntimeException("SHUTDOWN ERROR")
     }
   }
+
+  sealed trait Event
+
+  sealed trait Event2 extends Event
+
+  case object EventA extends Event
+
+  case object EventB extends Event
+
+  case object EventC extends Event2
 }
+
+import ApplicationServiceSpec._
 
 class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
 
@@ -158,31 +171,149 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
     }
 
     it("can publish ApplicationEvents") {
-      pending
+      val app = createApp()
+
+      var count = 0;
+      app.subscribe((event) => {
+        count += 1
+      }, classOf[String])
+
+      app.publish("TEST MESSAGE");
+      Thread.sleep(10l)
+      count should be(1)
     }
 
     it("implements a subchannel event bus") {
-      pending
+      val app = createApp()
+
+      var eventCount = 0;
+      app.subscribe((event) => {
+        eventCount += 1
+      }, classOf[Event])
+
+      var event2Count = 0;
+      app.subscribe((event) => {
+        event2Count += 1
+      }, classOf[Event2])
+
+      app.publish(EventA);
+      app.publish(EventB);
+      app.publish(EventC);
+      Thread.sleep(10l)
+      eventCount should be(3)
+      event2Count should be(1)
     }
 
     it("can start and stop registered components on an individual basis") {
-      pending
+      val app = createApp()
+
+      app.isRunning() should be(false)
+      app.startedComponentNames.isEmpty should be(true)
+
+      app.start()
+
+      app.isRunning() should be(true)
+      app.startedComponentNames.isEmpty should be(false)
+      app.startedComponentNames.size should be(app.componentNames.size)
+
+      app.startedComponentNames.foreach(app.stopComponent(_))
+
+      app.isRunning() should be(false)
+      app.startedComponentNames.isEmpty should be(true)
+
+      app.componentNames.foreach(app.startComponent(_))
+
+      app.isRunning() should be(true)
+      app.startedComponentNames.isEmpty should be(false)
+      app.startedComponentNames.size should be(app.componentNames.size)
+
+      app.stop()
+      app.isRunning() should be(false)
+      app.startedComponentNames.isEmpty should be(true)
     }
 
     it("can return the names of all components that have been started") {
-      pending
+      val app = createApp()
+
+      app.isRunning() should be(false)
+      app.startedComponentNames.isEmpty should be(true)
+
+      app.start()
+
+      app.isRunning() should be(true)
+      app.startedComponentNames.isEmpty should be(false)
+      app.startedComponentNames.size should be(app.componentNames.size)
+
+      app.stopComponent(app.startedComponentNames.head)
+
+      app.startedComponentNames.size should be(app.componentNames.size - 1)
     }
 
     it("can tell you if a component has been started") {
-      pending
+      val app = createApp()
+
+      app.isRunning() should be(false)
+      app.startedComponentNames.isEmpty should be(true)
+
+      app.start()
+
+      app.isRunning() should be(true)
+      app.startedComponentNames.isEmpty should be(false)
+      app.startedComponentNames.size should be(app.componentNames.size)
+
+      app.stopComponent(app.startedComponentNames.head)
+
+      app.startedComponentNames.size should be(app.componentNames.size - 1)
+
+      app.startedComponentNames.foreach(name => assert(app.isComponentStarted(name)))
     }
 
-    it("can be used to retrieve a component object for started component") {
-      pending
+    it("can be used to retrieve a component object for a started component") {
+      val app = createApp()
+
+      app.isRunning() should be(false)
+      app.startedComponentNames.isEmpty should be(true)
+
+      app.start()
+
+      app.isRunning() should be(true)
+      app.startedComponentNames.isEmpty should be(false)
+      app.startedComponentNames.size should be(app.componentNames.size)
+
+      val compObjects = app.startedComponentNames.map(app.getStartedComponentObject(_))
+      compObjects.foreach { c =>
+        assert(c.isDefined)
+        println("- can be used to retrieve a component object for a started component : " + c)
+      }
+
+      app.getStartedComponentObject[Comp](compA.name).isDefined should be(true)
+      println("- can be used to retrieve a component object for a started component : " + app.getStartedComponentObject[Comp](compA.name))
+
+      app.stopComponent(compA.name)
+      app.getStartedComponentObject[Comp](compA.name).isDefined should be(false)
+
     }
 
     it("can return the component object class for a started component") {
-      pending
+      val app = createApp()
+
+      app.isRunning() should be(false)
+      app.startedComponentNames.isEmpty should be(true)
+
+      app.start()
+
+      app.isRunning() should be(true)
+      app.startedComponentNames.isEmpty should be(false)
+      app.startedComponentNames.size should be(app.componentNames.size)
+
+      val compObjects = app.startedComponentNames.map(app.getStartedComponentObjectClass(_))
+      compObjects.foreach(c => assert(c.isDefined))
+
+      app.getStartedComponentObjectClass(compA.name).isDefined should be(true)
+      app.getStartedComponentObjectClass(compA.name).get //should be(classOf[Comp])
+
+      app.stopComponent(compA.name)
+      app.getStartedComponentObjectClass(compA.name).isDefined should be(false)
     }
 
     it("can return a component's dependencies") {

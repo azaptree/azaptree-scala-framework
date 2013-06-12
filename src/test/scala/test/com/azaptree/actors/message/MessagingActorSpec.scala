@@ -389,7 +389,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
       messageLogger ! 'reset
 
       for (i <- 1 to 10) { echoMessageActor ! Message(s"HELLO - $i") }
-      Thread.sleep(10l);
+      Thread.sleep(20l);
       Await.result(ask(messageLogger, 'getCount).mapTo[Int], 100 millis) should be(10)
 
       for (i <- 1 to 10) { echoMessageActor ! Message(HeartbeatRequest) }
