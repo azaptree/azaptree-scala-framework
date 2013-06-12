@@ -15,7 +15,7 @@ object ApplicationService {
 
 }
 
-class ApplicationService(val compCreator: ComponentCreator) extends EventBus {
+class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boolean = true) extends EventBus {
   type Event = Any
   type Subscriber = Any => Unit
   type Classifier = Class[_]
@@ -34,7 +34,11 @@ class ApplicationService(val compCreator: ComponentCreator) extends EventBus {
   }
 
   @volatile
-  private[this] var app: Application = _
+  private[this] var app: Application = if (asyncEventBus) {
+    Application(eventBus = new AsynchronousSubchannelEventBus())
+  } else {
+    Application(eventBus = new SynchronousSubchannelEventBus())
+  }
 
   @volatile
   private[this] var registeredComponents: Vector[Component[ComponentNotConstructed, _]] = Vector.empty[Component[ComponentNotConstructed, _]]

@@ -4,8 +4,10 @@ import scala.annotation.tailrec
 
 import org.slf4j.LoggerFactory
 
+import Application._
 import akka.event.EventBus
 import akka.event.japi.LookupEventBus
+import akka.event.japi.SubchannelEventBus
 
 object Application {
   def componentDependencies(components: List[Component[_, _]]): Option[Map[String, List[String]]] = {
@@ -24,9 +26,7 @@ object Application {
   }
 }
 
-import Application._
-
-case class Application(components: List[Component[ComponentStarted, _]] = Nil, eventBus: LookupEventBus[Any, Any => Unit, Class[_]] = new ApplicationEventBus()) extends EventBus {
+case class Application(components: List[Component[ComponentStarted, _]] = Nil, eventBus: SubchannelEventBus[Any, Any => Unit, Class[_]] = new SynchronousSubchannelEventBus()) extends EventBus {
 
   val componentMap: Map[String, Component[ComponentStarted, _]] = {
     val componentMapEntries = components.map(c => (c.name, c)).toArray
