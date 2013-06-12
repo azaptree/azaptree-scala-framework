@@ -406,8 +406,8 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     }
   }
 
-  feature("""Messages that are of not type com.azaptree.actor.message.Message will submit a UnhandledMessage event to the ActorSystem event stream""") {
-    scenario("Send a GetChildrenActorPaths to a MessageActor. All MessageActors should at least have a systemMessageProcessor child") {
+  feature("""Messages that are of not type com.azaptree.actor.message.Message will submit an UnhandledMessage event to the ActorSystem event stream""") {
+    scenario("Send an invalid message and check that an UnhandledMessage event was published") {
       messageLogger ! 'reset
       Thread.sleep(5l)
       echoMessageActor ! "INVALID MESSAGE"

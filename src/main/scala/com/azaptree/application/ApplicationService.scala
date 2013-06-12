@@ -58,44 +58,94 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
   private[this] val lock = new Lock()
 
   def start(): Unit = {
-    app = components().foldLeft(app) { (app, comp) => app.register(comp) }
+    lock.acquire()
+    try {
+      app = components().foldLeft(app) { (app, comp) =>
+        app.components.find(_.name == comp.name) match {
+          case None => app.register(comp)
+          case _ => app
+        }
+      }
+    } finally {
+      lock.release()
+    }
   }
 
   def stop(): Unit = {
-    app = app.shutdown()
-  }
-
-  def componentNames: Iterable[String] = components().map(_.name)
-
-  def startedComponentNames: Iterable[String] = app.components.map(_.name)
-
-  def stoppedComponentNames: Iterable[String] = {
-    val startedCompNames = Set[String]() ++ startedComponentNames
-    componentNames.filterNot(startedCompNames(_))
+    lock.acquire()
+    try {
+      app = app.shutdown()
+    } finally {
+      lock.release()
+    }
   }
 
   def stopComponent(compName: String): Option[Exception] = {
-    app.shutdownComponent(compName) match {
-      case Left(e) => Some(e)
-      case Right(app2) =>
-        app = app2
-        None
+    lock.acquire()
+    try {
+      app.shutdownComponent(compName) match {
+        case Left(e) => Some(e)
+        case Right(app2) =>
+          app = app2
+          None
+      }
+    } finally {
+      lock.release()
     }
   }
 
   def startComponent(compName: String): Either[Exception, Boolean] = {
     def findByName: Component[_, _] => Boolean = _.name == compName
 
-    app.components.find(findByName) match {
-      case Some(comp) => Right(false)
-      case None =>
-        components().find(findByName) match {
-          case Some(comp) =>
-            app = app.register(comp)
-            Right(true)
-          case None => Left(new IllegalArgumentException(s"Invalid component name: $compName"))
-        }
+    lock.acquire()
+    try {
+      app.components.find(findByName) match {
+        case Some(comp) => Right(false)
+        case None =>
+          components().find(findByName) match {
+            case Some(comp) =>
+              app = app.register(comp)
+              Right(true)
+            case None => Left(new IllegalArgumentException(s"Invalid component name: $compName"))
+          }
+      }
+    } finally {
+      lock.release()
     }
+  }
+
+  def registerComponent(comp: Component[ComponentNotConstructed, _]) = {
+    lock.acquire()
+    try {
+      require(components().find(_.name == comp.name).isEmpty, "Component with the same is already registered: " + comp.name)
+      registeredComponents = registeredComponents :+ comp
+    } finally {
+      lock.release()
+    }
+  }
+
+  def componentNames: Iterable[String] = components().map(_.name)
+
+  def startedComponentNames: Iterable[String] = app.components.map(_.name)
+
+  /**
+   * Returns true only if a component with the specified name has been started.
+   * NOTE: if the specified component name is invalid, then false will be returned as well
+   * - check with startedComponentNames if it refers to a Component that has been registered with the ApplicationService
+   */
+  def isComponentStarted(compName: String): Boolean = startedComponentNames.find(_ == compName).isDefined
+
+  def getComponentObjectClass(compName: String): Option[Class[_]] = {
+    components().find(_.name == compName).map(_.getClass())
+  }
+
+  def getComponentObject[A](compName: String): Option[A] = {
+    components().find(_.name == compName).map(_.asInstanceOf[A])
+  }
+
+  def stoppedComponentNames: Iterable[String] = {
+    val startedCompNames = Set[String]() ++ startedComponentNames
+    componentNames.filterNot(startedCompNames(_))
   }
 
   def componentDependencies(compName: String): Option[List[String]] = {
@@ -119,12 +169,6 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
         val dependents = map.filter(_._2.contains(compName))
         if (dependents.isEmpty) None else Some(dependents.keys.toList)
     }
-  }
-
-  def registerComponent(comp: Component[ComponentNotConstructed, _]) = {
-    require(components().find(_.name == comp.name).isEmpty, "Component with the same is already registered: " + comp.name)
-    app = app.register(comp)
-    registeredComponents = registeredComponents :+ comp
   }
 
 }
