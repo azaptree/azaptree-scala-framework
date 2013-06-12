@@ -4,6 +4,8 @@ import ApplicationService._
 import akka.event.EventBus
 import scala.concurrent.Lock
 import scala.collection.immutable.VectorBuilder
+import org.slf4j.LoggerFactory
+import scala.annotation.tailrec
 
 object ApplicationService {
   type ComponentCreator = () => List[Component[ComponentNotConstructed, _]]
@@ -124,6 +126,8 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
     }
   }
 
+  def isRunning(): Boolean = !app.components.isEmpty
+
   def componentNames: Iterable[String] = components().map(_.name)
 
   def startedComponentNames: Iterable[String] = app.components.map(_.name)
@@ -159,15 +163,30 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
     }
   }
 
-  def componentDependendents(compName: String): Option[List[String]] = {
+  def componentDependents(compName: String): Option[List[String]] = {
     val comps = components()
     require(comps.find(_.name == compName).isDefined, "Invalid component name")
 
-    Application.componentDependencies(comps.toList) match {
+    Application.componentDependencies(comps) match {
       case None => None
       case Some(map) =>
         val dependents = map.filter(_._2.contains(compName))
-        if (dependents.isEmpty) None else Some(dependents.keys.toList)
+        if (dependents.isEmpty) {
+          None
+        } else {
+          val dependentNames = for {
+            dependentName <- dependents.keys.toList
+          } yield {
+            val dependents = componentDependents(dependentName)
+            println(s"============ $dependentName <- $dependents")
+            dependents match {
+              case None => dependentName :: Nil
+              case Some(d) => dependentName :: d
+            }
+          }
+
+          Some((Set[String]() ++ dependentNames.flatten).toList)
+        }
     }
   }
 

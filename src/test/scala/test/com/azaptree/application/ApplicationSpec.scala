@@ -249,4 +249,51 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
     ComponentShutdownEventCount should be(comps.size - 1)
     ComponentShutdownFailedEventCount should be(1)
   }
+
+  it("can return the component shutdown order") {
+    reverseShutdownOrder = Nil
+
+    val compA = Component[ComponentNotConstructed, CompA]("CompA", new CompALifeCycle())
+    val compB = Component[ComponentNotConstructed, CompA]("CompB", new CompALifeCycle())
+    val compC = Component[ComponentNotConstructed, CompA]("CompC", new CompALifeCycle())
+    val compD = Component[ComponentNotConstructed, CompA]("CompD", new CompALifeCycle())
+    val compE = Component[ComponentNotConstructed, CompA]("CompE", new CompALifeCycle())
+
+    var comps = Vector[Component[ComponentNotConstructed, CompA]]()
+    comps = comps :+ compA.copy[ComponentNotConstructed, CompA](dependsOn = Some((compB :: compD :: Nil)))
+    comps = comps :+ compB.copy[ComponentNotConstructed, CompA](dependsOn = Some((compC :: Nil)))
+    comps = comps :+ compC
+    comps = comps :+ compD.copy[ComponentNotConstructed, CompA](dependsOn = Some((compB :: Nil)))
+    comps = comps :+ compE.copy[ComponentNotConstructed, CompA](dependsOn = Some((compD :: Nil)))
+
+    println(comps.mkString("\n\n***************** comps *****************\n", "\n\n", "\n*************************************\n"))
+
+    val app = comps.foldLeft(Application()) { (app, comp) =>
+      println("\n" + app + "\n")
+      app.register(comp)
+    }
+
+    val appCompShutdownOrder = app.getComponentShutdownOrder.toList
+
+    println("*** app components = " + app.components.mkString("\n\n", "\n", "\n\n"))
+
+    val appShutdowned = app.shutdown()
+
+    val shutdownOrder = reverseShutdownOrder.reverse
+    println("*** shutdownOrder = " + shutdownOrder)
+
+    shutdownOrder.indexOf("CompA") should be < 2
+    shutdownOrder.indexOf("CompE") should be < 2
+    shutdownOrder.indexOf("CompD") should be(2)
+    shutdownOrder.indexOf("CompB") should be(3)
+    shutdownOrder.indexOf("CompC") should be(4)
+
+    shutdownOrder match {
+      case ("CompE" :: "CompA" :: "CompD" :: "CompB" :: "CompC" :: Nil) =>
+      case ("CompA" :: "CompE" :: "CompD" :: "CompB" :: "CompC" :: Nil) =>
+      case _ => fail(s"Shutdown order is not correct: $shutdownOrder")
+    }
+
+    shutdownOrder should be(appCompShutdownOrder)
+  }
 }

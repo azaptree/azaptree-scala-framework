@@ -136,6 +136,34 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
     app
   }
 
+  def getComponentShutdownOrder(): Iterable[String] = {
+    @tailrec
+    def getComponentShutdownOrder(shutdownOrder: Vector[String], components: Iterable[Component[ComponentStarted, _]], componentDependencies: Map[String, List[String]]): Vector[String] = {
+      if (!components.isEmpty) {
+        val dependencySet = componentDependencies.values.foldLeft(Set[String]())((set, compName) => set ++ compName)
+
+        val findCompWithoutDependents: Component[ComponentStarted, _] => Boolean = c => !dependencySet.contains(c.name)
+        val compsWithoutDependents = components.filter(findCompWithoutDependents)
+
+        var componentDependenciesTemp = componentDependencies
+        val appAfterCompShutdown = compsWithoutDependents.foldLeft(shutdownOrder) { (shutdownOrder, comp) =>
+          componentDependenciesTemp -= comp.name
+          shutdownOrder :+ comp.name
+        }
+
+        val compsWithDependents = components.filterNot(findCompWithoutDependents)
+        getComponentShutdownOrder(appAfterCompShutdown, compsWithDependents, componentDependenciesTemp)
+      } else {
+        return shutdownOrder
+      }
+    }
+
+    componentDependencies(components) match {
+      case Some(map) => getComponentShutdownOrder(Vector.empty[String], components, map)
+      case None => components.map(_.name)
+    }
+  }
+
 }
 
 class ComponentNotFoundException(componentName: String) extends IllegalArgumentException(componentName)

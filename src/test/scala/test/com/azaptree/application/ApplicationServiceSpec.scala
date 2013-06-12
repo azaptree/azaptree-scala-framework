@@ -72,28 +72,31 @@ object ApplicationServiceSpec {
 
 class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
 
+  val compA = Component[ComponentNotConstructed, Comp]("CompA", new CompLifeCycle())
+  val compB = Component[ComponentNotConstructed, Comp]("CompB", new CompLifeCycle())
+  val compC = Component[ComponentNotConstructed, Comp]("CompC", new CompLifeCycle())
+  val compD = Component[ComponentNotConstructed, Comp]("CompD", new CompLifeCycle())
+  val compE = Component[ComponentNotConstructed, Comp]("CompE", new CompLifeCycle())
+
+  var comps = Vector[Component[ComponentNotConstructed, Comp]]()
+  comps = comps :+ compA.copy[ComponentNotConstructed, Comp](dependsOn = Some((compB :: compD :: Nil)))
+  comps = comps :+ compB.copy[ComponentNotConstructed, Comp](dependsOn = Some((compC :: Nil)))
+  comps = comps :+ compC
+  comps = comps :+ compD.copy[ComponentNotConstructed, Comp](dependsOn = Some((compB :: Nil)))
+  comps = comps :+ compE.copy[ComponentNotConstructed, Comp](dependsOn = Some((compD :: Nil)))
+
+  def createApp() = {
+    println(comps.mkString("\n\n***************** comps *****************\n", "\n\n", "\n*************************************\n"))
+
+    val compCreator: ApplicationService.ComponentCreator = () => comps.toList
+    new ApplicationService(compCreator)
+  }
+
   describe("An ApplicationService") {
     it("is used to start and stop components defined for an Application") {
-      val compA = Component[ComponentNotConstructed, Comp]("CompA", new CompLifeCycle())
-      val compB = Component[ComponentNotConstructed, Comp]("CompB", new CompLifeCycle())
-      val compC = Component[ComponentNotConstructed, Comp]("CompC", new CompLifeCycle())
-      val compD = Component[ComponentNotConstructed, Comp]("CompD", new CompLifeCycle())
-      val compE = Component[ComponentNotConstructed, Comp]("CompE", new CompLifeCycle())
-
-      var comps = Vector[Component[ComponentNotConstructed, Comp]]()
-      comps = comps :+ compA.copy[ComponentNotConstructed, Comp](dependsOn = Some((compB :: compD :: Nil)))
-      comps = comps :+ compB.copy[ComponentNotConstructed, Comp](dependsOn = Some((compC :: Nil)))
-      comps = comps :+ compC
-      comps = comps :+ compD.copy[ComponentNotConstructed, Comp](dependsOn = Some((compB :: Nil)))
-      comps = comps :+ compE.copy[ComponentNotConstructed, Comp](dependsOn = Some((compD :: Nil)))
-
-      println(comps.mkString("\n\n***************** comps *****************\n", "\n\n", "\n*************************************\n"))
-
-      val compCreator: ApplicationService.ComponentCreator = () => comps.toList
-      val app = new ApplicationService(compCreator)
+      val app = createApp()
 
       app.start()
-
       println("*** app components = " + app.componentNames.mkString("\n\n", "\n", "\n\n"))
 
       app.stop()
@@ -115,15 +118,43 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
     }
 
     it("can return the names of components that have been registered with the ApplicationService") {
-      pending
+      val app = createApp()
+      app.isRunning() should be(false)
+      app.startedComponentNames.isEmpty should be(true)
+
+      app.componentNames.size should be(comps.size)
+      comps.foreach(c => assert(app.componentNames.find(name => name == c.name).isDefined, {
+        val compName = c.name
+        val compNames = app.componentNames
+        s"app does does not contain [$compName] within : $compNames"
+      }))
+
     }
 
     it("is used used to register components on an individual basis") {
-      pending
+      val app = createApp()
+
+      val compF = Component[ComponentNotConstructed, Comp]("CompF", new CompLifeCycle())
+      app.registerComponent(compF)
+      app.componentNames should contain(compF.name)
+      app.componentNames.size should be(comps.size + 1)
     }
 
     it("will start up all components that have been supplied at ApplicationService construction time") {
-      pending
+      val app = createApp()
+
+      app.isRunning() should be(false)
+      app.startedComponentNames.isEmpty should be(true)
+
+      app.start()
+
+      app.isRunning() should be(true)
+      app.startedComponentNames.isEmpty should be(false)
+      app.startedComponentNames.size should be(app.componentNames.size)
+
+      app.stop()
+      app.isRunning() should be(false)
+      app.startedComponentNames.isEmpty should be(true)
     }
 
     it("can publish ApplicationEvents") {
@@ -154,8 +185,54 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
       pending
     }
 
+    it("can return a component's dependencies") {
+      val app = createApp()
+
+      for {
+        comp <- comps
+        dependencies <- app.componentDependencies(comp.name)
+      } yield {
+        val expectedNames = comp.dependsOn.getOrElse(Nil).map(_.name).toList
+        assert(dependencies.size == expectedNames.size, "Expected does not match actual : %s != %s".format(expectedNames.size, dependencies.size))
+        dependencies.foreach(name => assert(expectedNames.contains(name)))
+      }
+
+    }
+
+    it("can return a component's dependendents") {
+      val app = createApp()
+
+      for {
+        comp <- comps
+        dependencies <- app.componentDependents(comp.name)
+      } yield {
+        comp.name match {
+          case compA.name => assert(dependencies.isEmpty, "compA should have no dependents")
+          case compB.name =>
+            val expectedNames = compA.name :: compD.name :: compE.name :: Nil
+            assert(dependencies.size == expectedNames.size, "Expected does not match actual : %s != %s".format(expectedNames.size, dependencies.size))
+            dependencies.foreach(name => assert(expectedNames.contains(name)))
+          case compC.name =>
+          case compD.name =>
+          case compE.name =>
+          case _ =>
+        }
+
+      }
+
+    }
+
     it("can tell you if the application is running, which is defined as at least one component has started") {
-      pending
+      val app = createApp()
+
+      for (i <- 1 to 10) {
+        app.isRunning should be(false)
+        app.start()
+        app.isRunning should be(true)
+        app.stop()
+        app.isRunning should be(false)
+      }
+
     }
 
     it("""can run all component health checks.""") {
