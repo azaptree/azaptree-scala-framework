@@ -30,11 +30,11 @@ case class HealthCheckResult(
   info: Option[String] = None,
   exceptionStackTrace: Option[String] = None)
 
-case class StopWatch(start: Long = System.currentTimeMillis, end: Long = 0) {
+case class StopWatch(start: Long = System.currentTimeMillis, end: Option[Long] = None) {
   def stop() = {
-    copy(end = System.currentTimeMillis)
+    copy(end = Some(System.currentTimeMillis))
   }
 
-  def executionTimeMillis = end - start
+  def executionTimeMillis: Option[Long] = end.map(_ - start)
 }
 

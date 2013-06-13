@@ -7,6 +7,7 @@ import scala.collection.immutable.VectorBuilder
 import org.slf4j.LoggerFactory
 import scala.annotation.tailrec
 import com.azaptree.application.healthcheck._
+import scala.concurrent.Future
 
 object ApplicationService {
   type ComponentCreator = () => List[Component[ComponentNotConstructed, _]]
@@ -50,9 +51,6 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
 
   private[this] val components: ComponentCreator = () => { initialComponents ++ registeredComponents }
 
-  @volatile
-  private[this] var healthChecks: List[Tuple2[HealthCheck, HealthCheckRunner]] = Nil
-
   override def publish(event: Event): Unit = app.publish(event)
 
   override def subscribe(subscriber: Subscriber, to: Classifier): Boolean = app.subscribe(subscriber, to)
@@ -63,8 +61,80 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
 
   private[this] val lock = new Lock()
 
+  @volatile
+  private[this] var healthChecks: Option[List[ApplicationHealthCheck]] = None
+
+  /**
+   * It's ok to have multiple HealthChecks with the same name, but it is recommended to have unique names.
+   */
   def addHealthCheck(healthCheck: HealthCheck, healthCheckRunner: HealthCheckRunner) = {
-    //TODO
+    healthChecks match {
+      case Some(h) => Some((healthCheck, healthCheckRunner) :: h)
+      case _ => Some((healthCheck, healthCheckRunner) :: Nil)
+    }
+  }
+
+  def startedComponentHealthChecks(): Map[String, List[ApplicationHealthCheck]] = {
+    val healthChecks = for {
+      comp <- app.components
+      compHealthChecks <- comp.healthChecks
+    } yield {
+      (comp.name -> compHealthChecks)
+    }
+
+    Map[String, List[ApplicationHealthCheck]]() ++ healthChecks
+  }
+
+  def applicationHealthChecks(): Option[List[ApplicationHealthCheck]] = healthChecks
+
+  def runAllApplicationHealthChecks(): Option[List[Future[HealthCheckResult]]] = {
+    for {
+      appHealthChecks <- healthChecks
+    } yield {
+      for {
+        healthCheck <- appHealthChecks
+      } yield {
+        healthCheck._2(healthCheck._1)
+      }
+    }
+  }
+
+  def runAllComponentHealthChecks(): Option[List[Future[HealthCheckResult]]] = {
+    val healthCheckResults = for {
+      comp <- app.components
+      healthChecks <- comp.healthChecks
+    } yield {
+      for {
+        healthCheck <- healthChecks
+      } yield {
+        healthCheck._2(healthCheck._1)
+      }
+    }
+
+    val componentHealthCheckResults = healthCheckResults.flatten
+    if (componentHealthCheckResults.isEmpty) None else Some(componentHealthCheckResults)
+  }
+
+  def runAllHealthChecks(): Option[List[Future[HealthCheckResult]]] = {
+    for {
+      appHealthCheckResults <- runAllApplicationHealthChecks()
+      componentHealthCheckResults <- runAllComponentHealthChecks
+    } yield {
+      componentHealthCheckResults ++ appHealthCheckResults
+    }
+  }
+
+  def runStartedComponentHealthChecks(compName: String): Either[InvalidComponentNameException, Option[List[Future[HealthCheckResult]]]] = {
+    app.components.find(_.name == compName) match {
+      case Some(comp) =>
+        Right(for {
+          healthChecks <- comp.healthChecks
+        } yield {
+          for (healthCheck <- healthChecks) yield (healthCheck._2(healthCheck._1))
+        })
+      case None => Left(new InvalidComponentNameException(compName))
+    }
+
   }
 
   def start(): Unit = {
@@ -116,7 +186,7 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
             case Some(comp) =>
               app = app.register(comp)
               Right(true)
-            case None => Left(new IllegalArgumentException(s"Invalid component name: $compName"))
+            case None => Left(new InvalidComponentNameException(compName))
           }
       }
     } finally {
@@ -172,41 +242,53 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
     componentNames.filterNot(startedCompNames(_))
   }
 
-  def componentDependencies(compName: String): Option[List[String]] = {
-    require(components().find(_.name == compName).isDefined, "Invalid component name")
+  def componentDependencies(compName: String): Either[InvalidComponentNameException, Option[List[String]]] = {
+    components().find(_.name == compName) match {
+      case None => Left(new InvalidComponentNameException(compName))
+      case _ =>
+        val compDependencies = for {
+          componentDependenciesMap <- Application.componentDependencies(components().toList)
+          componentDependencies <- componentDependenciesMap.get(compName)
+        } yield {
+          componentDependencies
+        }
 
-    for {
-      componentDependenciesMap <- Application.componentDependencies(components().toList)
-      componentDependencies <- componentDependenciesMap.get(compName)
-    } yield {
-      componentDependencies
+        Right(compDependencies)
     }
+
   }
 
-  def componentDependents(compName: String): Option[List[String]] = {
+  def componentDependents(compName: String): Either[InvalidComponentNameException, Option[List[String]]] = {
     val comps = components()
-    require(comps.find(_.name == compName).isDefined, "Invalid component name")
+    comps.find(_.name == compName) match {
+      case None => Left(new InvalidComponentNameException(compName))
+      case _ =>
+        Application.componentDependencies(comps) match {
+          case None => Right(None)
+          case Some(map) =>
+            val dependents = map.filter(_._2.contains(compName))
+            if (dependents.isEmpty) {
+              Right(None)
+            } else {
+              val dependentNames = for {
+                dependentName <- dependents.keys.toList
+              } yield {
+                val dependents = componentDependents(dependentName)
+                dependents match {
+                  case Right(None) => dependentName :: Nil
+                  case Right(Some(d)) => dependentName :: d
+                  case Left => Nil
+                }
+              }
 
-    Application.componentDependencies(comps) match {
-      case None => None
-      case Some(map) =>
-        val dependents = map.filter(_._2.contains(compName))
-        if (dependents.isEmpty) {
-          None
-        } else {
-          val dependentNames = for {
-            dependentName <- dependents.keys.toList
-          } yield {
-            val dependents = componentDependents(dependentName)
-            dependents match {
-              case None => dependentName :: Nil
-              case Some(d) => dependentName :: d
+              Right(Some((Set[String]() ++ dependentNames.flatten).toList))
             }
-          }
-
-          Some((Set[String]() ++ dependentNames.flatten).toList)
         }
     }
+
   }
 
 }
+
+class InvalidComponentNameException(compName: String) extends IllegalArgumentException(compName)
+class DuplicateComponentNameException(compName: String) extends IllegalArgumentException(compName)

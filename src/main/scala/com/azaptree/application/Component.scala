@@ -2,11 +2,14 @@ package com.azaptree.application
 
 import org.slf4j.LoggerFactory
 
+import com.azaptree.application.healthcheck._
+
 case class Component[S <: ComponentState, A](
     name: String,
     componentLifeCycle: ComponentLifeCycle[A],
     componentObject: Option[A] = None,
-    dependsOn: Option[Iterable[Component[_, _]]] = None) {
+    dependsOn: Option[Iterable[Component[_, _]]] = None,
+    healthChecks: Option[List[ApplicationHealthCheck]] = None) {
 
   def startup(): Component[ComponentStarted, A] = {
     assert(componentObject.isEmpty, "It is invalid to startup a Component that is not in the NotConstructed state or already has some component object")

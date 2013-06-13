@@ -321,11 +321,17 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
 
       for {
         comp <- comps
-        dependencies <- app.componentDependencies(comp.name)
       } yield {
-        val expectedNames = comp.dependsOn.getOrElse(Nil).map(_.name).toList
-        assert(dependencies.size == expectedNames.size, "Expected does not match actual : %s != %s".format(expectedNames.size, dependencies.size))
-        dependencies.foreach(name => assert(expectedNames.contains(name)))
+        app.componentDependencies(comp.name) match {
+          case Left(l) => throw l
+          case Right(dependencies) =>
+            val dependencyCount = dependencies.getOrElse(Nil).size
+            val expectedNames = comp.dependsOn.getOrElse(Nil).map(_.name).toList
+            assert(dependencyCount == expectedNames.size, "Expected does not match actual : %s != %s".format(expectedNames.size, dependencyCount))
+            dependencies.foreach { list =>
+              list.foreach(name => assert(expectedNames.contains(name)))
+            }
+        }
       }
 
     }
@@ -335,18 +341,23 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
 
       for {
         comp <- comps
-        dependencies <- app.componentDependents(comp.name)
       } yield {
-        comp.name match {
-          case compA.name => assert(dependencies.isEmpty, "compA should have no dependents")
-          case compB.name =>
-            val expectedNames = compA.name :: compD.name :: compE.name :: Nil
-            assert(dependencies.size == expectedNames.size, "Expected does not match actual : %s != %s".format(expectedNames.size, dependencies.size))
-            dependencies.foreach(name => assert(expectedNames.contains(name)))
-          case compC.name =>
-          case compD.name =>
-          case compE.name =>
-          case _ =>
+        app.componentDependents(comp.name) match {
+          case Left(l) => throw l
+          case Right(dependenciesOption) =>
+            dependenciesOption.foreach { dependencies =>
+              comp.name match {
+                case compA.name => assert(dependencies.isEmpty, "compA should have no dependents")
+                case compB.name =>
+                  val expectedNames = compA.name :: compD.name :: compE.name :: Nil
+                  assert(dependencies.size == expectedNames.size, "Expected does not match actual : %s != %s".format(expectedNames.size, dependencies.size))
+                  dependencies.foreach(name => assert(expectedNames.contains(name)))
+                case compC.name =>
+                case compD.name =>
+                case compE.name =>
+                case _ =>
+              }
+            }
         }
 
       }
