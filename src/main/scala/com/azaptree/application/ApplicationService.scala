@@ -6,6 +6,7 @@ import scala.concurrent.Lock
 import scala.collection.immutable.VectorBuilder
 import org.slf4j.LoggerFactory
 import scala.annotation.tailrec
+import com.azaptree.application.healthcheck._
 
 object ApplicationService {
   type ComponentCreator = () => List[Component[ComponentNotConstructed, _]]
@@ -49,6 +50,9 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
 
   private[this] val components: ComponentCreator = () => { initialComponents ++ registeredComponents }
 
+  @volatile
+  private[this] var healthChecks: List[Tuple2[HealthCheck, HealthCheckRunner]] = Nil
+
   override def publish(event: Event): Unit = app.publish(event)
 
   override def subscribe(subscriber: Subscriber, to: Classifier): Boolean = app.subscribe(subscriber, to)
@@ -58,6 +62,10 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
   override def unsubscribe(subscriber: Subscriber, from: Classifier): Boolean = app.unsubscribe(subscriber, from)
 
   private[this] val lock = new Lock()
+
+  def addHealthCheck(healthCheck: HealthCheck, healthCheckRunner: HealthCheckRunner) = {
+    //TODO
+  }
 
   def start(): Unit = {
     lock.acquire()
