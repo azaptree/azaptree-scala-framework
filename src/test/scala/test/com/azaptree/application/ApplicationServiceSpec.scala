@@ -144,8 +144,10 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
   def createApp() = {
     println(comps.mkString("\n\n***************** comps *****************\n", "\n\n", "\n*************************************\n"))
 
-    val compCreator: ApplicationService.ComponentCreator = () => comps.toList
-    val app = new ApplicationService(compCreator)
+    val compCreator = comps.toList
+    val app = new ApplicationService()
+
+    comps.foreach(app.registerComponent(_))
 
     app.addHealthCheck(appHealthCheck1, healthCheckRunner(checkCompStartedScorer))
     app.addHealthCheck(appHealthCheck2, healthCheckRunner(checkCompStartedScorer))

@@ -4,9 +4,7 @@ import scala.annotation.tailrec
 
 import org.slf4j.LoggerFactory
 
-import Application._
 import akka.event.EventBus
-import akka.event.japi.LookupEventBus
 import akka.event.japi.SubchannelEventBus
 
 object Application {
@@ -26,7 +24,9 @@ object Application {
   }
 }
 
-case class Application(components: List[Component[ComponentStarted, _]] = Nil, eventBus: SubchannelEventBus[Any, Any => Unit, Class[_]] = new SynchronousSubchannelEventBus()) extends EventBus {
+import Application._
+
+case class Application(components: List[Component[ComponentStarted, _]] = Nil, eventBus: SubchannelEventBus[Any, Any => Unit, Class[_]] = new AsynchronousSubchannelEventBus()) extends EventBus {
 
   val componentMap: Map[String, Component[ComponentStarted, _]] = {
     val componentMapEntries = components.map(c => (c.name, c)).toArray

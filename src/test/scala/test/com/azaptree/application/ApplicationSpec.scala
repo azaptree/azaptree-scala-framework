@@ -138,6 +138,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
         app.register(comp)
       }
 
+      Thread.sleep(100l)
       compRegisteredCount should be(comps.size)
 
     }

@@ -1,20 +1,16 @@
 package com.azaptree.application
 
-import ApplicationService._
 import scala.concurrent.Promise
 import org.slf4j.LoggerFactory
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import com.azaptree.application.healthcheck.ApplicationHealthCheck
 
-case class ApplicationServiceConfig(compCreator: ComponentCreator, asyncEventBus: Boolean = true, applicationHealthChecks: Option[List[ApplicationHealthCheck]] = None)
-
 trait ApplicationLauncher {
-  def createApplicationServiceConfig(): ApplicationServiceConfig
+  def createApplicationService(): ApplicationService
 
   def launch(): Unit = {
-    val appServiceConfig = createApplicationServiceConfig()
-    val appService = new ApplicationService(appServiceConfig.compCreator, appServiceConfig.asyncEventBus)
+    val appService = createApplicationService()
 
     val shutdownPromise = Promise[Unit]()
     val shutdownFuture = shutdownPromise.future

@@ -2,24 +2,24 @@
 
 package test.com.azaptree.application
 
-import com.azaptree.application.ApplicationLauncher
-import com.azaptree.application.ApplicationServiceConfig
-import com.azaptree.application.ApplicationService
-import com.azaptree.application.healthcheck.HealthCheckScorer
-import com.azaptree.application.healthcheck.HealthCheck
-import com.azaptree.application.Component
-import com.azaptree.application.healthcheck.HealthCheckInfo
-import com.azaptree.application.ComponentNotConstructed
-import com.azaptree.application.ComponentInitialized
-import com.azaptree.application.ComponentStopped
-import com.azaptree.application.ComponentConstructed
-import com.azaptree.application.ComponentLifeCycle
-import com.azaptree.application.ComponentStarted
-import com.azaptree.application.healthcheck.HealthCheckConfig
-import TestApplicationLauncher._
-import com.typesafe.config.ConfigFactory
-import com.azaptree.application.healthcheck._
 import scala.concurrent.ExecutionContext.Implicits.global
+
+import com.azaptree.application.ApplicationLauncher
+import com.azaptree.application.ApplicationService
+import com.azaptree.application.Component
+import com.azaptree.application.ComponentConstructed
+import com.azaptree.application.ComponentInitialized
+import com.azaptree.application.ComponentLifeCycle
+import com.azaptree.application.ComponentNotConstructed
+import com.azaptree.application.ComponentStarted
+import com.azaptree.application.ComponentStopped
+import com.azaptree.application.healthcheck._
+import com.azaptree.application.healthcheck.HealthCheck
+import com.azaptree.application.healthcheck.HealthCheckConfig
+import com.azaptree.application.healthcheck.HealthCheckInfo
+import com.typesafe.config.ConfigFactory
+
+import TestApplicationLauncher._
 
 object TestApplicationLauncher {
   val started = "ComponentStarted"
@@ -141,11 +141,14 @@ class TestApplicationLauncher extends ApplicationLauncher {
     if (appService.isComponentStarted(compName)) (100, None) else (0, Some(s"$compName is not started"))
   }
 
-  override def createApplicationServiceConfig(): ApplicationServiceConfig = {
-    val compCreator: ApplicationService.ComponentCreator = () => comps.toList
-    val appHealthChecks: Option[List[ApplicationHealthCheck]] = Some((appHealthCheck1, healthCheckRunner(checkCompStartedScorer)) :: (appHealthCheck2, healthCheckRunner(checkCompStartedScorer)) :: (appHealthCheck3, healthCheckRunner(checkCompStartedScorer)) :: Nil)
+  override def createApplicationService(): ApplicationService = {
+    val app = new ApplicationService()
+    comps.foreach(app.registerComponent(_))
+    app.addHealthCheck(appHealthCheck1, healthCheckRunner(checkCompStartedScorer))
+    app.addHealthCheck(appHealthCheck2, healthCheckRunner(checkCompStartedScorer))
+    app.addHealthCheck(appHealthCheck3, healthCheckRunner(checkCompStartedScorer))
 
-    ApplicationServiceConfig(compCreator = compCreator, applicationHealthChecks = appHealthChecks)
+    app
   }
 }
 

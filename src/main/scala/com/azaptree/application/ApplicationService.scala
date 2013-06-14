@@ -1,55 +1,47 @@
 package com.azaptree.application
 
-import ApplicationService._
-import akka.event.EventBus
-import scala.concurrent.Lock
-import scala.collection.immutable.VectorBuilder
-import org.slf4j.LoggerFactory
-import scala.annotation.tailrec
-import com.azaptree.application.healthcheck._
+import scala.Option.option2Iterable
 import scala.concurrent.Future
+import scala.concurrent.Lock
 
-object ApplicationService {
-  type ComponentCreator = () => List[Component[ComponentNotConstructed, _]]
+import com.azaptree.application.healthcheck.ApplicationHealthCheck
+import com.azaptree.application.healthcheck.HealthCheck
+import com.azaptree.application.healthcheck.HealthCheckResult
+import com.azaptree.application.healthcheck.HealthCheckRunner
 
-  sealed trait ApplicationState
+import akka.event.EventBus
 
-  case object Started extends ApplicationState
-  case object Stopped extends ApplicationState
-
-}
-
-class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boolean = true) extends EventBus {
+class ApplicationService(asyncEventBus: Boolean = true) extends EventBus {
   type Event = Any
   type Subscriber = Any => Unit
   type Classifier = Class[_]
 
-  validate()
+  private[this] val lock = new Lock()
 
-  private[this] def validate() = {
-    def duplicateNames: Iterable[String] = {
-      compCreator().groupBy(_.name).filter(_._2.size > 1).keys
-    }
+  @volatile
+  private[this] var healthChecks: Option[List[ApplicationHealthCheck]] = None
 
-    assert({
-      val compNames = compCreator().map(_.name)
-      !compNames.isEmpty && compNames.size == (Set[String]() ++ (compNames)).size
-    }, s"Components must have unique names. $duplicateNames")
-  }
-
+  /**
+   * 2013-06-14: For some reason after re-factoring the code, SBT fails to compile the code when I try to create the application with named constructor params,
+   * e.g., private[this] var app: Application = Application(evenbus = new SynchronousSubchannelEventBus()).
+   *
+   * It compiles fine within Eclipse, but not using sbt on the command line.
+   *
+   * sbt version: 0.12.4-RC2
+   * scala version: 2.10.1
+   *
+   * NOTE: within Eclipse I am using scala version 2.10.2 - compile fails with sbt and scala 2.10.2
+   *
+   */
   @volatile
   private[this] var app: Application = if (asyncEventBus) {
-    Application(eventBus = new AsynchronousSubchannelEventBus())
+    Application(Nil, new AsynchronousSubchannelEventBus())
   } else {
-    Application(eventBus = new SynchronousSubchannelEventBus())
+    Application(Nil, new SynchronousSubchannelEventBus())
   }
 
   @volatile
-  private[this] var registeredComponents: Vector[Component[ComponentNotConstructed, _]] = Vector.empty[Component[ComponentNotConstructed, _]]
-
-  private[this] val initialComponents = compCreator()
-
-  private[this] val components: ComponentCreator = () => { initialComponents ++ registeredComponents }
+  private[this] var components = Vector.empty[Component[ComponentNotConstructed, _]]
 
   override def publish(event: Event): Unit = app.publish(event)
 
@@ -58,11 +50,6 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
   override def unsubscribe(subscriber: Subscriber): Unit = app.unsubscribe(subscriber)
 
   override def unsubscribe(subscriber: Subscriber, from: Classifier): Boolean = app.unsubscribe(subscriber, from)
-
-  private[this] val lock = new Lock()
-
-  @volatile
-  private[this] var healthChecks: Option[List[ApplicationHealthCheck]] = None
 
   /**
    * It's ok to have multiple HealthChecks with the same name, but it is recommended to have unique names.
@@ -192,7 +179,7 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
   def start(): Unit = {
     lock.acquire()
     try {
-      app = components().foldLeft(app) { (app, comp) =>
+      app = components.foldLeft(app) { (app, comp) =>
         app.components.find(_.name == comp.name) match {
           case None => app.register(comp)
           case _ => app
@@ -234,7 +221,7 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
       app.components.find(findByName) match {
         case Some(comp) => Right(false)
         case None =>
-          components().find(findByName) match {
+          components.find(findByName) match {
             case Some(comp) =>
               app = app.register(comp)
               Right(true)
@@ -249,8 +236,8 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
   def registerComponent(comp: Component[ComponentNotConstructed, _]) = {
     lock.acquire()
     try {
-      require(components().find(_.name == comp.name).isEmpty, "Component with the same is already registered: " + comp.name)
-      registeredComponents = registeredComponents :+ comp
+      require(components.find(_.name == comp.name).isEmpty, "Component with the same is already registered: " + comp.name)
+      components = components :+ comp
     } finally {
       lock.release()
     }
@@ -258,7 +245,7 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
 
   def isRunning(): Boolean = !app.components.isEmpty
 
-  def componentNames: Iterable[String] = components().map(_.name)
+  def componentNames: Iterable[String] = components.map(_.name)
 
   def startedComponentNames: Iterable[String] = app.components.map(_.name)
 
@@ -289,11 +276,11 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
   }
 
   def componentDependencies(compName: String): Either[InvalidComponentNameException, Option[List[String]]] = {
-    components().find(_.name == compName) match {
+    components.find(_.name == compName) match {
       case None => Left(new InvalidComponentNameException(compName))
       case _ =>
         val compDependencies = for {
-          componentDependenciesMap <- Application.componentDependencies(components().toList)
+          componentDependenciesMap <- Application.componentDependencies(components.toList)
           componentDependencies <- componentDependenciesMap.get(compName)
         } yield {
           componentDependencies
@@ -305,11 +292,10 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
   }
 
   def componentDependents(compName: String): Either[InvalidComponentNameException, Option[List[String]]] = {
-    val comps = components()
-    comps.find(_.name == compName) match {
+    components.find(_.name == compName) match {
       case None => Left(new InvalidComponentNameException(compName))
       case _ =>
-        Application.componentDependencies(comps) match {
+        Application.componentDependencies(components.toList) match {
           case None => Right(None)
           case Some(map) =>
             val dependents = map.filter(_._2.contains(compName))

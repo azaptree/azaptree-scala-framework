@@ -9,6 +9,7 @@ import akka.actor.ActorPath
 import scala.collection.immutable.SortedMap
 import scala.collection.immutable.TreeMap
 import akka.actor.ActorSystem
+import scala.concurrent.Lock
 
 package object config {
 
@@ -23,7 +24,10 @@ package object config {
    *
    */
   object ActorConfigRegistry {
+    @volatile
     private[this] var actorConfigs: Map[String, Map[ActorPath, ActorConfig]] = Map[String, SortedMap[ActorPath, ActorConfig]]()
+
+    private[this] val lock = new Lock()
 
     def getActorConfig(actorSystemName: String, actorPath: ActorPath): Option[ActorConfig] = {
       actorConfigs.get(actorSystemName).flatMap(_.get(actorPath))
@@ -40,9 +44,14 @@ package object config {
     }
 
     def register(actorSystemName: String, actorConfig: ActorConfig) = {
-      var actorSystemActorConfigs = actorConfigs.get(actorSystemName).getOrElse(TreeMap[ActorPath, ActorConfig]())
-      actorSystemActorConfigs += (actorConfig.actorPath -> actorConfig)
-      actorConfigs += (actorSystemName -> actorSystemActorConfigs)
+      lock.acquire()
+      try {
+        var actorSystemActorConfigs = actorConfigs.get(actorSystemName).getOrElse(TreeMap[ActorPath, ActorConfig]())
+        actorSystemActorConfigs += (actorConfig.actorPath -> actorConfig)
+        actorConfigs += (actorSystemName -> actorSystemActorConfigs)
+      } finally {
+        lock.release()
+      }
     }
 
     def createTopLevelActors(implicit actorSystem: ActorSystem) = {
