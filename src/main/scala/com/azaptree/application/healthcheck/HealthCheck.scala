@@ -1,20 +1,51 @@
 package com.azaptree.application.healthcheck
 
 import com.typesafe.config.Config
+import scala.concurrent.Future
+import com.azaptree.application.ApplicationService
+import scala.concurrent.ExecutionContext
 
 case class HealthCheck(info: HealthCheckInfo, config: HealthCheckConfig)
 
 case class HealthCheckInfo(group: String = "", name: String)(displayName: String = s"$group:$name", description: String)
 
 case class HealthCheckConfig(
-  enabled: Boolean = true,
-  importanceLevel: Int = 5,
-  greenRange: HeathCheckIndicatorScoreRange,
-  yellowRange: HeathCheckIndicatorScoreRange,
-  redRange: HeathCheckIndicatorScoreRange,
-  config: Option[Config])
+    enabled: Boolean = true,
+    importanceLevel: Int = 5,
+    greenRange: GreenHeathCheckIndicatorThreshold = GreenHeathCheckIndicatorThreshold(90),
+    yellowRange: YellowHeathCheckIndicatorThreshold = YellowHeathCheckIndicatorThreshold(75),
+    redRange: RedHeathCheckIndicatorThreshold = RedHeathCheckIndicatorThreshold(0),
+    config: Option[Config] = None) {
 
-case class HeathCheckIndicatorScoreRange(indicator: HealthCheckIndicator, minScore: Int, maxScore: Int)
+  def computeHealthCheckIndicator(healthScore: Int): HealthCheckIndicator = {
+    if (healthScore >= greenRange.minScore) {
+      GREEN
+    } else if (healthScore >= yellowRange.minScore) {
+      YELLOW
+    } else {
+      RED
+    }
+  }
+
+}
+
+sealed trait HeathCheckIndicatorThreshold {
+  val indicator: HealthCheckIndicator
+
+  val minScore: Int
+}
+
+case class GreenHeathCheckIndicatorThreshold(minScore: Int) extends HeathCheckIndicatorThreshold {
+  val indicator = GREEN
+}
+
+case class YellowHeathCheckIndicatorThreshold(minScore: Int) extends HeathCheckIndicatorThreshold {
+  val indicator = YELLOW
+}
+
+case class RedHeathCheckIndicatorThreshold(minScore: Int) extends HeathCheckIndicatorThreshold {
+  val indicator = RED
+}
 
 sealed trait HealthCheckIndicator
 

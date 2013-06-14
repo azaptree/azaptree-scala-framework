@@ -69,8 +69,8 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
    */
   def addHealthCheck(healthCheck: HealthCheck, healthCheckRunner: HealthCheckRunner) = {
     healthChecks match {
-      case Some(h) => Some((healthCheck, healthCheckRunner) :: h)
-      case _ => Some((healthCheck, healthCheckRunner) :: Nil)
+      case Some(h) => healthChecks = Some((healthCheck, healthCheckRunner) :: h)
+      case _ => healthChecks = Some((healthCheck, healthCheckRunner) :: Nil)
     }
   }
 
@@ -87,19 +87,40 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
 
   def applicationHealthChecks(): Option[List[ApplicationHealthCheck]] = healthChecks
 
-  def runAllApplicationHealthChecks(): Option[List[Future[HealthCheckResult]]] = {
+  def componentHealthChecks(compName: String): Option[List[ApplicationHealthCheck]] = {
+    app.components.find(_.name == compName) match {
+      case Some(c) => c.healthChecks
+      case None => None
+    }
+  }
+
+  def runApplicationHealthChecks(): Option[List[Future[HealthCheckResult]]] = {
     for {
       appHealthChecks <- healthChecks
     } yield {
       for {
         healthCheck <- appHealthChecks
       } yield {
-        healthCheck._2(healthCheck._1)
+        runHealthCheck(healthCheck)
       }
     }
   }
 
-  def runAllComponentHealthChecks(): Option[List[Future[HealthCheckResult]]] = {
+  def runApplicationHealthCheck(healthCheckName: String): Option[Future[HealthCheckResult]] = {
+    healthChecks match {
+      case Some(appHealthChecks) =>
+        appHealthChecks.find(_._1.info.name == healthCheckName) match {
+          case Some(healthCheck) => Some(runHealthCheck(healthCheck))
+          case None => None
+        }
+      case None => None
+    }
+  }
+
+  /**
+   * Only runs healthchecks for components that are started
+   */
+  def runComponentHealthChecks(): Option[List[Future[HealthCheckResult]]] = {
     val healthCheckResults = for {
       comp <- app.components
       healthChecks <- comp.healthChecks
@@ -107,7 +128,7 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
       for {
         healthCheck <- healthChecks
       } yield {
-        healthCheck._2(healthCheck._1)
+        runHealthCheck(healthCheck)
       }
     }
 
@@ -115,26 +136,57 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
     if (componentHealthCheckResults.isEmpty) None else Some(componentHealthCheckResults)
   }
 
+  /**
+   * Runs all healthchecks for comonents that have been started and all application healthchecks
+   */
   def runAllHealthChecks(): Option[List[Future[HealthCheckResult]]] = {
-    for {
-      appHealthCheckResults <- runAllApplicationHealthChecks()
-      componentHealthCheckResults <- runAllComponentHealthChecks
-    } yield {
-      componentHealthCheckResults ++ appHealthCheckResults
+    runApplicationHealthChecks() match {
+      case Some(appHeathCheckResults) =>
+        runComponentHealthChecks() match {
+          case Some(compHeathCheckResults) => Some(appHeathCheckResults ++ compHeathCheckResults)
+          case None => Some(appHeathCheckResults)
+        }
+      case None => runComponentHealthChecks()
     }
   }
 
-  def runStartedComponentHealthChecks(compName: String): Either[InvalidComponentNameException, Option[List[Future[HealthCheckResult]]]] = {
+  def healthChecksByGroupName(group: String): Option[List[ApplicationHealthCheck]] = {
+    val appHealthChecks = healthChecks match {
+      case Some(healthChecks) => healthChecks.filter(_._1.info.group == group)
+      case None => Nil
+    }
+
+    val compHealthChecks = app.components.filter(_.healthChecks.isDefined).map(_.healthChecks.get).flatten.filter(_._1.info.group == group)
+    val healthChecksByGroup = compHealthChecks ++ appHealthChecks
+    if (healthChecksByGroup.isEmpty) None else Some(healthChecksByGroup)
+  }
+
+  /**
+   * Runs all healthchecks for comonents that have been started and all application healthchecks
+   */
+  def runAllHealthChecksByGroup(group: String): Option[List[Future[HealthCheckResult]]] = {
+    healthChecksByGroupName(group) match {
+      case Some(appHeathCheckResults) =>
+        val l: List[Future[HealthCheckResult]] = Nil
+        Some(appHeathCheckResults.foldLeft(l)((l, hc) => runHealthCheck(hc) :: l))
+      case None => None
+    }
+  }
+
+  def runHealthCheck(applicationHealthCheck: ApplicationHealthCheck): Future[HealthCheckResult] = {
+    applicationHealthCheck._2(applicationHealthCheck._1, this)
+  }
+
+  def runComponentHealthChecks(compName: String): Either[InvalidComponentNameException, Option[List[Future[HealthCheckResult]]]] = {
     app.components.find(_.name == compName) match {
       case Some(comp) =>
         Right(for {
           healthChecks <- comp.healthChecks
         } yield {
-          for (healthCheck <- healthChecks) yield (healthCheck._2(healthCheck._1))
+          for (healthCheck <- healthChecks) yield runHealthCheck(healthCheck)
         })
       case None => Left(new InvalidComponentNameException(compName))
     }
-
   }
 
   def start(): Unit = {
