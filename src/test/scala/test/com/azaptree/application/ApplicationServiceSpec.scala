@@ -183,8 +183,6 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
 
     it("can return the names of components that have been registered with the ApplicationService") {
       val app = createApp()
-      app.isRunning() should be(false)
-      app.startedComponentNames.isEmpty should be(true)
 
       app.componentNames.size should be(comps.size)
       comps.foreach(c => assert(app.componentNames.find(name => name == c.name).isDefined, {
@@ -207,8 +205,8 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
     it("will start up all components that have been supplied at ApplicationService construction time") {
       val app = createApp()
 
-      app.isRunning() should be(false)
-      app.startedComponentNames.isEmpty should be(true)
+      app.isRunning() should be(true)
+      app.startedComponentNames.isEmpty should be(false)
 
       app.start()
 
@@ -258,8 +256,8 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
     it("can start and stop registered components on an individual basis") {
       val app = createApp()
 
-      app.isRunning() should be(false)
-      app.startedComponentNames.isEmpty should be(true)
+      app.isRunning() should be(true)
+      app.startedComponentNames.isEmpty should be(false)
 
       app.start()
 
@@ -286,11 +284,6 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
     it("can return the names of all components that have been started") {
       val app = createApp()
 
-      app.isRunning() should be(false)
-      app.startedComponentNames.isEmpty should be(true)
-
-      app.start()
-
       app.isRunning() should be(true)
       app.startedComponentNames.isEmpty should be(false)
       app.startedComponentNames.size should be(app.componentNames.size)
@@ -302,11 +295,6 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
 
     it("can tell you if a component has been started") {
       val app = createApp()
-
-      app.isRunning() should be(false)
-      app.startedComponentNames.isEmpty should be(true)
-
-      app.start()
 
       app.isRunning() should be(true)
       app.startedComponentNames.isEmpty should be(false)
@@ -321,10 +309,6 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
 
     it("can be used to retrieve a component object for a started component") {
       val app = createApp()
-
-      app.isRunning() should be(false)
-      app.startedComponentNames.isEmpty should be(true)
-
       app.start()
 
       app.isRunning() should be(true)
@@ -347,9 +331,6 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
 
     it("can return the component object class for a started component") {
       val app = createApp()
-
-      app.isRunning() should be(false)
-      app.startedComponentNames.isEmpty should be(true)
 
       app.start()
 
@@ -419,7 +400,6 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
       val app = createApp()
 
       for (i <- 1 to 10) {
-        app.isRunning should be(false)
         app.start()
         app.isRunning should be(true)
         app.stop()

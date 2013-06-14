@@ -237,6 +237,7 @@ class ApplicationService(asyncEventBus: Boolean = true) extends EventBus {
     lock.acquire()
     try {
       require(components.find(_.name == comp.name).isEmpty, "Component with the same is already registered: " + comp.name)
+      app = app.register(comp)
       components = components :+ comp
     } finally {
       lock.release()
