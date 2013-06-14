@@ -273,20 +273,14 @@ class ApplicationService(val compCreator: ComponentCreator, asyncEventBus: Boole
    * only returns the component object if the component is started
    */
   def getStartedComponentObjectClass(compName: String): Option[Class[_]] = {
-    app.components.find(_.name == compName) match {
-      case Some(o) => Some(o.componentObject.getClass())
-      case _ => None
-    }
+    app.getComponentObjectClass(compName)
   }
 
   /**
    * only returns the component object if the component is started
    */
   def getStartedComponentObject[A](compName: String): Option[A] = {
-    app.components.find(_.name == compName) match {
-      case Some(o) => Some(o.componentObject.get.asInstanceOf[A])
-      case _ => None
-    }
+    app.getComponentObject[A](compName)
   }
 
   def stoppedComponentNames: Iterable[String] = {
