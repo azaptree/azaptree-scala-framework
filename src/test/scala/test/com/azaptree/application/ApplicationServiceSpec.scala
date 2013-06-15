@@ -223,11 +223,11 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
       val app = createApp()
 
       var count = 0;
-      app.subscribe((event) => {
+      app.eventBus.subscribe((event) => {
         count += 1
       }, classOf[String])
 
-      app.publish("TEST MESSAGE");
+      app.eventBus.publish("TEST MESSAGE");
       Thread.sleep(10l)
       count should be(1)
     }
@@ -236,18 +236,18 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
       val app = createApp()
 
       var eventCount = 0;
-      app.subscribe((event) => {
+      app.eventBus.subscribe((event) => {
         eventCount += 1
       }, classOf[Event])
 
       var event2Count = 0;
-      app.subscribe((event) => {
+      app.eventBus.subscribe((event) => {
         event2Count += 1
       }, classOf[Event2])
 
-      app.publish(EventA);
-      app.publish(EventB);
-      app.publish(EventC);
+      app.eventBus.publish(EventA);
+      app.eventBus.publish(EventB);
+      app.eventBus.publish(EventC);
       Thread.sleep(10l)
       eventCount should be(3)
       event2Count should be(1)

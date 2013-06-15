@@ -14,7 +14,7 @@ trait ApplicationLauncher {
 
     val shutdownPromise = Promise[Unit]()
     val shutdownFuture = shutdownPromise.future
-    val shutdownListener: (Any) => Unit = event => {
+    val shutdownListener: Any => Unit = event => {
       event match {
         case event: PostApplicationShutdownEvent =>
           shutdownPromise.success(())
@@ -24,7 +24,7 @@ trait ApplicationLauncher {
       }
     }
 
-    appService.subscribe(shutdownListener, classOf[PostApplicationShutdownEvent])
+    appService.eventBus.subscribe(shutdownListener, classOf[PostApplicationShutdownEvent])
     appService.start()
     Await.result(shutdownFuture, Duration.Inf)
   }

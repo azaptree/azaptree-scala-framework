@@ -3,18 +3,14 @@ package com.azaptree.application
 import scala.Option.option2Iterable
 import scala.concurrent.Future
 import scala.concurrent.Lock
-
 import com.azaptree.application.healthcheck.ApplicationHealthCheck
 import com.azaptree.application.healthcheck.HealthCheck
 import com.azaptree.application.healthcheck.HealthCheckResult
 import com.azaptree.application.healthcheck.HealthCheckRunner
-
 import akka.event.EventBus
+import akka.event.japi.SubchannelEventBus
 
-class ApplicationService(asyncEventBus: Boolean = true) extends EventBus {
-  type Event = Any
-  type Subscriber = Any => Unit
-  type Classifier = Class[_]
+class ApplicationService(asyncEventBus: Boolean = true) {
 
   sys.addShutdownHook(() => stop())
 
@@ -45,13 +41,7 @@ class ApplicationService(asyncEventBus: Boolean = true) extends EventBus {
   @volatile
   private[this] var components = Vector.empty[Component[ComponentNotConstructed, _]]
 
-  override def publish(event: Event): Unit = app.publish(event)
-
-  override def subscribe(subscriber: Subscriber, to: Classifier): Boolean = app.subscribe(subscriber, to)
-
-  override def unsubscribe(subscriber: Subscriber): Unit = app.unsubscribe(subscriber)
-
-  override def unsubscribe(subscriber: Subscriber, from: Classifier): Boolean = app.unsubscribe(subscriber, from)
+  def eventBus: SubchannelEventBus[Any, Any => Unit, Class[_]] = app.eventBus
 
   /**
    * It's ok to have multiple HealthChecks with the same name, but it is recommended to have unique names.

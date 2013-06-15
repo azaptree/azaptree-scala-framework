@@ -131,7 +131,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       }
 
       var app = Application()
-      app.subscribe(subscriber, classOf[ComponentStartedEvent]);
+      app.eventBus.subscribe(subscriber, classOf[ComponentStartedEvent]);
       val comps = (compA :: compB :: compC :: Nil)
       app = comps.foldLeft(app) { (app, comp) =>
         println("\n" + app + "\n")
@@ -161,8 +161,8 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       }
 
       var app = Application()
-      app.subscribe(subscriber, classOf[ComponentStartedEvent]);
-      app.subscribe(subscriber, classOf[ComponentShutdownEvent]);
+      app.eventBus.subscribe(subscriber, classOf[ComponentStartedEvent]);
+      app.eventBus.subscribe(subscriber, classOf[ComponentShutdownEvent]);
       val comps = (compA :: compB :: compC :: Nil)
       app = comps.foldLeft(app) { (app, comp) =>
         println("\n" + app + "\n")
@@ -195,10 +195,10 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       }
 
       var app = Application()
-      app.subscribe(subscriber, classOf[ComponentStartedEvent]);
-      app.subscribe(subscriber, classOf[ComponentShutdownEvent]);
-      app.subscribe(subscriber, classOf[PreApplicationShutdownEvent]);
-      app.subscribe(subscriber, classOf[PostApplicationShutdownEvent]);
+      app.eventBus.subscribe(subscriber, classOf[ComponentStartedEvent]);
+      app.eventBus.subscribe(subscriber, classOf[ComponentShutdownEvent]);
+      app.eventBus.subscribe(subscriber, classOf[PreApplicationShutdownEvent]);
+      app.eventBus.subscribe(subscriber, classOf[PostApplicationShutdownEvent]);
       val comps = (compA :: compB :: compC :: Nil)
       app = comps.foldLeft(app) { (app, comp) =>
         println("\n" + app + "\n")
@@ -235,9 +235,9 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
     }
 
     var app = Application()
-    app.subscribe(subscriber, classOf[ComponentStartedEvent]);
-    app.subscribe(subscriber, classOf[ComponentShutdownEvent]);
-    app.subscribe(subscriber, classOf[ComponentShutdownFailedEvent]);
+    app.eventBus.subscribe(subscriber, classOf[ComponentStartedEvent]);
+    app.eventBus.subscribe(subscriber, classOf[ComponentShutdownEvent]);
+    app.eventBus.subscribe(subscriber, classOf[ComponentShutdownFailedEvent]);
     val comps = (compA :: compB :: compC :: compAWithShutdownFailure :: Nil)
     app = comps.foldLeft(app) { (app, comp) =>
       println("\n" + app + "\n")

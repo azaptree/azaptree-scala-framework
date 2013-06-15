@@ -26,24 +26,12 @@ object Application {
 
 import Application._
 
-case class Application(components: List[Component[ComponentStarted, _]] = Nil, eventBus: SubchannelEventBus[Any, Any => Unit, Class[_]] = new AsynchronousSubchannelEventBus()) extends EventBus {
+case class Application(components: List[Component[ComponentStarted, _]] = Nil, eventBus: SubchannelEventBus[Any, Any => Unit, Class[_]] = new AsynchronousSubchannelEventBus()) {
 
   val componentMap: Map[String, Component[ComponentStarted, _]] = {
     val componentMapEntries = components.map(c => (c.name, c)).toArray
     Map[String, Component[ComponentStarted, _]](componentMapEntries: _*)
   }
-
-  type Event = Any
-  type Subscriber = Any => Unit
-  type Classifier = Class[_]
-
-  override def publish(event: Event): Unit = eventBus.publish(event)
-
-  override def subscribe(subscriber: Subscriber, to: Classifier): Boolean = eventBus.subscribe(subscriber, to)
-
-  override def unsubscribe(subscriber: Subscriber): Unit = eventBus.unsubscribe(subscriber)
-
-  override def unsubscribe(subscriber: Subscriber, from: Classifier): Boolean = eventBus.unsubscribe(subscriber, from)
 
   def getComponentObject[A](name: String): Option[A] = {
     componentMap.get(name) match {
@@ -64,7 +52,7 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
 
     val compStarted = comp.startup()
     val appWithNewComp = copy(components = compStarted :: components)
-    publish(ComponentStartedEvent(appWithNewComp, compStarted))
+    eventBus.publish(ComponentStartedEvent(appWithNewComp, compStarted))
     appWithNewComp
   }
 
@@ -76,18 +64,18 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
       try {
         val compStopped = componentToShutdown.get.shutdown()
         val appWithCompRemoved = copy(components = components.filterNot(c => c.name == componentName))
-        publish(ComponentShutdownEvent(appWithCompRemoved, compStopped))
+        eventBus.publish(ComponentShutdownEvent(appWithCompRemoved, compStopped))
         Right(appWithCompRemoved)
       } catch {
         case e: Exception =>
-          publish(ComponentShutdownFailedEvent(this, componentToShutdown.get, e))
+          eventBus.publish(ComponentShutdownFailedEvent(this, componentToShutdown.get, e))
           Left(e)
       }
     }
   }
 
   def shutdown(): Application = {
-    publish(PreApplicationShutdownEvent(this))
+    eventBus.publish(PreApplicationShutdownEvent(this))
     val log = LoggerFactory.getLogger(getClass())
 
     @tailrec
@@ -132,7 +120,7 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
       case None => shutdownComponentsWithoutDependents(this, components, Map[String, List[String]]())
     }
 
-    publish(PostApplicationShutdownEvent(this))
+    eventBus.publish(PostApplicationShutdownEvent(this))
     app
   }
 
