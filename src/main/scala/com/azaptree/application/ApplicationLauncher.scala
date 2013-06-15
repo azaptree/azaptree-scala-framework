@@ -14,10 +14,9 @@ trait ApplicationLauncher {
 
     val shutdownPromise = Promise[Unit]()
     val shutdownFuture = shutdownPromise.future
-
     val shutdownListener: (Any) => Unit = event => {
       event match {
-        case PostApplicationShutdownEvent =>
+        case event: PostApplicationShutdownEvent =>
           shutdownPromise.success(())
         case _ =>
           val log = LoggerFactory.getLogger(getClass())
@@ -26,17 +25,17 @@ trait ApplicationLauncher {
     }
 
     appService.subscribe(shutdownListener, classOf[PostApplicationShutdownEvent])
-
     appService.start()
-
     Await.result(shutdownFuture, Duration.Inf)
-
   }
 
 }
 
+import com.azaptree.utils._
 object AppLauncher extends App {
   require(args.size > 0, "usage: scala com.azaptree.application.AppLauncher <ApplicationLauncher class name>")
+  val log = LoggerFactory.getLogger("com.azaptree.application.AppLauncher")
+  log.info("Application process runnings at : {}", PID_HOST)
   val launcherClass = args(0)
   val classLoader = getClass().getClassLoader()
   val launcher = classLoader.loadClass(launcherClass).newInstance().asInstanceOf[ApplicationLauncher]
