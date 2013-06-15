@@ -33,7 +33,6 @@ case class HealthCheckConfig(
 
 sealed trait HeathCheckIndicatorThreshold {
   val indicator: HealthCheckIndicator
-
   val minScore: Int
 }
 
