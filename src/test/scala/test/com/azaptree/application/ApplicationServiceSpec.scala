@@ -98,7 +98,8 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
 
   val compAHealthCheck = HealthCheck(
     info = HealthCheckInfo(group = "GROUP-1", name = "compAHealthCheck")(description = "CompA HealthCheck"),
-    config = HealthCheckConfig(config = Some(ConfigFactory.parseString("""compName = "CompA" """))))
+    config = HealthCheckConfig(schedule = Some(PeriodicTaskSchedule(period = 1)),
+      config = Some(ConfigFactory.parseString("""compName = "CompA" """))))
   val compCHealthCheck = HealthCheck(
     info = HealthCheckInfo(group = "GROUP-10", name = "compCHealthCheck")(description = "CompC HealthCheck"),
     config = HealthCheckConfig(config = Some(ConfigFactory.parseString("""compName = "CompC" """))))
@@ -106,7 +107,13 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
     info = HealthCheckInfo(name = "compEHealthCheck")(description = "CompE HealthCheck"),
     config = HealthCheckConfig(config = Some(ConfigFactory.parseString("""compName = "CompE" """))))
 
-  val greenCheckScorer: HealthCheckScorer = (healthCheck, appService) => (100, None)
+  var greenCheckScorerRunCount = 0
+
+  val greenCheckScorer: HealthCheckScorer = (healthCheck, appService) => {
+    greenCheckScorerRunCount += 1
+    log.info("greenCheckScorerRunCount = {}", greenCheckScorerRunCount)
+    (100, None)
+  }
   val yellowCheckScorer: HealthCheckScorer = (healthCheck, appService) => (80, None)
   val redCheckScorer: HealthCheckScorer = (healthCheck, appService) => (50, Some("ALERT!!!"))
 
@@ -163,448 +170,527 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
   describe("An ApplicationService") {
     it("is used to start and stop components defined for an Application") {
       val app = createApp()
+      try {
+        app.start()
+        println("*** app components = " + app.componentNames.mkString("\n\n", "\n", "\n\n"))
 
-      app.start()
-      println("*** app components = " + app.componentNames.mkString("\n\n", "\n", "\n\n"))
+        app.stop()
 
-      app.stop()
+        val shutdownOrder = reverseShutdownOrder.reverse
+        println("*** shutdownOrder = " + shutdownOrder)
 
-      val shutdownOrder = reverseShutdownOrder.reverse
-      println("*** shutdownOrder = " + shutdownOrder)
+        shutdownOrder.indexOf("CompA") should be < 2
+        shutdownOrder.indexOf("CompE") should be < 2
+        shutdownOrder.indexOf("CompD") should be(2)
+        shutdownOrder.indexOf("CompB") should be(3)
+        shutdownOrder.indexOf("CompC") should be(4)
 
-      shutdownOrder.indexOf("CompA") should be < 2
-      shutdownOrder.indexOf("CompE") should be < 2
-      shutdownOrder.indexOf("CompD") should be(2)
-      shutdownOrder.indexOf("CompB") should be(3)
-      shutdownOrder.indexOf("CompC") should be(4)
-
-      shutdownOrder match {
-        case ("CompE" :: "CompA" :: "CompD" :: "CompB" :: "CompC" :: Nil) =>
-        case ("CompA" :: "CompE" :: "CompD" :: "CompB" :: "CompC" :: Nil) =>
-        case _ => fail("Shutdown order is not correct")
+        shutdownOrder match {
+          case ("CompE" :: "CompA" :: "CompD" :: "CompB" :: "CompC" :: Nil) =>
+          case ("CompA" :: "CompE" :: "CompD" :: "CompB" :: "CompC" :: Nil) =>
+          case _ => fail("Shutdown order is not correct")
+        }
+      } finally {
+        app.stop()
       }
     }
 
     it("can return the names of components that have been registered with the ApplicationService") {
       val app = createApp()
 
-      app.componentNames.size should be(comps.size)
-      comps.foreach(c => assert(app.componentNames.find(name => name == c.name).isDefined, {
-        val compName = c.name
-        val compNames = app.componentNames
-        s"app does does not contain [$compName] within : $compNames"
-      }))
+      try {
+        app.componentNames.size should be(comps.size)
+        comps.foreach(c => assert(app.componentNames.find(name => name == c.name).isDefined, {
+          val compName = c.name
+          val compNames = app.componentNames
+          s"app does does not contain [$compName] within : $compNames"
+        }))
+      } finally {
+        app.stop()
+      }
 
     }
 
     it("is used used to register components on an individual basis") {
       val app = createApp()
 
-      val compF = Component[ComponentNotConstructed, Comp]("CompF", new CompLifeCycle())
-      app.registerComponent(compF)
-      app.componentNames should contain(compF.name)
-      app.componentNames.size should be(comps.size + 1)
+      try {
+        val compF = Component[ComponentNotConstructed, Comp]("CompF", new CompLifeCycle())
+        app.registerComponent(compF)
+        app.componentNames should contain(compF.name)
+        app.componentNames.size should be(comps.size + 1)
+      } finally {
+        app.stop()
+      }
     }
 
     it("will start up all components that have been supplied at ApplicationService construction time") {
       val app = createApp()
+      try {
+        app.isRunning() should be(true)
+        app.startedComponentNames.isEmpty should be(false)
 
-      app.isRunning() should be(true)
-      app.startedComponentNames.isEmpty should be(false)
+        app.start()
 
-      app.start()
+        app.isRunning() should be(true)
+        app.startedComponentNames.isEmpty should be(false)
+        app.startedComponentNames.size should be(app.componentNames.size)
 
-      app.isRunning() should be(true)
-      app.startedComponentNames.isEmpty should be(false)
-      app.startedComponentNames.size should be(app.componentNames.size)
-
-      app.stop()
-      app.isRunning() should be(false)
-      app.startedComponentNames.isEmpty should be(true)
+        app.stop()
+        app.isRunning() should be(false)
+        app.startedComponentNames.isEmpty should be(true)
+      } finally {
+        app.stop()
+      }
     }
 
     it("can publish ApplicationEvents") {
       val app = createApp()
+      try {
+        var count = 0;
+        app.eventBus.subscribe((event) => {
+          count += 1
+        }, classOf[String])
 
-      var count = 0;
-      app.eventBus.subscribe((event) => {
-        count += 1
-      }, classOf[String])
-
-      app.eventBus.publish("TEST MESSAGE");
-      Thread.sleep(10l)
-      count should be(1)
+        app.eventBus.publish("TEST MESSAGE");
+        Thread.sleep(10l)
+        count should be(1)
+      } finally {
+        app.stop()
+      }
     }
 
     it("implements a subchannel event bus") {
       val app = createApp()
+      try {
+        var eventCount = 0;
+        app.eventBus.subscribe((event) => {
+          eventCount += 1
+        }, classOf[Event])
 
-      var eventCount = 0;
-      app.eventBus.subscribe((event) => {
-        eventCount += 1
-      }, classOf[Event])
+        var event2Count = 0;
+        app.eventBus.subscribe((event) => {
+          event2Count += 1
+        }, classOf[Event2])
 
-      var event2Count = 0;
-      app.eventBus.subscribe((event) => {
-        event2Count += 1
-      }, classOf[Event2])
-
-      app.eventBus.publish(EventA);
-      app.eventBus.publish(EventB);
-      app.eventBus.publish(EventC);
-      Thread.sleep(10l)
-      eventCount should be(3)
-      event2Count should be(1)
+        app.eventBus.publish(EventA);
+        app.eventBus.publish(EventB);
+        app.eventBus.publish(EventC);
+        Thread.sleep(10l)
+        eventCount should be(3)
+        event2Count should be(1)
+      } finally {
+        app.stop()
+      }
     }
 
     it("can start and stop registered components on an individual basis") {
       val app = createApp()
+      try {
+        app.isRunning() should be(true)
+        app.startedComponentNames.isEmpty should be(false)
 
-      app.isRunning() should be(true)
-      app.startedComponentNames.isEmpty should be(false)
+        app.start()
 
-      app.start()
+        app.isRunning() should be(true)
+        app.startedComponentNames.isEmpty should be(false)
+        app.startedComponentNames.size should be(app.componentNames.size)
 
-      app.isRunning() should be(true)
-      app.startedComponentNames.isEmpty should be(false)
-      app.startedComponentNames.size should be(app.componentNames.size)
+        app.startedComponentNames.foreach(app.stopComponent(_))
 
-      app.startedComponentNames.foreach(app.stopComponent(_))
+        app.isRunning() should be(false)
+        app.startedComponentNames.isEmpty should be(true)
 
-      app.isRunning() should be(false)
-      app.startedComponentNames.isEmpty should be(true)
+        app.componentNames.foreach(app.startComponent(_))
 
-      app.componentNames.foreach(app.startComponent(_))
+        app.isRunning() should be(true)
+        app.startedComponentNames.isEmpty should be(false)
+        app.startedComponentNames.size should be(app.componentNames.size)
 
-      app.isRunning() should be(true)
-      app.startedComponentNames.isEmpty should be(false)
-      app.startedComponentNames.size should be(app.componentNames.size)
-
-      app.stop()
-      app.isRunning() should be(false)
-      app.startedComponentNames.isEmpty should be(true)
+        app.stop()
+        app.isRunning() should be(false)
+        app.startedComponentNames.isEmpty should be(true)
+      } finally {
+        app.stop()
+      }
     }
 
     it("can return the names of all components that have been started") {
       val app = createApp()
+      try {
+        app.isRunning() should be(true)
+        app.startedComponentNames.isEmpty should be(false)
+        app.startedComponentNames.size should be(app.componentNames.size)
 
-      app.isRunning() should be(true)
-      app.startedComponentNames.isEmpty should be(false)
-      app.startedComponentNames.size should be(app.componentNames.size)
+        app.stopComponent(app.startedComponentNames.head)
 
-      app.stopComponent(app.startedComponentNames.head)
-
-      app.startedComponentNames.size should be(app.componentNames.size - 1)
+        app.startedComponentNames.size should be(app.componentNames.size - 1)
+      } finally {
+        app.stop()
+      }
     }
 
     it("can tell you if a component has been started") {
       val app = createApp()
+      try {
+        app.isRunning() should be(true)
+        app.startedComponentNames.isEmpty should be(false)
+        app.startedComponentNames.size should be(app.componentNames.size)
 
-      app.isRunning() should be(true)
-      app.startedComponentNames.isEmpty should be(false)
-      app.startedComponentNames.size should be(app.componentNames.size)
+        app.stopComponent(app.startedComponentNames.head)
 
-      app.stopComponent(app.startedComponentNames.head)
+        app.startedComponentNames.size should be(app.componentNames.size - 1)
 
-      app.startedComponentNames.size should be(app.componentNames.size - 1)
-
-      app.startedComponentNames.foreach(name => assert(app.isComponentStarted(name)))
+        app.startedComponentNames.foreach(name => assert(app.isComponentStarted(name)))
+      } finally {
+        app.stop()
+      }
     }
 
     it("can be used to retrieve a component object for a started component") {
       val app = createApp()
-      app.start()
+      try {
+        app.start()
 
-      app.isRunning() should be(true)
-      app.startedComponentNames.isEmpty should be(false)
-      app.startedComponentNames.size should be(app.componentNames.size)
+        app.isRunning() should be(true)
+        app.startedComponentNames.isEmpty should be(false)
+        app.startedComponentNames.size should be(app.componentNames.size)
 
-      val compObjects = app.startedComponentNames.map(app.getStartedComponentObject(_))
-      compObjects.foreach { c =>
-        assert(c.isDefined)
-        println("- can be used to retrieve a component object for a started component : " + c)
+        val compObjects = app.startedComponentNames.map(app.getStartedComponentObject(_))
+        compObjects.foreach { c =>
+          assert(c.isDefined)
+          println("- can be used to retrieve a component object for a started component : " + c)
+        }
+
+        app.getStartedComponentObject[Comp](compA.name).isDefined should be(true)
+        println("- can be used to retrieve a component object for a started component : " + app.getStartedComponentObject[Comp](compA.name))
+
+        app.stopComponent(compA.name)
+        app.getStartedComponentObject[Comp](compA.name).isDefined should be(false)
+      } finally {
+        app.stop()
       }
-
-      app.getStartedComponentObject[Comp](compA.name).isDefined should be(true)
-      println("- can be used to retrieve a component object for a started component : " + app.getStartedComponentObject[Comp](compA.name))
-
-      app.stopComponent(compA.name)
-      app.getStartedComponentObject[Comp](compA.name).isDefined should be(false)
-
     }
 
     it("can return the component object class for a started component") {
       val app = createApp()
+      try {
+        app.start()
 
-      app.start()
+        app.isRunning() should be(true)
+        app.startedComponentNames.isEmpty should be(false)
+        app.startedComponentNames.size should be(app.componentNames.size)
 
-      app.isRunning() should be(true)
-      app.startedComponentNames.isEmpty should be(false)
-      app.startedComponentNames.size should be(app.componentNames.size)
+        val compObjects = app.startedComponentNames.map(app.getStartedComponentObjectClass(_))
+        compObjects.foreach(c => assert(c.isDefined))
 
-      val compObjects = app.startedComponentNames.map(app.getStartedComponentObjectClass(_))
-      compObjects.foreach(c => assert(c.isDefined))
+        app.getStartedComponentObjectClass(compA.name).isDefined should be(true)
+        app.getStartedComponentObjectClass(compA.name).get //should be(classOf[Comp])
 
-      app.getStartedComponentObjectClass(compA.name).isDefined should be(true)
-      app.getStartedComponentObjectClass(compA.name).get //should be(classOf[Comp])
-
-      app.stopComponent(compA.name)
-      app.getStartedComponentObjectClass(compA.name).isDefined should be(false)
+        app.stopComponent(compA.name)
+        app.getStartedComponentObjectClass(compA.name).isDefined should be(false)
+      } finally {
+        app.stop()
+      }
     }
 
     it("can return a component's dependencies") {
       val app = createApp()
-
-      for {
-        comp <- comps
-      } yield {
-        app.componentDependencies(comp.name) match {
-          case Left(l) => throw l
-          case Right(dependencies) =>
-            val dependencyCount = dependencies.getOrElse(Nil).size
-            val expectedNames = comp.dependsOn.getOrElse(Nil).map(_.name).toList
-            assert(dependencyCount == expectedNames.size, "Expected does not match actual : %s != %s".format(expectedNames.size, dependencyCount))
-            dependencies.foreach { list =>
-              list.foreach(name => assert(expectedNames.contains(name)))
-            }
+      try {
+        for {
+          comp <- comps
+        } yield {
+          app.componentDependencies(comp.name) match {
+            case Left(l) => throw l
+            case Right(dependencies) =>
+              val dependencyCount = dependencies.getOrElse(Nil).size
+              val expectedNames = comp.dependsOn.getOrElse(Nil).map(_.name).toList
+              assert(dependencyCount == expectedNames.size, "Expected does not match actual : %s != %s".format(expectedNames.size, dependencyCount))
+              dependencies.foreach { list =>
+                list.foreach(name => assert(expectedNames.contains(name)))
+              }
+          }
         }
+      } finally {
+        app.stop()
       }
 
     }
 
     it("can return a component's dependendents") {
       val app = createApp()
-
-      for {
-        comp <- comps
-      } yield {
-        app.componentDependents(comp.name) match {
-          case Left(l) => throw l
-          case Right(dependenciesOption) =>
-            dependenciesOption.foreach { dependencies =>
-              comp.name match {
-                case compA.name => assert(dependencies.isEmpty, "compA should have no dependents")
-                case compB.name =>
-                  val expectedNames = compA.name :: compD.name :: compE.name :: Nil
-                  assert(dependencies.size == expectedNames.size, "Expected does not match actual : %s != %s".format(expectedNames.size, dependencies.size))
-                  dependencies.foreach(name => assert(expectedNames.contains(name)))
-                case compC.name =>
-                case compD.name =>
-                case compE.name =>
-                case _ =>
+      try {
+        for {
+          comp <- comps
+        } yield {
+          app.componentDependents(comp.name) match {
+            case Left(l) => throw l
+            case Right(dependenciesOption) =>
+              dependenciesOption.foreach { dependencies =>
+                comp.name match {
+                  case compA.name => assert(dependencies.isEmpty, "compA should have no dependents")
+                  case compB.name =>
+                    val expectedNames = compA.name :: compD.name :: compE.name :: Nil
+                    assert(dependencies.size == expectedNames.size, "Expected does not match actual : %s != %s".format(expectedNames.size, dependencies.size))
+                    dependencies.foreach(name => assert(expectedNames.contains(name)))
+                  case compC.name =>
+                  case compD.name =>
+                  case compE.name =>
+                  case _ =>
+                }
               }
-            }
-        }
+          }
 
+        }
+      } finally {
+        app.stop()
       }
 
     }
 
     it("can tell you if the application is running, which is defined as at least one component has started") {
       val app = createApp()
-
-      for (i <- 1 to 10) {
-        app.start()
-        app.isRunning should be(true)
+      try {
+        for (i <- 1 to 10) {
+          app.start()
+          app.isRunning should be(true)
+          app.stop()
+          app.isRunning should be(false)
+        }
+      } finally {
         app.stop()
-        app.isRunning should be(false)
       }
-
     }
 
     it("""can run all component health checks.""") {
       val app = createApp()
-      app.start()
+      try {
+        app.start()
 
-      app.runComponentHealthChecks() match {
-        case Some(healthCheckResultsFutures) =>
-          assert(healthCheckResultsFutures.size == 3)
+        app.runComponentHealthChecks() match {
+          case Some(healthCheckResultsFutures) =>
+            assert(healthCheckResultsFutures.size == 3)
 
-          import scala.concurrent.duration._
+            import scala.concurrent.duration._
 
-          for {
-            healthCheckResult <- healthCheckResultsFutures.map(Await.result(_, 1 second))
-          } yield {
-            println(s"healthCheckResult = $healthCheckResult")
-            healthCheckResult match {
-              case h if (h.healthCheck.info.name == compA.name) =>
-                assert(h.healthCheckIndicator == GREEN)
-              case h if (h.healthCheck.info.name == compC.name) =>
-                assert(h.healthCheckIndicator == YELLOW)
-              case h if (h.healthCheck.info.name == compE.name) =>
-                assert(h.healthCheckIndicator == RED)
-                assert(h.info.isDefined)
-              case _ =>
+            for {
+              healthCheckResult <- healthCheckResultsFutures.map(Await.result(_, 1 second))
+            } yield {
+              println(s"healthCheckResult = $healthCheckResult")
+              healthCheckResult match {
+                case h if (h.healthCheck.info.name == compA.name) =>
+                  assert(h.healthCheckIndicator == GREEN)
+                case h if (h.healthCheck.info.name == compC.name) =>
+                  assert(h.healthCheckIndicator == YELLOW)
+                case h if (h.healthCheck.info.name == compE.name) =>
+                  assert(h.healthCheckIndicator == RED)
+                  assert(h.info.isDefined)
+                case _ =>
+              }
             }
-          }
 
-        case None => throw new IllegalStateException("Expected HealthCheckResults to be returned")
+          case None => throw new IllegalStateException("Expected HealthCheckResults to be returned")
+        }
+
+        app.stop()
+        assert(app.runComponentHealthChecks().isEmpty)
+      } finally {
+        app.stop()
       }
-
-      app.stop()
-      assert(app.runComponentHealthChecks().isEmpty)
-
     }
 
     it("can run all application health checks") {
       val app = createApp()
-      app.start()
+      try {
+        app.start()
 
-      app.runApplicationHealthChecks match {
-        case Some(futures) =>
-          futures.foreach { f =>
-            import scala.concurrent.duration._
-            val healthCheckResult = Await.result(f, 1 second)
-            if (healthCheckResult.healthCheck.info.name == appHealthCheck1.info.name) {
-              assert(healthCheckResult.healthCheckIndicator == GREEN)
+        app.runApplicationHealthChecks match {
+          case Some(futures) =>
+            futures.foreach { f =>
+              import scala.concurrent.duration._
+              val healthCheckResult = Await.result(f, 1 second)
+              if (healthCheckResult.healthCheck.info.name == appHealthCheck1.info.name) {
+                assert(healthCheckResult.healthCheckIndicator == GREEN)
+              }
             }
-          }
 
-        case None => throw new IllegalStateException("Application health checks should be registered")
-      }
+          case None => throw new IllegalStateException("Application health checks should be registered")
+        }
 
-      app.stopComponent(compA.name)
-      app.runApplicationHealthChecks match {
-        case Some(futures) =>
-          futures.foreach { f =>
-            import scala.concurrent.duration._
-            val healthCheckResult = Await.result(f, 1 second)
-            if (healthCheckResult.healthCheck.info.name == appHealthCheck1.info.name) {
-              assert(healthCheckResult.healthCheckIndicator == RED)
-              assert(healthCheckResult.info.isDefined)
+        app.stopComponent(compA.name)
+        app.runApplicationHealthChecks match {
+          case Some(futures) =>
+            futures.foreach { f =>
+              import scala.concurrent.duration._
+              val healthCheckResult = Await.result(f, 1 second)
+              if (healthCheckResult.healthCheck.info.name == appHealthCheck1.info.name) {
+                assert(healthCheckResult.healthCheckIndicator == RED)
+                assert(healthCheckResult.info.isDefined)
+              }
             }
-          }
 
-        case None => throw new IllegalStateException("Application health checks should be registered")
+          case None => throw new IllegalStateException("Application health checks should be registered")
+        }
+      } finally {
+        app.stop()
       }
     }
 
     it("can run individual component health checks") {
       val app = createApp()
-      app.start()
+      try {
+        app.start()
 
-      app.runComponentHealthChecks(compA.name) match {
-        case Left(e) => throw e
-        case Right(healthCheckResults) =>
-          healthCheckResults match {
-            case None => throw new IllegalStateException("Expected health check results for component : " + compA.name)
-            case Some(futures) =>
-              import scala.concurrent.duration._
-              val healthCheckResult = Await.result(futures.head, 1 second)
-              assert(healthCheckResult.healthCheckIndicator == GREEN)
-          }
-      }
+        app.runComponentHealthChecks(compA.name) match {
+          case Left(e) => throw e
+          case Right(healthCheckResults) =>
+            healthCheckResults match {
+              case None => throw new IllegalStateException("Expected health check results for component : " + compA.name)
+              case Some(futures) =>
+                import scala.concurrent.duration._
+                val healthCheckResult = Await.result(futures.head, 1 second)
+                assert(healthCheckResult.healthCheckIndicator == GREEN)
+            }
+        }
 
-      app.stopComponent(compA.name)
+        app.stopComponent(compA.name)
 
-      app.runComponentHealthChecks(compA.name) match {
-        case Left(e: InvalidComponentNameException) => //expected
-        case Right(healthCheckResults) =>
-          assert(healthCheckResults.isEmpty, "Since component is stopped, did not expect health checks to be run for component : " + compA.name)
-      }
+        app.runComponentHealthChecks(compA.name) match {
+          case Left(e: InvalidComponentNameException) => //expected
+          case Right(healthCheckResults) =>
+            assert(healthCheckResults.isEmpty, "Since component is stopped, did not expect health checks to be run for component : " + compA.name)
+        }
 
-      app.startComponent(compA.name)
+        app.startComponent(compA.name)
 
-      app.runComponentHealthChecks(compA.name) match {
-        case Left(e) => throw e
-        case Right(healthCheckResults) =>
-          assert(healthCheckResults.isDefined, "Expected HealthCheckResults since the component should be started")
+        app.runComponentHealthChecks(compA.name) match {
+          case Left(e) => throw e
+          case Right(healthCheckResults) =>
+            assert(healthCheckResults.isDefined, "Expected HealthCheckResults since the component should be started")
+        }
+      } finally {
+        app.stop()
       }
     }
 
     it("can run individual application health checks") {
       val app = createApp()
-      app.start()
+      try {
+        app.start()
 
-      info("Running health check that will check that CompA is started")
-      val healtcheckName = appHealthCheck1.info.name
+        info("Running health check that will check that CompA is started")
+        val healtcheckName = appHealthCheck1.info.name
 
-      app.runApplicationHealthCheck(healtcheckName) match {
-        case Some(f) =>
-          import scala.concurrent.duration._
-          val healthCheckResult = Await.result(f, 1 second)
-          assert(healthCheckResult.healthCheck.info.name == appHealthCheck1.info.name)
-          assert(healthCheckResult.healthCheckIndicator == GREEN)
+        app.runApplicationHealthCheck(healtcheckName) match {
+          case Some(f) =>
+            import scala.concurrent.duration._
+            val healthCheckResult = Await.result(f, 1 second)
+            assert(healthCheckResult.healthCheck.info.name == appHealthCheck1.info.name)
+            assert(healthCheckResult.healthCheckIndicator == GREEN)
 
-        case None => throw new IllegalStateException("Application health checks should be registered")
-      }
+          case None => throw new IllegalStateException("Application health checks should be registered")
+        }
 
-      info("Stopping component to check that the healthcheck fails.")
-      app.stopComponent(compA.name)
-      app.runApplicationHealthCheck(healtcheckName) match {
-        case Some(f) =>
-          import scala.concurrent.duration._
-          val healthCheckResult = Await.result(f, 1 second)
-          assert(healthCheckResult.healthCheck.info.name == appHealthCheck1.info.name)
-          assert(healthCheckResult.healthCheckIndicator == RED)
-          assert(healthCheckResult.info.isDefined)
-        case None => throw new IllegalStateException("Application health checks should be registered")
+        info("Stopping component to check that the healthcheck fails.")
+        app.stopComponent(compA.name)
+        app.runApplicationHealthCheck(healtcheckName) match {
+          case Some(f) =>
+            import scala.concurrent.duration._
+            val healthCheckResult = Await.result(f, 1 second)
+            assert(healthCheckResult.healthCheck.info.name == appHealthCheck1.info.name)
+            assert(healthCheckResult.healthCheckIndicator == RED)
+            assert(healthCheckResult.info.isDefined)
+          case None => throw new IllegalStateException("Application health checks should be registered")
+        }
+      } finally {
+        app.stop()
       }
     }
 
     it("can run health checks for a specific group") {
       val app = createApp()
-      app.start()
+      try {
+        app.start()
 
-      app.runAllHealthChecksByGroup(appHealthCheck1.info.group) match {
-        case None => throw new IllegalStateException("Expected health checks for group: " + appHealthCheck1.info.group)
-        case Some(futures) =>
-          futures.size should be(3)
-      }
+        app.runAllHealthChecksByGroup(appHealthCheck1.info.group) match {
+          case None => throw new IllegalStateException("Expected health checks for group: " + appHealthCheck1.info.group)
+          case Some(futures) =>
+            futures.size should be(3)
+        }
 
-      app.stop
+        app.stop
 
-      app.runAllHealthChecksByGroup(appHealthCheck1.info.group) match {
-        case None => throw new IllegalStateException("Expected health checks for group: " + appHealthCheck1.info.group)
-        case Some(futures) =>
-          assert(futures.size == 2)
+        app.runAllHealthChecksByGroup(appHealthCheck1.info.group) match {
+          case None => throw new IllegalStateException("Expected health checks for group: " + appHealthCheck1.info.group)
+          case Some(futures) =>
+            assert(futures.size == 2)
+        }
+      } finally {
+        app.stop()
       }
     }
 
     it("can return all registered application health checks") {
       val app = createApp()
-      val healthChecksBeforeStartingApp = app.applicationHealthChecks.get
-      healthChecksBeforeStartingApp.size should be(3)
+      try {
+        val healthChecksBeforeStartingApp = app.applicationHealthChecks.get
+        healthChecksBeforeStartingApp.size should be(3)
 
-      app.start()
-      healthChecksBeforeStartingApp.size should be(app.applicationHealthChecks.get.size)
+        app.start()
+        healthChecksBeforeStartingApp.size should be(app.applicationHealthChecks.get.size)
+      } finally {
+        app.stop()
+      }
     }
 
     it("can return health checks for a specific component") {
       val app = createApp()
-      app.start
+      try {
+        app.start
 
-      app.componentHealthChecks(compA.name).isDefined should be(true)
-      app.componentHealthChecks(compB.name).isDefined should be(false)
+        app.componentHealthChecks(compA.name).isDefined should be(true)
+        app.componentHealthChecks(compB.name).isDefined should be(false)
 
-      app.stop
-      app.componentHealthChecks(compA.name).isDefined should be(false)
-      app.componentHealthChecks(compB.name).isDefined should be(false)
+        app.stop
+        app.componentHealthChecks(compA.name).isDefined should be(false)
+        app.componentHealthChecks(compB.name).isDefined should be(false)
+      } finally {
+        app.stop()
+      }
     }
 
     it("can run health checks on a scheduled basis, per the health check config") {
       val app = createApp()
-      app.start()
+      try {
+        app.start()
 
-      val healthCheckInfo = HealthCheckInfo(name = "Heartbeat")(description = "logs everytime it runs")
-      val healthCheckConfig = HealthCheckConfig(schedule = Some(PeriodicTaskSchedule(period = 1)))
-      val healthCheck = HealthCheck(healthCheckInfo, healthCheckConfig)
+        val healthCheckInfo = HealthCheckInfo(name = "Heartbeat")(description = "logs everytime it runs")
+        val healthCheckConfig = HealthCheckConfig(schedule = Some(PeriodicTaskSchedule(period = 1)))
+        val healthCheck = HealthCheck(healthCheckInfo, healthCheckConfig)
 
-      var healthCheckRunCount = 0
+        var healthCheckRunCount = 0
 
-      val healthCheckScorer: HealthCheckScorer = (healthCheck, appService) => {
-        log.info("RUNNING HEALTHCHECK: \n" + healthCheck)
-        healthCheckRunCount += 1
-        (100, None)
+        val healthCheckScorer: HealthCheckScorer = (healthCheck, appService) => {
+          log.info("RUNNING HEALTHCHECK: \n" + healthCheck)
+          healthCheckRunCount += 1
+          (100, None)
+        }
+
+        app.addHealthCheck(healthCheck, healthCheckRunner(healthCheckScorer))
+
+        Thread.sleep(1005 * 2l)
+
+        app.stop()
+
+        healthCheckRunCount should be >= (2)
+
+        greenCheckScorerRunCount should be > (0)
+        val currentGreenCheckScorerRunCount = greenCheckScorerRunCount
+        Thread.sleep(1005l)
+        greenCheckScorerRunCount should be(currentGreenCheckScorerRunCount)
+      } finally {
+        app.stop()
       }
-
-      app.addHealthCheck(healthCheck, healthCheckRunner(healthCheckScorer))
-
-      Thread.sleep(1005 * 2l)
-
-      app.stop()
-
-      healthCheckRunCount should be >= (2)
     }
 
   }
