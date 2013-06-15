@@ -4,6 +4,7 @@ import com.typesafe.config.Config
 import scala.concurrent.Future
 import com.azaptree.application.ApplicationService
 import scala.concurrent.ExecutionContext
+import com.azaptree.concurrent.TaskSchedule
 
 case class HealthCheck(info: HealthCheckInfo, config: HealthCheckConfig)
 
@@ -15,7 +16,8 @@ case class HealthCheckConfig(
     greenRange: GreenHeathCheckIndicatorThreshold = GreenHeathCheckIndicatorThreshold(90),
     yellowRange: YellowHeathCheckIndicatorThreshold = YellowHeathCheckIndicatorThreshold(75),
     redRange: RedHeathCheckIndicatorThreshold = RedHeathCheckIndicatorThreshold(0),
-    config: Option[Config] = None) {
+    config: Option[Config] = None,
+    taskSchedule: Option[TaskSchedule] = None) {
 
   def computeHealthCheckIndicator(healthScore: Int): HealthCheckIndicator = {
     if (healthScore >= greenRange.minScore) {

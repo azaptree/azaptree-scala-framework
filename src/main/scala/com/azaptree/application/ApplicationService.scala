@@ -46,7 +46,7 @@ class ApplicationService(asyncEventBus: Boolean = true) {
   /**
    * It's ok to have multiple HealthChecks with the same name, but it is recommended to have unique names.
    */
-  def addHealthCheck(healthCheck: HealthCheck, healthCheckRunner: HealthCheckRunner) = {
+  def addHealthCheck(healthCheck: HealthCheck, healthCheckRunner: HealthCheckRunner): Unit = {
     healthChecks match {
       case Some(h) => healthChecks = Some((healthCheck, healthCheckRunner) :: h)
       case _ => healthChecks = Some((healthCheck, healthCheckRunner) :: Nil)
@@ -225,7 +225,7 @@ class ApplicationService(asyncEventBus: Boolean = true) {
     }
   }
 
-  def registerComponent(comp: Component[ComponentNotConstructed, _]) = {
+  def registerComponent(comp: Component[ComponentNotConstructed, _]): Unit = {
     lock.acquire()
     try {
       require(components.find(_.name == comp.name).isEmpty, "Component with the same is already registered: " + comp.name)
