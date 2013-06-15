@@ -17,7 +17,7 @@ case class HealthCheckConfig(
     yellowRange: YellowHeathCheckIndicatorThreshold = YellowHeathCheckIndicatorThreshold(75),
     redRange: RedHeathCheckIndicatorThreshold = RedHeathCheckIndicatorThreshold(0),
     config: Option[Config] = None,
-    taskSchedule: Option[TaskSchedule] = None) {
+    schedule: Option[TaskSchedule] = None) {
 
   def computeHealthCheckIndicator(healthScore: Int): HealthCheckIndicator = {
     if (healthScore >= greenRange.minScore) {

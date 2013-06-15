@@ -1,23 +1,60 @@
 package com.azaptree.application
 
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
 import scala.Option.option2Iterable
 import scala.concurrent.Future
 import scala.concurrent.Lock
-import com.azaptree.application.healthcheck.ApplicationHealthCheck
+import org.slf4j.LoggerFactory
 import com.azaptree.application.healthcheck.HealthCheck
 import com.azaptree.application.healthcheck.HealthCheckResult
-import com.azaptree.application.healthcheck.HealthCheckRunner
+import com.azaptree.concurrent.ConfigurableThreadFactory
 import akka.event.EventBus
 import akka.event.japi.SubchannelEventBus
+import com.azaptree.application.healthcheck.ApplicationHealthCheck
+import com.azaptree.application.healthcheck.HealthCheckRunner
+import com.azaptree.concurrent.OneTimeTaskSchedule
+import com.azaptree.concurrent.OneTimeTask
+import com.azaptree.concurrent.PeriodicTaskSchedule
+import com.azaptree.concurrent.PeriodicTask
+import com.azaptree.concurrent.RecurringTaskWithFixedDelay
+import com.azaptree.concurrent.RecurringTaskWithFixedDelayTaskSchedule
 
+/**
+ * Application level health checks are scheduled to run right after they are added.
+ *
+ * Component level health checks are only scheduled to run while the component is started.
+ * Once the component is stopped, the component specific scheduled health checked are cancelled.
+ *
+ */
 class ApplicationService(asyncEventBus: Boolean = true) {
 
   sys.addShutdownHook(() => stop())
+
+  private[this] lazy val log = LoggerFactory.getLogger("com.azaptree.application.ApplicationService")
+
+  private[this] lazy val scheduledExecutorService: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+    ConfigurableThreadFactory(threadBaseName = Some("ApplicationService"), daemon = Some(true), uncaughtExceptionHandler = Some(new Thread.UncaughtExceptionHandler() {
+      override def uncaughtException(t: Thread, e: Throwable) = {
+
+        val threadName = t.getName()
+        log.error(s"Scheduled task failed on thread: $threadName", e);
+      }
+    })))
 
   private[this] val lock = new Lock()
 
   @volatile
   private[this] var healthChecks: Option[List[ApplicationHealthCheck]] = None
+
+  @volatile
+  private[this] var scheduledFuturesForAppLevelHealthChecks = Vector.empty[ScheduledFuture[_]]
+
+  private[this] val scheduledFuturesForHealthChecksLock = new Lock()
+
+  @volatile
+  private[this] var scheduledFuturesForCompLevelHealthChecks = Map.empty[String, Iterable[ScheduledFuture[_]]]
 
   /**
    * TODO: 2013-06-14: For some reason after re-factoring the code, SBT fails to compile the code when I try to create the application with named constructor params,
@@ -32,10 +69,48 @@ class ApplicationService(asyncEventBus: Boolean = true) {
    *
    */
   @volatile
-  private[this] var app: Application = if (asyncEventBus) {
-    Application(Nil, new AsynchronousSubchannelEventBus())
-  } else {
-    Application(Nil, new SynchronousSubchannelEventBus())
+  private[this] var app: Application = {
+    val app = if (asyncEventBus) {
+      Application(Nil, new AsynchronousSubchannelEventBus())
+    } else {
+      Application(Nil, new SynchronousSubchannelEventBus())
+    }
+
+    val subscriber = handleComponentEvents _
+    app.eventBus.subscribe(subscriber, classOf[ComponentStartedEvent])
+    app.eventBus.subscribe(subscriber, classOf[ComponentShutdownEvent])
+
+    app
+  }
+
+  private def handleComponentEvents(event: Any): Unit = {
+    scheduledFuturesForHealthChecksLock.acquire()
+    try {
+      event match {
+        case e: ComponentStartedEvent =>
+          scheduledFuturesForCompLevelHealthChecks.get(e.comp.name).foreach(scheduledFutures => scheduledFutures.foreach(_.cancel(true)))
+
+          val scheduledFutures = for {
+            healthChecks <- e.comp.healthChecks
+          } yield {
+            healthChecks.foldLeft(List.empty[ScheduledFuture[_]])((tail, healthCheck) => {
+              schedule(healthCheck._1, healthCheck._2) match {
+                case Some(h) => h :: tail
+                case None => tail
+              }
+            })
+          }
+          scheduledFutures.foreach { scheduledFuture =>
+            scheduledFuturesForCompLevelHealthChecks += (e.comp.name -> scheduledFuture)
+          }
+        case e: ComponentShutdownEvent =>
+          scheduledFuturesForCompLevelHealthChecks.get(e.comp.name).foreach(scheduledFutures => scheduledFutures.foreach(_.cancel(true)))
+          scheduledFuturesForCompLevelHealthChecks -= e.comp.name
+        case _ => log.warn(s"Received unexpected event: $event")
+      }
+    } finally {
+      scheduledFuturesForHealthChecksLock.release()
+    }
   }
 
   @volatile
@@ -50,6 +125,56 @@ class ApplicationService(asyncEventBus: Boolean = true) {
     healthChecks match {
       case Some(h) => healthChecks = Some((healthCheck, healthCheckRunner) :: h)
       case _ => healthChecks = Some((healthCheck, healthCheckRunner) :: Nil)
+    }
+
+    scheduledFuturesForHealthChecksLock.acquire()
+    try {
+      schedule(healthCheck, healthCheckRunner).foreach(s => scheduledFuturesForAppLevelHealthChecks = scheduledFuturesForAppLevelHealthChecks :+ s)
+    } finally {
+      scheduledFuturesForHealthChecksLock.release()
+    }
+  }
+
+  def cancelScheduledAppLevelHealthChecks(): Unit = {
+    scheduledFuturesForHealthChecksLock.acquire()
+    try {
+      scheduledFuturesForAppLevelHealthChecks.foreach(_.cancel(true))
+      scheduledFuturesForAppLevelHealthChecks = Vector.empty[ScheduledFuture[_]]
+    } finally {
+      scheduledFuturesForHealthChecksLock.release()
+    }
+  }
+
+  def scheduleAppLevelHealthChecks(): Unit = {
+    healthChecks.foreach { healthChecksList =>
+      {
+        if (healthChecksList.size != scheduledFuturesForAppLevelHealthChecks.size) {
+          scheduledFuturesForHealthChecksLock.acquire()
+          try {
+            scheduledFuturesForAppLevelHealthChecks.foreach(_.cancel(true))
+            scheduledFuturesForAppLevelHealthChecks = Vector.empty[ScheduledFuture[_]]
+          } finally {
+            scheduledFuturesForHealthChecksLock.release()
+          }
+
+          healthChecksList.foreach(healthCheck => schedule(healthCheck._1, healthCheck._2))
+        }
+      }
+
+    }
+  }
+
+  private def schedule(healthCheck: HealthCheck, healthCheckRunner: HealthCheckRunner): Option[ScheduledFuture[_]] = {
+    for {
+      schedule <- healthCheck.config.schedule
+    } yield {
+      val task: () => Unit = () => runHealthCheck((healthCheck: HealthCheck, healthCheckRunner: HealthCheckRunner))
+      val scheduledTask = schedule match {
+        case c: OneTimeTaskSchedule => OneTimeTask(task, c)
+        case c: PeriodicTaskSchedule => PeriodicTask(task, c)
+        case c: RecurringTaskWithFixedDelayTaskSchedule => RecurringTaskWithFixedDelay(task, c)
+      }
+      scheduledTask.schedule(scheduledExecutorService)
     }
   }
 
@@ -177,6 +302,8 @@ class ApplicationService(asyncEventBus: Boolean = true) {
           case _ => app
         }
       }
+
+      scheduleAppLevelHealthChecks()
     } finally {
       lock.release()
     }
@@ -186,6 +313,7 @@ class ApplicationService(asyncEventBus: Boolean = true) {
     lock.acquire()
     try {
       app = app.shutdown()
+      cancelScheduledAppLevelHealthChecks()
     } finally {
       lock.release()
     }

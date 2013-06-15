@@ -20,6 +20,8 @@ import ApplicationServiceSpec._
 import scala.concurrent.Future
 import scala.concurrent.Await
 import com.azaptree.application.InvalidComponentNameException
+import com.azaptree.concurrent.PeriodicTaskSchedule
+import org.slf4j.LoggerFactory
 
 object ApplicationServiceSpec {
   val started = "ComponentStarted"
@@ -91,6 +93,8 @@ object ApplicationServiceSpec {
 }
 
 class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
+
+  val log = LoggerFactory.getLogger("ApplicationServiceSpec")
 
   val compAHealthCheck = HealthCheck(
     info = HealthCheckInfo(group = "GROUP-1", name = "compAHealthCheck")(description = "CompA HealthCheck"),
@@ -576,6 +580,31 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
       app.stop
       app.componentHealthChecks(compA.name).isDefined should be(false)
       app.componentHealthChecks(compB.name).isDefined should be(false)
+    }
+
+    it("can run health checks on a scheduled basis, per the health check config") {
+      val app = createApp()
+      app.start()
+
+      val healthCheckInfo = HealthCheckInfo(name = "Heartbeat")(description = "logs everytime it runs")
+      val healthCheckConfig = HealthCheckConfig(schedule = Some(PeriodicTaskSchedule(period = 1)))
+      val healthCheck = HealthCheck(healthCheckInfo, healthCheckConfig)
+
+      var healthCheckRunCount = 0
+
+      val healthCheckScorer: HealthCheckScorer = (healthCheck, appService) => {
+        log.info("RUNNING HEALTHCHECK: \n" + healthCheck)
+        healthCheckRunCount += 1
+        (100, None)
+      }
+
+      app.addHealthCheck(healthCheck, healthCheckRunner(healthCheckScorer))
+
+      Thread.sleep(1005 * 2l)
+
+      app.stop()
+
+      healthCheckRunCount should be >= (2)
     }
 
   }
