@@ -16,13 +16,15 @@ class ApplicationService(asyncEventBus: Boolean = true) extends EventBus {
   type Subscriber = Any => Unit
   type Classifier = Class[_]
 
+  sys.addShutdownHook(() => stop())
+
   private[this] val lock = new Lock()
 
   @volatile
   private[this] var healthChecks: Option[List[ApplicationHealthCheck]] = None
 
   /**
-   * 2013-06-14: For some reason after re-factoring the code, SBT fails to compile the code when I try to create the application with named constructor params,
+   * TODO: 2013-06-14: For some reason after re-factoring the code, SBT fails to compile the code when I try to create the application with named constructor params,
    * e.g., private[this] var app: Application = Application(evenbus = new SynchronousSubchannelEventBus()).
    *
    * It compiles fine within Eclipse, but not using sbt on the command line.
