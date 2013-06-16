@@ -5,6 +5,8 @@ import java.util.UUID
 import scala.reflect.ClassTag
 import scala.concurrent.Lock
 import com.azaptree.utils._
+import scala.concurrent.ExecutionContext
+import org.slf4j.LoggerFactory
 
 trait FileWatcherService {
 
@@ -12,7 +14,33 @@ trait FileWatcherService {
 
   protected var fileWatcherRegistrations: Map[Path, Vector[FileWatcherRegistration]] = Map.empty[Path, Vector[FileWatcherRegistration]]
 
-  protected lazy val watchService: WatchService = FileSystems.getDefault().newWatchService()
+  protected val watchService: WatchService = FileSystems.getDefault().newWatchService()
+
+  ExecutionContext.Implicits.global.execute(new Runnable() {
+    def run() {
+      while (true) {
+        val log = LoggerFactory.getLogger("com.azaptree.nio.file.FileWatcherService")
+        try {
+          val key = watchService.take()
+
+          import scala.collection.JavaConversions._
+          key.pollEvents().foreach { watchEvent =>
+            watchEvent.context() match {
+              case p: Path =>
+                fileWatcherRegistrations.get(p).foreach { fileWatcherRegistration =>
+                  //TODO
+                }
+              case _ => log.warn("Received unexpected watch event type : {}", watchEvent)
+            }
+          }
+
+        } catch {
+          case e: Exception =>
+            log.error("Error occurred while running watcher", e)
+        }
+      }
+    }
+  })
 
   def watch(path: Path, eventKinds: Option[List[WatchEvent.Kind[_]]], fileWatcher: WatchEventProcessor): FileWatcherRegistrationKey = {
     synchronized {
@@ -51,9 +79,14 @@ trait FileWatcherService {
     }
   }
 
-  def pathsWatched(): Option[List[Path]]
+  def pathsWatched(): Option[Set[Path]] = if (watchKeys.isEmpty) None else Some(watchKeys.keySet)
 
-  def fileWatcherRegistration(key: FileWatcherRegistrationKey): FileWatcherRegistration
+  def fileWatcherRegistration(key: FileWatcherRegistrationKey): Option[FileWatcherRegistration] = {
+    fileWatcherRegistrations.get(key.path) match {
+      case None => None
+      case Some(registrations) => registrations.find(_.id == key.id)
+    }
+  }
 
 }
 
