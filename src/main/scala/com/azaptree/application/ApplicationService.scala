@@ -43,8 +43,6 @@ class ApplicationService(asyncEventBus: Boolean = true) {
       }
     })))
 
-  private[this] val lock = new Lock()
-
   @volatile
   private[this] var healthChecks: Option[List[ApplicationHealthCheck]] = None
 
@@ -294,8 +292,7 @@ class ApplicationService(asyncEventBus: Boolean = true) {
   }
 
   def start(): Unit = {
-    lock.acquire()
-    try {
+    synchronized {
       app = components.foldLeft(app) { (app, comp) =>
         app.components.find(_.name == comp.name) match {
           case None => app.register(comp)
@@ -304,40 +301,31 @@ class ApplicationService(asyncEventBus: Boolean = true) {
       }
 
       scheduleAppLevelHealthChecks()
-    } finally {
-      lock.release()
     }
   }
 
   def stop(): Unit = {
-    lock.acquire()
-    try {
+    synchronized {
       app = app.shutdown()
       cancelScheduledAppLevelHealthChecks()
-    } finally {
-      lock.release()
     }
   }
 
   def stopComponent(compName: String): Option[Exception] = {
-    lock.acquire()
-    try {
+    synchronized {
       app.shutdownComponent(compName) match {
         case Left(e) => Some(e)
         case Right(app2) =>
           app = app2
           None
       }
-    } finally {
-      lock.release()
     }
   }
 
   def startComponent(compName: String): Either[Exception, Boolean] = {
     def findByName: Component[_, _] => Boolean = _.name == compName
 
-    lock.acquire()
-    try {
+    synchronized {
       app.components.find(findByName) match {
         case Some(comp) => Right(false)
         case None =>
@@ -348,19 +336,14 @@ class ApplicationService(asyncEventBus: Boolean = true) {
             case None => Left(new InvalidComponentNameException(compName))
           }
       }
-    } finally {
-      lock.release()
     }
   }
 
   def registerComponent(comp: Component[ComponentNotConstructed, _]): Unit = {
-    lock.acquire()
-    try {
+    synchronized {
       require(components.find(_.name == comp.name).isEmpty, "Component with the same is already registered: " + comp.name)
       app = app.register(comp)
       components = components :+ comp
-    } finally {
-      lock.release()
     }
   }
 

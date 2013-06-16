@@ -1,8 +1,12 @@
 package com.azaptree
 
 import java.io.PrintWriter
-import java.lang.management.ManagementFactory
 import java.lang.Long
+import java.lang.management.ManagementFactory
+
+import scala.concurrent.Lock
+
+import com.azaptree.utils.StringBuilderWriter
 package object utils {
 
   /** PID@HOST */
@@ -14,5 +18,14 @@ package object utils {
     val sw = new StringBuilderWriter()
     t.printStackTrace(new PrintWriter(sw))
     sw.toString
+  }
+
+  def withLock[A](lock: Lock)(work: () => A): A = {
+    lock.acquire()
+    try {
+      work()
+    } finally {
+      lock.release()
+    }
   }
 }
