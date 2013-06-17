@@ -2,13 +2,15 @@ package com.azaptree.nio.file
 
 import java.nio.file._
 import java.util.UUID
-import scala.reflect.ClassTag
-import scala.concurrent.Lock
-import com.azaptree.utils._
+
 import scala.concurrent.ExecutionContext
+import scala.concurrent.Lock
+import scala.reflect.ClassTag
+
 import org.slf4j.LoggerFactory
 
 trait FileWatcherService {
+  protected val log = LoggerFactory.getLogger("FileWatcherService." + getClass().getSimpleName())
 
   protected var watchKeys: Map[Path, WatchKey] = Map.empty[Path, WatchKey]
 
@@ -16,65 +18,90 @@ trait FileWatcherService {
 
   protected val watchService: WatchService = FileSystems.getDefault().newWatchService()
 
-  ExecutionContext.Implicits.global.execute(new Runnable() {
+  protected def initFileWatcherService() {
+    new Thread(new Runnable() {
 
-    def run() {
-      val log = LoggerFactory.getLogger("com.azaptree.nio.file.FileWatcherService")
-
-      def processEvents(key: WatchKey) = {
+      def processEvents(key: WatchKey, registrations: Vector[FileWatcherRegistration]): Unit = {
         import scala.collection.JavaConversions._
         key.pollEvents().foreach { watchEvent =>
+          if (log.isDebugEnabled()) {
+            log.debug("watchEvent {context=%s, count=%s, eventKind=%s}".format(watchEvent.context(), watchEvent.count(), watchEvent.kind().name()))
+          }
+
           watchEvent.context() match {
-            case p: Path =>
-              for {
-                fileWatcherRegistrations <- fileWatcherRegistrations.get(p)
-              } yield {
-                fileWatcherRegistrations.filter(_.matches(watchEvent)).foreach { fileWatcherRegistration =>
-                  fileWatcherRegistration.fileWatcher(watchEvent)
-                }
+            case watchEventContext: Path =>
+              if (log.isDebugEnabled()) {
+                val watchedPath = key.watchable()
+                registrations.foreach(r => log.debug(s"$watchedPath -> $r"))
               }
+              registrations.filter(_.matches(watchEvent)).foreach { fileWatcherRegistration =>
+                fileWatcherRegistration.fileWatcher(watchEvent)
+              }
+
             case _ => log.warn("Received unexpected watch event type : {}", watchEvent)
           }
         }
       }
 
-      while (true) {
-        try {
-          val key = watchService.take()
-          try {
-            processEvents(key)
-          } finally {
-            key.reset()
-          }
-        } catch {
-          case e: Exception =>
-            log.error("Error occurred while running watcher", e)
+      def processEvents(key: WatchKey): Unit = {
+        log.debug("Processing events for {}", key.watchable())
+
+        key.watchable() match {
+          case watchedPath: Path =>
+            fileWatcherRegistrations.get(watchedPath) match {
+              case Some(registrations) => processEvents(key, registrations)
+              case None =>
+                log.warn("Received event for a path that is not being watched: {}", watchedPath)
+                key.pollEvents()
+            }
+          case _ => log.warn("Received unexpected watchable", key.watchable())
         }
       }
-    }
-  })
 
-  def watch(path: Path, eventKinds: Option[List[WatchEvent.Kind[_]]], fileWatcher: WatchEventProcessor): FileWatcherRegistrationKey = {
-    synchronized {
-      val watchKey = watchKeys.get(path) match {
-        case Some(watchKey) => watchKey
-        case None =>
-          eventKinds match {
-            case None => path.register(watchService)
-            case Some(watchEventKinds) =>
-              val watchKey = path.register(watchService, watchEventKinds.toArray(ClassTag(classOf[FileWatcherRegistration])): _*)
-              watchKeys += (path -> watchKey)
-              watchKey
+      def run() {
+        log.debug("WatchService thread is running")
+        while (true) {
+          try {
+            log.debug("Waiting for WatchKeys ...")
+            val key = watchService.take()
+            try {
+              processEvents(key)
+            } finally {
+              key.reset()
+            }
+          } catch {
+            case e: Exception =>
+              log.error("Error occurred while running watcher", e)
           }
+        }
       }
+    }).start()
+    log.debug("WatchService thread has been launched")
+  }
 
-      val fileWatcherRegistration = FileWatcherRegistration(path = path, eventKinds = eventKinds, fileWatcher = fileWatcher)
-      fileWatcherRegistrations.get(path) match {
-        case Some(registrations) => fileWatcherRegistrations += (path -> (registrations :+ fileWatcherRegistration))
-        case None => fileWatcherRegistrations += (path -> Vector(fileWatcherRegistration))
+  import StandardWatchEventKinds._
+
+  def watch(path: Path, eventKinds: List[WatchEvent.Kind[_]] = ENTRY_CREATE :: ENTRY_DELETE :: ENTRY_MODIFY :: Nil, fileWatcher: WatchEventProcessor): Either[Exception, FileWatcherRegistrationKey] = {
+    synchronized {
+      try {
+        val watchKey = watchKeys.get(path) match {
+          case Some(watchKey) => watchKey
+          case None =>
+            val watchKey = path.register(watchService, eventKinds.toArray(ClassTag(classOf[WatchEvent.Kind[_]])): _*)
+            watchKeys += (path -> watchKey)
+            watchKey
+        }
+
+        val fileWatcherRegistration = FileWatcherRegistration(path = path, eventKinds = eventKinds, fileWatcher = fileWatcher)
+        fileWatcherRegistrations.get(path) match {
+          case Some(registrations) => fileWatcherRegistrations += (path -> (registrations :+ fileWatcherRegistration))
+          case None => fileWatcherRegistrations += (path -> Vector(fileWatcherRegistration))
+        }
+
+        Right(FileWatcherRegistrationKey(fileWatcherRegistration.id, path))
+      } catch {
+        case e: Exception => Left(e)
       }
-
-      FileWatcherRegistrationKey(fileWatcherRegistration.id, path)
     }
   }
 
@@ -103,17 +130,14 @@ trait FileWatcherService {
 }
 
 case class FileWatcherRegistration(
-  id: UUID = UUID.randomUUID(),
-  createdOn: Long = System.currentTimeMillis(),
-  path: Path,
-  eventKinds: Option[List[WatchEvent.Kind[_]]] = None,
-  fileWatcher: WatchEventProcessor) {
+    id: UUID = UUID.randomUUID(),
+    createdOn: Long = System.currentTimeMillis(),
+    path: Path,
+    eventKinds: List[WatchEvent.Kind[_]],
+    fileWatcher: WatchEventProcessor) {
 
   def matches(watchEvent: WatchEvent[_]): Boolean = {
-    eventKinds match {
-      case None => true
-      case Some(eventKinds) => eventKinds.find(_.name() == watchEvent.kind().name()).isDefined
-    }
+    eventKinds.find(_.name() == watchEvent.kind().name()).isDefined
   }
 }
 

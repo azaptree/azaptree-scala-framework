@@ -3,14 +3,69 @@ package test.com.azaptree.nio.file
 import org.scalatest.FunSpec
 import org.scalatest.matchers.ShouldMatchers
 import com.azaptree.nio.file.FileWatcherService
+import com.azaptree.nio.file._
+import java.nio.file.Path
+import org.slf4j.LoggerFactory
+import java.io.File
+import FileWatcherServiceSpec._
+import java.util.UUID
+import org.scalatest.BeforeAndAfterAll
+import org.apache.commons.io.FileUtils
 
-object FileWatcher extends FileWatcherService
+object FileWatcher extends FileWatcherService {
+  initFileWatcherService()
+}
 
-class FileWatcherServiceSpec extends FunSpec with ShouldMatchers {
+object FileWatcherServiceSpec {
+  val log = LoggerFactory.getLogger("FileWatcherServiceSpec")
+
+  var pathsChanged: List[Path] = Nil
+
+  val fileChangedListener: WatchEventProcessor = watchEvent => {
+    log.info("watchEvent: context=%s, count=%d, name=%s, type=%s".format(
+      watchEvent.context(), watchEvent.count, watchEvent.kind().name(), watchEvent.kind().`type`))
+    watchEvent.context() match {
+      case p: Path =>
+        pathsChanged = p :: pathsChanged
+    }
+
+  }
+}
+
+class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndAfterAll {
+
+  val baseDir = new File("target/tests/FileWatcherServiceSpec")
+
+  override def beforeAll() = {
+    FileUtils.deleteDirectory(baseDir)
+    baseDir.mkdirs()
+  }
 
   describe("A FileWatcherService") {
     it("can be used to register file paths to watch") {
-      pending
+      val file1Path = baseDir.toPath()
+      val result = FileWatcher.watch(path = file1Path, fileWatcher = fileChangedListener)
+      result match {
+        case Right(key) =>
+          log.info(key.toString())
+          val registration = FileWatcher.fileWatcherRegistration(key)
+          registration match {
+            case None => throw new IllegalStateException(s"no registration found for : $key")
+            case Some(r) => log.info("registration = {}", r)
+          }
+        case Left(e) => throw e
+      }
+    }
+
+    it("will return an Exception if the path does not exist") {
+      val file = new File(UUID.randomUUID().toString())
+      file.exists() should be(false)
+      val filePath = file.toPath()
+      val result = FileWatcher.watch(path = filePath, fileWatcher = fileChangedListener)
+      result match {
+        case Right(key) => throw new IllegalStateException(s"Should have received an exception because the path does not exist: $file")
+        case Left(e) => log.info("expected exception because path does not exist", e)
+      }
     }
 
     it("can cancel a FileWatcherRegistration") {
@@ -18,7 +73,23 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers {
     }
 
     it("can notify registered listeners when a file path watch event has occurred") {
-      pending
+      val path = baseDir.toPath()
+      val result = FileWatcher.watch(path = path, fileWatcher = fileChangedListener)
+      result match {
+        case Right(key) => log.info(key.toString())
+        case Left(e) => throw e
+      }
+
+      for (i <- 1 to 10) {
+        val f = new File(baseDir, UUID.randomUUID().toString())
+        FileUtils.touch(f)
+      }
+
+      Thread.sleep(1000l)
+
+      log.info("FileWatcherServiceSpec.pathsChanged.size = {}", FileWatcherServiceSpec.pathsChanged.size)
+
+      FileWatcherServiceSpec.pathsChanged.size should be >= (20)
     }
 
     it("can be used to query which file paths are being watched") {
