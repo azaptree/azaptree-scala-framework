@@ -58,20 +58,27 @@ trait FileWatcherService {
 
     def run() {
       log.debug("WatchService thread is running")
-      while (true) {
-        try {
-          log.debug("Waiting for WatchKeys ...")
-          val key = watchService.take()
+      try {
+        while (true) {
           try {
-            processEvents(key)
-          } finally {
-            key.reset()
+            log.debug("Waiting for WatchKeys ...")
+            val key = watchService.take()
+            try {
+              processEvents(key)
+            } finally {
+              key.reset()
+            }
+          } catch {
+            case e: InterruptedException =>
+              log.info("watcherThread has been interrupted")
+              throw e
+            case e: Exception =>
+              log.error("Error occurred while running watcher", e)
           }
-        } catch {
-          case e: InterruptedException => throw e
-          case e: Exception =>
-            log.error("Error occurred while running watcher", e)
         }
+      } catch {
+        case e: InterruptedException =>
+        case e: Exception => throw e
       }
     }
   })

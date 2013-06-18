@@ -35,7 +35,7 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
 
   def getComponentObject[A](name: String): Option[A] = {
     componentMap.get(name) match {
-      case Some(obj) => Some[A](obj.asInstanceOf[A])
+      case Some(obj) => Some[A](obj.componentObject.get.asInstanceOf[A])
       case None => None
     }
   }
