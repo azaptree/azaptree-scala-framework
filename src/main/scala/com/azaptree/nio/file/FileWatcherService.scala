@@ -18,65 +18,73 @@ trait FileWatcherService {
 
   protected val watchService: WatchService = FileSystems.getDefault().newWatchService()
 
-  protected def initFileWatcherService() {
-    new Thread(new Runnable() {
-
-      def processEvents(key: WatchKey, registrations: Vector[FileWatcherRegistration]): Unit = {
-        import scala.collection.JavaConversions._
-        key.pollEvents().foreach { watchEvent =>
-          if (log.isDebugEnabled()) {
-            log.debug("watchEvent {context=%s, count=%s, eventKind=%s}".format(watchEvent.context(), watchEvent.count(), watchEvent.kind().name()))
-          }
-
-          watchEvent.context() match {
-            case watchEventContext: Path =>
-              if (log.isDebugEnabled()) {
-                val watchedPath = key.watchable()
-                registrations.foreach(r => log.debug(s"$watchedPath -> $r"))
-              }
-              registrations.filter(_.matches(watchEvent)).foreach { fileWatcherRegistration =>
-                fileWatcherRegistration.fileWatcher(watchEvent)
-              }
-
-            case _ => log.warn("Received unexpected watch event type : {}", watchEvent)
-          }
+  private val watcherThread: Thread = new Thread(new Runnable() {
+    def processEvents(key: WatchKey, registrations: Vector[FileWatcherRegistration]): Unit = {
+      import scala.collection.JavaConversions._
+      key.pollEvents().foreach { watchEvent =>
+        if (log.isDebugEnabled()) {
+          log.debug("watchEvent {context=%s, count=%s, eventKind=%s}".format(watchEvent.context(), watchEvent.count(), watchEvent.kind().name()))
         }
-      }
 
-      def processEvents(key: WatchKey): Unit = {
-        log.debug("Processing events for {}", key.watchable())
-
-        key.watchable() match {
-          case watchedPath: Path =>
-            fileWatcherRegistrations.get(watchedPath) match {
-              case Some(registrations) => processEvents(key, registrations)
-              case None =>
-                log.warn("Received event for a path that is not being watched: {}", watchedPath)
-                key.pollEvents()
+        watchEvent.context() match {
+          case watchEventContext: Path =>
+            if (log.isDebugEnabled()) {
+              val watchedPath = key.watchable()
+              registrations.foreach(r => log.debug(s"$watchedPath -> $r"))
             }
-          case _ => log.warn("Received unexpected watchable", key.watchable())
+            registrations.filter(_.matches(watchEvent)).foreach { fileWatcherRegistration =>
+              fileWatcherRegistration.fileWatcher(watchEvent)
+            }
+
+          case _ => log.warn("Received unexpected watch event type : {}", watchEvent)
         }
       }
+    }
 
-      def run() {
-        log.debug("WatchService thread is running")
-        while (true) {
+    def processEvents(key: WatchKey): Unit = {
+      log.debug("Processing events for {}", key.watchable())
+
+      key.watchable() match {
+        case watchedPath: Path =>
+          fileWatcherRegistrations.get(watchedPath) match {
+            case Some(registrations) => processEvents(key, registrations)
+            case None =>
+              log.warn("Received event for a path that is not being watched: {}", watchedPath)
+              key.pollEvents()
+          }
+        case _ => log.warn("Received unexpected watchable", key.watchable())
+      }
+    }
+
+    def run() {
+      log.debug("WatchService thread is running")
+      while (true) {
+        try {
+          log.debug("Waiting for WatchKeys ...")
+          val key = watchService.take()
           try {
-            log.debug("Waiting for WatchKeys ...")
-            val key = watchService.take()
-            try {
-              processEvents(key)
-            } finally {
-              key.reset()
-            }
-          } catch {
-            case e: Exception =>
-              log.error("Error occurred while running watcher", e)
+            processEvents(key)
+          } finally {
+            key.reset()
           }
+        } catch {
+          case e: InterruptedException => throw e
+          case e: Exception =>
+            log.error("Error occurred while running watcher", e)
         }
       }
-    }).start()
+    }
+  })
+
+  initFileWatcherService()
+
+  private def initFileWatcherService() {
+    watcherThread.start()
     log.debug("WatchService thread has been launched")
+  }
+
+  def destroy(): Unit = {
+    watcherThread.interrupt()
   }
 
   import StandardWatchEventKinds._
@@ -105,17 +113,21 @@ trait FileWatcherService {
     }
   }
 
-  def cancel(key: FileWatcherRegistrationKey): Unit = {
-    synchronized { () =>
-      fileWatcherRegistrations.get(key.path).foreach { registrations =>
-        val updatedRegistrations = registrations.filterNot(_.id == key.id)
-        if (updatedRegistrations.isEmpty) {
+  def cancel(key: FileWatcherRegistrationKey): Option[FileWatcherRegistration] = {
+    synchronized[Option[FileWatcherRegistration]] {
+      for {
+        registrations <- fileWatcherRegistrations.get(key.path)
+        cancelledRegistration <- registrations.find(_.id == key.id)
+      } yield {
+        watchKeys(key.path).cancel()
+        if (registrations.size == 1) {
           fileWatcherRegistrations -= key.path
-          watchKeys(key.path).cancel()
           watchKeys -= key.path
         }
+        cancelledRegistration
       }
     }
+
   }
 
   def pathsWatched(): Option[Set[Path]] = if (watchKeys.isEmpty) None else Some(watchKeys.keySet)
