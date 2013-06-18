@@ -311,9 +311,9 @@ class ApplicationService(asyncEventBus: Boolean = true) {
     }
   }
 
-  def stopComponent(compName: String): Option[Exception] = {
+  def stopComponent(compName: String, stopDependents: Boolean = false): Option[Exception] = {
     synchronized {
-      app.shutdownComponent(compName) match {
+      app.shutdownComponent(compName, stopDependents) match {
         case Left(e) => Some(e)
         case Right(app2) =>
           app = app2

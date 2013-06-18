@@ -693,6 +693,87 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
       }
     }
 
+    it("when stopping a component, its dependent components can be shutdown first") {
+      val app = createApp()
+      try {
+        app.start()
+        log.info({
+          app.componentDependents(compA.name).right.get match {
+            case Some(dependsOn) => dependsOn.mkString(compA.name + " DEPENDENTS : ", "|", "")
+            case None => compA.name + " DEPENDENTS : "
+          }
+        })
+        app.stopComponent(compA.name, true).isEmpty should be(true)
+        log.info("STARTED COMPONENTS AFTER STOPPING A: {}", app.startedComponentNames.mkString("|"))
+        app.isComponentStarted(compA.name) should be(false)
+        app.isComponentStarted(compB.name) should be(true)
+        app.isComponentStarted(compC.name) should be(true)
+        app.isComponentStarted(compD.name) should be(true)
+        app.isComponentStarted(compE.name) should be(true)
+
+        app.start()
+        log.info({
+          app.componentDependents(compB.name).right.get match {
+            case Some(dependsOn) => dependsOn.mkString(compB.name + " DEPENDENTS : ", "|", "")
+            case None => compB.name + " DEPENDENTS : "
+          }
+        })
+        app.stopComponent(compB.name, true).isEmpty should be(true)
+        log.info("STARTED COMPONENTS AFTER STOPPING B: {}", app.startedComponentNames.mkString("|"))
+        app.isComponentStarted(compA.name) should be(false)
+        app.isComponentStarted(compB.name) should be(false)
+        app.isComponentStarted(compC.name) should be(true)
+        app.isComponentStarted(compD.name) should be(false)
+        app.isComponentStarted(compE.name) should be(false)
+
+        app.start()
+        log.info({
+          app.componentDependents(compC.name).right.get match {
+            case Some(dependsOn) => dependsOn.mkString(compC.name + " DEPENDENTS : ", "|", "")
+            case None => compC.name + " DEPENDENTS : "
+          }
+        })
+        app.stopComponent(compC.name, true).isEmpty should be(true)
+        app.isComponentStarted(compA.name) should be(false)
+        app.isComponentStarted(compB.name) should be(false)
+        app.isComponentStarted(compC.name) should be(false)
+        app.isComponentStarted(compD.name) should be(false)
+        app.isComponentStarted(compE.name) should be(false)
+
+        app.start()
+        log.info({
+          app.componentDependents(compD.name).right.get match {
+            case Some(dependsOn) => dependsOn.mkString(compD.name + " DEPENDENTS : ", "|", "")
+            case None => compD.name + " DEPENDENTS : "
+          }
+        })
+        app.stopComponent(compD.name, true).isEmpty should be(true)
+        log.info("STARTED COMPONENTS AFTER STOPPING D: {}", app.startedComponentNames.mkString("|"))
+        app.isComponentStarted(compA.name) should be(false)
+        app.isComponentStarted(compB.name) should be(true)
+        app.isComponentStarted(compC.name) should be(true)
+        app.isComponentStarted(compD.name) should be(false)
+        app.isComponentStarted(compE.name) should be(false)
+
+        app.start()
+        log.info({
+          app.componentDependents(compE.name).right.get match {
+            case Some(dependsOn) => dependsOn.mkString(compE.name + " DEPENDENTS : ", "|", "")
+            case None => compE.name + " DEPENDENTS : "
+          }
+        })
+        app.stopComponent(compE.name, true).isEmpty should be(true)
+        log.info("STARTED COMPONENTS AFTER STOPPING E: {}", app.startedComponentNames.mkString("|"))
+        app.isComponentStarted(compA.name) should be(true)
+        app.isComponentStarted(compB.name) should be(true)
+        app.isComponentStarted(compC.name) should be(true)
+        app.isComponentStarted(compD.name) should be(true)
+        app.isComponentStarted(compE.name) should be(false)
+      } finally {
+        app.stop()
+      }
+    }
+
   }
 
 }

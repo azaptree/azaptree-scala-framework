@@ -56,21 +56,50 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
     appWithNewComp
   }
 
-  def shutdownComponent(componentName: String): Either[Exception, Application] = {
-    val componentToShutdown = componentMap.get(componentName)
-    if (componentToShutdown.isEmpty) {
-      Left(new ComponentNotFoundException(componentName))
-    } else {
+  def shutdownComponent(componentName: String, shutdownDependents: Boolean = false): Either[Exception, Application] = {
+    def shutdown(app: Application, comp: Component[ComponentStarted, _]): Either[Exception, Application] = {
       try {
-        val compStopped = componentToShutdown.get.shutdown()
-        val appWithCompRemoved = copy(components = components.filterNot(c => c.name == componentName))
-        eventBus.publish(ComponentShutdownEvent(appWithCompRemoved, compStopped))
+        val compStopped = comp.shutdown()
+        val appWithCompRemoved = app.copy(components = app.components.filterNot(c => c.name == componentName))
+        app.eventBus.publish(ComponentShutdownEvent(appWithCompRemoved, compStopped))
         Right(appWithCompRemoved)
       } catch {
         case e: Exception =>
-          eventBus.publish(ComponentShutdownFailedEvent(this, componentToShutdown.get, e))
+          eventBus.publish(ComponentShutdownFailedEvent(this, comp, e))
           Left(e)
       }
+    }
+
+    componentMap.get(componentName) match {
+      case None => Left(new ComponentNotFoundException(componentName))
+      case Some(componentToShutdown) =>
+        if (shutdownDependents) {
+          componentDependencies(components) match {
+            case Some(compDependencyMap) =>
+              val entries = compDependencyMap.filter(_._2.contains(componentName))
+              try {
+                val updatedApp = entries.keys.foldLeft(this) { (app, dependentName) =>
+                  app.shutdownComponent(dependentName, true) match {
+                    case Right(a) => a
+                    case Left(e) => e match {
+                      case ex: ComponentNotFoundException => app
+                      case _ => throw e
+                    }
+                  }
+                }
+                shutdown(updatedApp, componentToShutdown)
+              } catch {
+                case e: Exception =>
+                  eventBus.publish(ComponentShutdownFailedEvent(this, componentToShutdown, e))
+                  Left(e)
+              }
+            case None => shutdown(this, componentToShutdown)
+          }
+
+        } else {
+          shutdown(this, componentToShutdown)
+        }
+
     }
   }
 
