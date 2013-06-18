@@ -127,7 +127,19 @@ trait FileWatcherService {
         cancelledRegistration
       }
     }
+  }
 
+  def cancel(path: Path): Option[Iterable[FileWatcherRegistration]] = {
+    synchronized[Option[Iterable[FileWatcherRegistration]]] {
+      for {
+        registrations <- fileWatcherRegistrations.get(path)
+      } yield {
+        watchKeys(path).cancel()
+        fileWatcherRegistrations -= path
+        watchKeys -= path
+        registrations
+      }
+    }
   }
 
   def pathsWatched(): Option[Set[Path]] = if (watchKeys.isEmpty) None else Some(watchKeys.keySet)
@@ -136,6 +148,13 @@ trait FileWatcherService {
     fileWatcherRegistrations.get(key.path) match {
       case None => None
       case Some(registrations) => registrations.find(_.id == key.id)
+    }
+  }
+
+  def fileWatcherRegistrationCount(path: Path): Int = {
+    fileWatcherRegistrations.get(path) match {
+      case Some(r) => r.size
+      case None => 0
     }
   }
 

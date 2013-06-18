@@ -148,6 +148,42 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
         case Left(e) => throw e
       }
     }
+
+    it("can return the number of registered listeners for a path") {
+      val path = new File(baseDir, UUID.randomUUID().toString()).toPath()
+      Files.createDirectory(path)
+      val result = FileWatcher.watch(path = path, fileWatcher = fileChangedListener)
+      result match {
+        case Right(key) => log.info(key.toString())
+        case Left(e) => throw e
+      }
+
+      FileWatcher.fileWatcherRegistrationCount(path) should be >= (1)
+    }
+
+    it("can cance all registrations for a path") {
+      val path = new File(baseDir, UUID.randomUUID().toString()).toPath()
+      Files.createDirectory(path)
+      val result = FileWatcher.watch(path = path, fileWatcher = fileChangedListener)
+      result match {
+        case Right(key) => log.info(key.toString())
+        case Left(e) => throw e
+      }
+
+      FileWatcher.cancel(path).isDefined should be(true)
+      FileWatcher.fileWatcherRegistrationCount(path) should be(0)
+
+      val sizeBefore = FileWatcherServiceSpec.pathsChanged.size
+
+      for (i <- 1 to 10) {
+        val f = new File(path.toFile(), UUID.randomUUID().toString())
+        FileUtils.touch(f)
+      }
+
+      Thread.sleep(100l)
+      FileWatcherServiceSpec.pathsChanged.size should be(sizeBefore)
+
+    }
   }
 
 }
