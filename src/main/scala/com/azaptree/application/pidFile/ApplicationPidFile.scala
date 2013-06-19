@@ -1,6 +1,6 @@
 package com.azaptree.application.pidFile
 
-import com.azaptree.application.ApplicationListener
+import com.azaptree.application.ApplicationExtension
 import java.io.File
 import com.azaptree.nio.file.FileWatcherService
 import com.azaptree.utils._
@@ -9,7 +9,7 @@ import java.nio.file.StandardWatchEventKinds._
 import com.azaptree.application.ApplicationService
 
 case class ApplicationPidFile(appName: String, watchDir: File)(implicit fileWatcherService: FileWatcherService, applicationService: ApplicationService)
-    extends ApplicationListener {
+    extends ApplicationExtension {
   require(!appName.trim().isEmpty(), "appName cannot be blank")
 
   /**

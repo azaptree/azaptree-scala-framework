@@ -1,26 +1,26 @@
 package com.azaptree.application
 
-trait ApplicationListener {
+trait ApplicationExtension {
 
   def start(): Unit
 
   def stop(): Unit
 }
 
-class ApplicationListenerComponentLifeCycle(l: ApplicationListener) extends ComponentLifeCycle[ApplicationListener] {
+class ApplicationExtensionComponentLifeCycle(extension: ApplicationExtension) extends ComponentLifeCycle[ApplicationExtension] {
 
-  override def create(comp: Component[ComponentNotConstructed, ApplicationListener]): Component[ComponentConstructed, ApplicationListener] = {
-    comp.copy[ComponentConstructed, ApplicationListener](componentObject = Some(l))
+  override def create(comp: Component[ComponentNotConstructed, ApplicationExtension]): Component[ComponentConstructed, ApplicationExtension] = {
+    comp.copy[ComponentConstructed, ApplicationExtension](componentObject = Some(extension))
   }
 
-  override def start(comp: Component[ComponentInitialized, ApplicationListener]): Component[ComponentStarted, ApplicationListener] = {
+  override def start(comp: Component[ComponentInitialized, ApplicationExtension]): Component[ComponentStarted, ApplicationExtension] = {
     comp.componentObject.foreach(_.start())
-    comp.copy[ComponentStarted, ApplicationListener]()
+    comp.copy[ComponentStarted, ApplicationExtension]()
   }
 
-  override def stop(comp: Component[ComponentStarted, ApplicationListener]): Component[ComponentStopped, ApplicationListener] = {
+  override def stop(comp: Component[ComponentStarted, ApplicationExtension]): Component[ComponentStopped, ApplicationExtension] = {
     comp.componentObject.foreach(_.stop())
-    comp.copy[ComponentStopped, ApplicationListener]()
+    comp.copy[ComponentStopped, ApplicationExtension]()
   }
 
 }
