@@ -3,7 +3,6 @@
 package test.com.azaptree.application
 
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import com.azaptree.application.ApplicationLauncher
 import com.azaptree.application.ApplicationService
 import com.azaptree.application.Component
@@ -18,8 +17,13 @@ import com.azaptree.application.healthcheck.HealthCheck
 import com.azaptree.application.healthcheck.HealthCheckConfig
 import com.azaptree.application.healthcheck.HealthCheckInfo
 import com.typesafe.config.ConfigFactory
-
 import TestApplicationLauncher._
+import com.azaptree.nio.file.FileWatcherService
+import com.azaptree.application.pidFile.ApplicationPidFile
+import com.azaptree.application.ApplicationExtension
+import com.azaptree.nio.file.FileWatcherServiceComponentLifeCycle
+import com.azaptree.application.ApplicationExtensionComponentLifeCycle
+import java.io.File
 
 object TestApplicationLauncher {
   val started = "ComponentStarted"
@@ -142,8 +146,17 @@ class TestApplicationLauncher extends ApplicationLauncher {
   }
 
   override def createApplicationService(): ApplicationService = {
-    val app = new ApplicationService()
+    implicit val app = new ApplicationService()
     comps.foreach(app.registerComponent(_))
+    
+    val fileWatcherComponent = Component[ComponentNotConstructed, FileWatcherService]("FileWatcherService", new FileWatcherServiceComponentLifeCycle())
+    app.registerComponent(fileWatcherComponent)
+    implicit val fileWatcherService = app.getStartedComponentObject[FileWatcherService](fileWatcherComponent.name).get
+
+    val appPidFile = ApplicationPidFile("ApplicationPidFile", new File("target/TestApplicationLauncher"))
+    app.registerComponent(Component[ComponentNotConstructed, ApplicationExtension]("ApplicationPidFile", new ApplicationExtensionComponentLifeCycle(appPidFile)))
+
+    
     app.addHealthCheck(appHealthCheck1, healthCheckRunner(checkCompStartedScorer))
     app.addHealthCheck(appHealthCheck2, healthCheckRunner(checkCompStartedScorer))
     app.addHealthCheck(appHealthCheck3, healthCheckRunner(checkCompStartedScorer))

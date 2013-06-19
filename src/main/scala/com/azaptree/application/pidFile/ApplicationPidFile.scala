@@ -7,6 +7,9 @@ import com.azaptree.utils._
 import org.apache.commons.io.FileUtils
 import java.nio.file.StandardWatchEventKinds._
 import com.azaptree.application.ApplicationService
+import org.slf4j.LoggerFactory
+import java.nio.file.Path
+import java.nio.file.StandardWatchEventKinds._
 
 case class ApplicationPidFile(appName: String, watchDir: File)(implicit fileWatcherService: FileWatcherService, applicationService: ApplicationService)
     extends ApplicationExtension {
@@ -26,19 +29,25 @@ case class ApplicationPidFile(appName: String, watchDir: File)(implicit fileWatc
       throw new IllegalStateException(s"Unable to create watchDir: $watchDir")
     }
 
+    val log = LoggerFactory.getLogger("ApplicationPidFile")
     val f = pidFile
     FileUtils.touch(f)
-    fileWatcherService.watch(f.toPath(), ENTRY_DELETE :: Nil, (watchEvent) => {
-      applicationService.stop()
+    log.info("Created  PID file : {}", f)
+    fileWatcherService.watch(watchDir.toPath(), ENTRY_DELETE :: Nil, (watchEvent) => {
+      watchEvent.context() match {
+        case p: Path =>
+          log.info("Received WatchEvent for : %s -> %s".format(p, watchEvent.kind().name()))
+          if (p.getFileName().toString() == f.getName() && watchEvent.kind() == ENTRY_DELETE) {
+            log.info("PID file has been delete which is a trigger to stop the application : {}", f)
+            applicationService.stop()
+          }
+        case _ =>
+      }
+
     })
 
     pidFile.deleteOnExit()
   }
 
-  override def stop() = {
-    val f = pidFile
-    if (f.exists()) {
-      f.delete()
-    }
-  }
+  override def stop() = { /*no action needed*/ }
 }
