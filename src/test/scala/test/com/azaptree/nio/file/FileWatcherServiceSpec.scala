@@ -161,7 +161,7 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
       FileWatcher.fileWatcherRegistrationCount(path) should be >= (1)
     }
 
-    it("can cance all registrations for a path") {
+    it("can cancel all registrations for a path") {
       val path = new File(baseDir, UUID.randomUUID().toString()).toPath()
       Files.createDirectory(path)
       val result = FileWatcher.watch(path = path, fileWatcher = fileChangedListener)
