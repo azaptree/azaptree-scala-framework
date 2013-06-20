@@ -347,31 +347,6 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
       }
     }
 
-    it("can be used to retrieve a component object for a started component") {
-      val app = createApp()
-      try {
-        app.start()
-
-        app.isRunning() should be(true)
-        app.startedComponentNames.isEmpty should be(false)
-        app.startedComponentNames.size should be(app.componentNames.size)
-
-        val compObjects = app.startedComponentNames.map(app.getStartedComponentObject(_))
-        compObjects.foreach { c =>
-          assert(c.isDefined)
-          println("- can be used to retrieve a component object for a started component : " + c)
-        }
-
-        app.getStartedComponentObject[Comp](compA.name).isDefined should be(true)
-        println("- can be used to retrieve a component object for a started component : " + app.getStartedComponentObject[Comp](compA.name))
-
-        app.stopComponent(compA.name)
-        app.getStartedComponentObject[Comp](compA.name).isDefined should be(false)
-      } finally {
-        app.stop()
-      }
-    }
-
     it("can return the component object class for a started component") {
       val app = createApp()
       try {

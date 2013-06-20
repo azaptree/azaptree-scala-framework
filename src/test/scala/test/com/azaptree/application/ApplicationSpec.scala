@@ -299,4 +299,5 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
 
     shutdownOrder should be(appCompShutdownOrder)
   }
+
 }

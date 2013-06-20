@@ -33,13 +33,6 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
     Map[String, Component[ComponentStarted, _]](componentMapEntries: _*)
   }
 
-  def getComponentObject[A](name: String): Option[A] = {
-    componentMap.get(name) match {
-      case Some(obj) => Some[A](obj.componentObject.get.asInstanceOf[A])
-      case None => None
-    }
-  }
-
   def getComponentObjectClass(name: String): Option[Class[_]] = {
     componentMap.get(name) match {
       case Some(obj) => Some(obj.getClass())

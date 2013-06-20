@@ -369,13 +369,6 @@ class ApplicationService(asyncEventBus: Boolean = true) {
     app.getComponentObjectClass(compName)
   }
 
-  /**
-   * only returns the component object if the component is started
-   */
-  def getStartedComponentObject[A](compName: String): Option[A] = {
-    app.getComponentObject[A](compName)
-  }
-
   def stoppedComponentNames: Iterable[String] = {
     val startedCompNames = Set[String]() ++ startedComponentNames
     componentNames.filterNot(startedCompNames(_))

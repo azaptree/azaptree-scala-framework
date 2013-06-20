@@ -16,7 +16,22 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 import java.util.UUID
 import org.scalatest.BeforeAndAfterAll
-import com.azaptree.nio.file.FileWatcherServiceContext
+
+object ApplicationContext {
+  val appService = new ApplicationService()
+
+  private val fileWatcherServiceComponent = Component[ComponentNotConstructed, FileWatcherService](
+    name = "FileWatcherService",
+    componentLifeCycle = new FileWatcherServiceComponentLifeCycle())
+
+  private val _fileWatcherService = appService.registerComponent(fileWatcherServiceComponent).get
+
+  trait FileWatcherServiceContext extends com.azaptree.nio.file.FileWatcherServiceContext {
+    override def fileWatcherService(): FileWatcherService = _fileWatcherService
+  }
+}
+
+object App extends ApplicationContext.FileWatcherServiceContext
 
 object FileWatcherServiceComponentSpec {
   val log = LoggerFactory.getLogger("FileWatcherServiceComponentSpec")
@@ -36,19 +51,6 @@ object FileWatcherServiceComponentSpec {
   }
 }
 
-object ApplicationContext extends FileWatcherServiceContext {
-  val appService = new ApplicationService()
-
-  private val fileWatcherServiceComponent = Component[ComponentNotConstructed, FileWatcherService](
-    name = "FileWatcherService",
-    componentLifeCycle = new FileWatcherServiceComponentLifeCycle())
-
-  private val _fileWatcherService = appService.registerComponent(fileWatcherServiceComponent).get
-
-  override def fileWatcherService(): FileWatcherService = _fileWatcherService
-
-}
-
 class FileWatcherServiceComponentSpec extends FunSpec with ShouldMatchers with BeforeAndAfterAll {
 
   override def beforeAll() = {
@@ -60,7 +62,7 @@ class FileWatcherServiceComponentSpec extends FunSpec with ShouldMatchers with B
 
     it("can be plugged into an ApplicationService") {
       try {
-        val fileWatcherService = ApplicationContext.fileWatcherService
+        val fileWatcherService = App.fileWatcherService
 
         val path = new File(baseDir, UUID.randomUUID().toString()).toPath()
         Files.createDirectory(path)

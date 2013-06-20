@@ -150,8 +150,7 @@ class TestApplicationLauncher extends ApplicationLauncher {
     comps.foreach(app.registerComponent(_))
 
     val fileWatcherComponent = Component[ComponentNotConstructed, FileWatcherService]("FileWatcherService", new FileWatcherServiceComponentLifeCycle())
-    app.registerComponent(fileWatcherComponent)
-    implicit val fileWatcherService = app.getStartedComponentObject[FileWatcherService](fileWatcherComponent.name).get
+    implicit val fileWatcherService = app.registerComponent(fileWatcherComponent).get
 
     val appPidFile = ApplicationPidFile("ApplicationPidFile", new File("target/TestApplicationLauncher"))
     app.registerComponent(Component[ComponentNotConstructed, ApplicationExtension]("ApplicationPidFile", new ApplicationExtensionComponentLifeCycle(appPidFile)))
@@ -164,7 +163,3 @@ class TestApplicationLauncher extends ApplicationLauncher {
   }
 }
 
-object ApplicationLauncherTest extends App {
-  val launcher = new TestApplicationLauncher()
-  launcher.launch()
-}
