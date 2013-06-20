@@ -295,7 +295,7 @@ class ApplicationService(asyncEventBus: Boolean = true) {
     synchronized {
       app = components.foldLeft(app) { (app, comp) =>
         app.components.find(_.name == comp.name) match {
-          case None => app.register(comp)
+          case None => app.register(comp)._1
           case _ => app
         }
       }
@@ -331,7 +331,7 @@ class ApplicationService(asyncEventBus: Boolean = true) {
         case None =>
           components.find(findByName) match {
             case Some(comp) =>
-              app = app.register(comp)
+              app = app.register(comp)._1
               Right(true)
             case None => Left(new InvalidComponentNameException(compName))
           }
@@ -339,11 +339,13 @@ class ApplicationService(asyncEventBus: Boolean = true) {
     }
   }
 
-  def registerComponent(comp: Component[ComponentNotConstructed, _]): Unit = {
+  def registerComponent[A](comp: Component[ComponentNotConstructed, A]): Option[A] = {
     synchronized {
       require(components.find(_.name == comp.name).isEmpty, "Component with the same is already registered: " + comp.name)
-      app = app.register(comp)
+      val (appWithCompAdded, compStarted) = app.register(comp)
+      app = appWithCompAdded
       components = components :+ comp
+      compStarted
     }
   }
 

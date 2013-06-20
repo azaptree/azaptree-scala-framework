@@ -47,13 +47,13 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
     }
   }
 
-  def register(comp: Component[ComponentNotConstructed, _]): Application = {
+  def register[A](comp: Component[ComponentNotConstructed, A]): (Application, Option[A]) = {
     assert(componentMap.get(comp.name).isEmpty, "A component with the same name is already registered: " + comp.name)
 
     val compStarted = comp.startup()
     val appWithNewComp = copy(components = compStarted :: components)
     eventBus.publish(ComponentStartedEvent(appWithNewComp, compStarted))
-    appWithNewComp
+    (appWithNewComp, compStarted.componentObject)
   }
 
   def shutdownComponent(componentName: String, shutdownDependents: Boolean = false): Either[Exception, Application] = {

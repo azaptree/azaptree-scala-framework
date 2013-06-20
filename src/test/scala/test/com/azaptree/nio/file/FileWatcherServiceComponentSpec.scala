@@ -16,6 +16,7 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 import java.util.UUID
 import org.scalatest.BeforeAndAfterAll
+import com.azaptree.nio.file.FileWatcherServiceContext
 
 object FileWatcherServiceComponentSpec {
   val log = LoggerFactory.getLogger("FileWatcherServiceComponentSpec")
@@ -35,6 +36,19 @@ object FileWatcherServiceComponentSpec {
   }
 }
 
+object ApplicationContext extends FileWatcherServiceContext {
+  val appService = new ApplicationService()
+
+  private val fileWatcherServiceComponent = Component[ComponentNotConstructed, FileWatcherService](
+    name = "FileWatcherService",
+    componentLifeCycle = new FileWatcherServiceComponentLifeCycle())
+
+  private val _fileWatcherService = appService.registerComponent(fileWatcherServiceComponent).get
+
+  override def fileWatcherService(): FileWatcherService = _fileWatcherService
+
+}
+
 class FileWatcherServiceComponentSpec extends FunSpec with ShouldMatchers with BeforeAndAfterAll {
 
   override def beforeAll() = {
@@ -45,16 +59,8 @@ class FileWatcherServiceComponentSpec extends FunSpec with ShouldMatchers with B
   describe("A FileWatcherServiceComponent") {
 
     it("can be plugged into an ApplicationService") {
-      val appService = new ApplicationService()
-
       try {
-        val fileWatcherServiceComponent = Component[ComponentNotConstructed, FileWatcherService](
-          name = "FileWatcherService",
-          componentLifeCycle = new FileWatcherServiceComponentLifeCycle())
-
-        appService.registerComponent(fileWatcherServiceComponent)
-
-        val fileWatcherService = appService.getStartedComponentObject[FileWatcherService](fileWatcherServiceComponent.name).get
+        val fileWatcherService = ApplicationContext.fileWatcherService
 
         val path = new File(baseDir, UUID.randomUUID().toString()).toPath()
         Files.createDirectory(path)
@@ -86,7 +92,7 @@ class FileWatcherServiceComponentSpec extends FunSpec with ShouldMatchers with B
         Thread.sleep(100l)
         pathsChanged.size should be(sizeBefore)
       } finally {
-        appService.stop()
+        ApplicationContext.appService.stop()
       }
 
     }

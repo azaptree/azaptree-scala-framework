@@ -148,7 +148,7 @@ class TestApplicationLauncher extends ApplicationLauncher {
   override def createApplicationService(): ApplicationService = {
     implicit val app = new ApplicationService()
     comps.foreach(app.registerComponent(_))
-    
+
     val fileWatcherComponent = Component[ComponentNotConstructed, FileWatcherService]("FileWatcherService", new FileWatcherServiceComponentLifeCycle())
     app.registerComponent(fileWatcherComponent)
     implicit val fileWatcherService = app.getStartedComponentObject[FileWatcherService](fileWatcherComponent.name).get
@@ -156,7 +156,6 @@ class TestApplicationLauncher extends ApplicationLauncher {
     val appPidFile = ApplicationPidFile("ApplicationPidFile", new File("target/TestApplicationLauncher"))
     app.registerComponent(Component[ComponentNotConstructed, ApplicationExtension]("ApplicationPidFile", new ApplicationExtensionComponentLifeCycle(appPidFile)))
 
-    
     app.addHealthCheck(appHealthCheck1, healthCheckRunner(checkCompStartedScorer))
     app.addHealthCheck(appHealthCheck2, healthCheckRunner(checkCompStartedScorer))
     app.addHealthCheck(appHealthCheck3, healthCheckRunner(checkCompStartedScorer))

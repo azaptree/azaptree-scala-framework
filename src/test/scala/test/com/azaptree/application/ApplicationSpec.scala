@@ -96,7 +96,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
 
       val app = comps.foldLeft(Application()) { (app, comp) =>
         println("\n" + app + "\n")
-        app.register(comp)
+        app.register(comp)._1
       }
 
       println("*** app components = " + app.components.mkString("\n\n", "\n", "\n\n"))
@@ -135,7 +135,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       val comps = (compA :: compB :: compC :: Nil)
       app = comps.foldLeft(app) { (app, comp) =>
         println("\n" + app + "\n")
-        app.register(comp)
+        app.register(comp)._1
       }
 
       Thread.sleep(100l)
@@ -166,7 +166,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       val comps = (compA :: compB :: compC :: Nil)
       app = comps.foldLeft(app) { (app, comp) =>
         println("\n" + app + "\n")
-        app.register(comp)
+        app.register(comp)._1
       }
 
       app.shutdown()
@@ -202,7 +202,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       val comps = (compA :: compB :: compC :: Nil)
       app = comps.foldLeft(app) { (app, comp) =>
         println("\n" + app + "\n")
-        app.register(comp)
+        app.register(comp)._1
       }
 
       app.shutdown()
@@ -241,7 +241,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
     val comps = (compA :: compB :: compC :: compAWithShutdownFailure :: Nil)
     app = comps.foldLeft(app) { (app, comp) =>
       println("\n" + app + "\n")
-      app.register(comp)
+      app.register(comp)._1
     }
 
     app.shutdown()
@@ -273,7 +273,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
 
     val app = comps.foldLeft(Application()) { (app, comp) =>
       println("\n" + app + "\n")
-      app.register(comp)
+      app.register(comp)._1
     }
 
     val appCompShutdownOrder = app.getComponentShutdownOrder.toList

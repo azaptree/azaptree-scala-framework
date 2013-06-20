@@ -23,8 +23,7 @@ object ApplicationPidFileSpec extends ApplicationLauncher {
     implicit val appService = new ApplicationService()
 
     val fileWatcherComponent = Component[ComponentNotConstructed, FileWatcherService]("FileWatcherService", new FileWatcherServiceComponentLifeCycle())
-    appService.registerComponent(fileWatcherComponent)
-    implicit val fileWatcherService = appService.getStartedComponentObject[FileWatcherService](fileWatcherComponent.name).get
+    implicit val fileWatcherService = appService.registerComponent(fileWatcherComponent).get
 
     val appPidFile = ApplicationPidFile("ApplicationPidFile", pidDir)
     appService.registerComponent(Component[ComponentNotConstructed, ApplicationExtension]("ApplicationPidFile", new ApplicationExtensionComponentLifeCycle(appPidFile)))
