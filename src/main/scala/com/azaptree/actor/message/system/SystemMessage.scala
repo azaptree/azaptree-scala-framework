@@ -31,12 +31,7 @@ case object GetActorConfig extends SystemMessageRequest
 case object GetChildrenActorPaths extends SystemMessageRequest
 
 @SerialVersionUID(1L)
-case object GetSystemMessageProcessorActorRef extends SystemMessageRequest
-
-@SerialVersionUID(1L)
 case class IsApplicationMessageSupported(message: Message[_]) extends SystemMessageRequest
-
-sealed trait SystemMessageResponse extends SystemMessage
 
 /**
  * Response message for GetStats
@@ -49,26 +44,20 @@ case class MessageStats(
   lastHeartbeatOn: Option[Long] = None,
   lastMessageProcessedOn: Option[Long] = None,
   messageFailedCount: Long = 0,
-  lastMessageFailedOn: Option[Long] = None) extends SystemMessageResponse
+  lastMessageFailedOn: Option[Long] = None)
 
 /**
  * Response message for GetChildrenActorPaths
  */
 @SerialVersionUID(1L)
-case class ChildrenActorPaths(actorPaths: Iterable[ActorPath]) extends SystemMessageResponse
-
-/**
- * Response message for GetSystemMessageProcessorActorRef
- */
-@SerialVersionUID(1L)
-case class SystemMessageProcessor(actorRef: ActorRef) extends SystemMessageResponse
+case class ChildrenActorPaths(actorPaths: Iterable[ActorPath])
 
 /**
  * Response message for IsApplicationMessageSupported
  */
 @SerialVersionUID(1L)
-case class ApplicationMessageSupported(message: Message[_], supported: Boolean) extends SystemMessageResponse
+case class ApplicationMessageSupported(message: Message[_], supported: Boolean)
 
 @SerialVersionUID(1L)
-case object HeartbeatResponse extends SystemMessageResponse
+case object HeartbeatResponse
 

@@ -6,13 +6,11 @@ import com.azaptree.actor.message.system.ChildrenActorPaths
 import com.azaptree.actor.message.system.GetActorConfig
 import com.azaptree.actor.message.system.GetChildrenActorPaths
 import com.azaptree.actor.message.system.GetMessageStats
-import com.azaptree.actor.message.system.GetSystemMessageProcessorActorRef
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.IsApplicationMessageSupported
 import com.azaptree.actor.message.system.MessageStats
 import com.azaptree.actor.message.system.SystemMessage
-import com.azaptree.actor.message.system.SystemMessageProcessor
 
 import akka.actor.UnhandledMessage
 import akka.actor.actorRef2Scala
@@ -39,7 +37,6 @@ trait SystemMessageProcessing {
     case m @ Message(GetMessageStats, _) => tryProcessingSystemMessage(m, processGetMessageStats)
     case m @ Message(GetActorConfig, _) => tryProcessingSystemMessage(m, processGetActorConfig)
     case m @ Message(GetChildrenActorPaths, _) => tryProcessingSystemMessage(m, processGetChildrenActorPaths)
-    case m @ Message(GetSystemMessageProcessorActorRef, _) => tryProcessingSystemMessage(m, getSystemMessageProcessorActorRef)
     case m @ Message(IsApplicationMessageSupported(_), _) => tryProcessingSystemMessage(m, isApplicationMessageSupported)
   }
 
@@ -66,12 +63,6 @@ trait SystemMessageProcessing {
         log.error("{}", messageWithUpdatedProcessingResults.update(status = unexpectedError("Failed to process SystemMessage", e)))
         throw new SystemMessageProcessingException(e)
     }
-  }
-
-  private def getSystemMessageProcessorActorRef(message: Message[_]) = {
-    sender ! Message[SystemMessageProcessor](
-      data = SystemMessageProcessor(context.self),
-      metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
   }
 
   /**

@@ -5,7 +5,6 @@ import com.azaptree.actor.message.system.SystemMessage
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.UnhandledMessage
-import com.azaptree.actor.message.system.SystemMessageProcessor
 import com.azaptree.actor.message.system.ApplicationMessageSupported
 import com.azaptree.actor.message.system.IsApplicationMessageSupported
 import com.azaptree.actor.config.ActorConfig
@@ -13,7 +12,6 @@ import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.ChildrenActorPaths
 import com.azaptree.actor.message.system.MessageStats
 import com.azaptree.actor.message.system.GetActorConfig
-import com.azaptree.actor.message.system.GetSystemMessageProcessorActorRef
 import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.GetChildrenActorPaths
@@ -53,15 +51,23 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
    * Otherwise, it records that that the message failed and logs an UnhandledMessage to the ActorSystem.eventStream
    *
    */
+
+  import akka.actor.Status._
+
   private def unhandledMessage: Receive = {
     case t: Terminated => process(Message(t))
+    case f: Failure => handleFailure(f)
     case msg: Message[_] if msg.metadata.expectingReply =>
-      sender ! akka.actor.Status.Failure(new IllegalArgumentException(s"Message was not handled: $msg"))
+      sender ! Failure(new IllegalArgumentException(s"Message was not handled: $msg"))
       messageFailed()
       context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
     case msg =>
       messageFailed()
       context.system.eventStream.publish(new UnhandledMessage(msg, sender, context.self))
+  }
+
+  protected def handleFailure(failure: Failure): Unit = {
+    log.warning("Received Failure", failure.cause)
   }
 
   private def unsupportedMessageTypeException: Receive = {

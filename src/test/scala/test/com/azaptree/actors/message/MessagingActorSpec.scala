@@ -24,7 +24,6 @@ import com.azaptree.actor.message.system.GetActorConfig
 import com.azaptree.actor.message.system.GetChildrenActorPaths
 import com.azaptree.actor.message.system.GetMessageStats
 import com.azaptree.actor.message.system.GetMessageStats
-import com.azaptree.actor.message.system.GetSystemMessageProcessorActorRef
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.HeartbeatRequest
 import com.azaptree.actor.message.system.HeartbeatResponse
@@ -32,7 +31,6 @@ import com.azaptree.actor.message.system.IsApplicationMessageSupported
 import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.actor.message.system.MessageStats
 import com.azaptree.actor.message.system.SystemMessage
-import com.azaptree.actor.message.system.SystemMessageProcessor
 import com.azaptree.actor.application.ActorRegistry
 import com.azaptree.actor.application.ActorRegistry._
 import com.typesafe.config.ConfigFactory
@@ -416,26 +414,14 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     }
   }
 
-  feature("The MessageActor/systemMessageProcessor can be obtained from the MessageActor") {
-    scenario("Request the systemMessageProcessor ActorRef and send it some SystemMessages") {
-      val response = Await.result(ask(echoMessageActor, Message(GetSystemMessageProcessorActorRef)).mapTo[Message[SystemMessageProcessor]], 100 millis)
-      val sysMsgProcessor = response.data.actorRef
-      Await.result(ask(sysMsgProcessor, Message(HeartbeatRequest)).mapTo[Message[HeartbeatRequest.type]], 10 millis)
-    }
-  }
-
-  feature("You are able to check with the MessageActor/systemMessageProcessor whether or not an application message type is supported by the MessageActor") {
+  feature("You are able to check with the MessageActor whether or not an application message type is supported by the MessageActor") {
     scenario("Check for some messages that are supported") {
-      val response = Await.result(ask(echoMessageActor, Message(GetSystemMessageProcessorActorRef)).mapTo[Message[SystemMessageProcessor]], 100 millis)
-      val sysMsgProcessor = response.data.actorRef
-      val appMsgSupportedResponse = Await.result(ask(sysMsgProcessor, Message(IsApplicationMessageSupported(Message[String]("IS SUPPORTED")))).mapTo[Message[ApplicationMessageSupported]], 10 millis)
+      val appMsgSupportedResponse = Await.result(ask(echoMessageActor, Message(IsApplicationMessageSupported(Message[String]("IS SUPPORTED")))).mapTo[Message[ApplicationMessageSupported]], 10 millis)
       appMsgSupportedResponse.data.supported should be(true)
     }
 
     scenario("Check for some messages that are not supported") {
-      val response = Await.result(ask(echoMessageActor, Message(GetSystemMessageProcessorActorRef)).mapTo[Message[SystemMessageProcessor]], 100 millis)
-      val sysMsgProcessor = response.data.actorRef
-      val appMsgSupportedResponse = Await.result(ask(sysMsgProcessor, Message(IsApplicationMessageSupported(Message[Long](200l)))).mapTo[Message[ApplicationMessageSupported]], 10 millis)
+      val appMsgSupportedResponse = Await.result(ask(echoMessageActor, Message(IsApplicationMessageSupported(Message[Long](200l)))).mapTo[Message[ApplicationMessageSupported]], 10 millis)
       appMsgSupportedResponse.data.supported should be(false)
 
       echoMessageActor ! Message("Valid Message")

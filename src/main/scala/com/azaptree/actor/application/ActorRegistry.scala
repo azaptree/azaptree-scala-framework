@@ -76,6 +76,5 @@ object ActorRegistry {
   case class RegisteredActors(actorPath: Option[ActorPath] = None, actors: Set[ActorRef]) extends ActorRegistryResponse
 
   case class RegisteredActorCount(actorPath: Option[ActorPath] = None, count: Int) extends ActorRegistryResponse
-
 }
 
