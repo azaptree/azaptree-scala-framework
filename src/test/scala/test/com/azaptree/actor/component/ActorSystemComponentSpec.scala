@@ -100,7 +100,7 @@ object ActorSystemComponentConfig {
 
   implicit val testConfig = ConfigFactory.parseString("""
         akka {
-    		log-config-on-start = on
+    		log-config-on-start = off
         
     		actor{
     			serialize-messages = on
@@ -167,6 +167,8 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
   val appActorComp = Component[ComponentNotConstructed, ActorRef](appActorConfig.name, ActorComponentLifeCycle(appActorConfig))
   appActorComp.componentLifeCycle.startUp(appActorComp)
 
+  Thread.sleep(100l)
+
   def actorRegistryActor: ActorRef = actorSystem.actorFor(actorRegistryActorPath)
 
   def actorRegistryActorPath: ActorPath = actorSystem / ActorRegistry.ACTOR_NAME
@@ -201,10 +203,11 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
 
       info("Verify that the ActorRegistry actor exists")
       implicit val actorRegistry = actorRegistryActor
-      val registeredActorsFuture = ask(actorRegistry, Message(ActorRegistry.GetRegisteredActors())).mapTo[Message[ActorRegistry.RegisteredActors]]
 
+      val registeredActorsFuture = ask(actorRegistry, Message(ActorRegistry.GetRegisteredActors())).mapTo[Message[ActorRegistry.RegisteredActors]]
       val actors = Await.result(registeredActorsFuture, 100 millis).data.actors
       log(actors)
+
       info("Check that the number of actors registered equals the number of ActorConfigs that are registered")
       ActorConfigRegistry.actorPaths(actorSystem.name).foreach(actorPaths => println(actorPaths.mkString("\n*******  ActorConfigRegistry  ***********\n", "\n", "\n*******  END - ActorConfigRegistry  ***********\n")))
       actors.size should be(ActorConfigRegistry.actorPaths(actorSystem.name).get.size)
