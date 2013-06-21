@@ -38,7 +38,7 @@ case class ApplicationPidFile(appName: String, watchDir: File)(implicit fileWatc
         case p: Path =>
           log.info("Received WatchEvent for : %s -> %s".format(p, watchEvent.kind().name()))
           if (p.getFileName().toString() == f.getName() && watchEvent.kind() == ENTRY_DELETE) {
-            log.info("PID file has been delete which is a trigger to stop the application : {}", f)
+            log.info("PID file has been deleted, which is a trigger to stop the application : {}", f)
             applicationService.stop()
           }
         case _ =>
