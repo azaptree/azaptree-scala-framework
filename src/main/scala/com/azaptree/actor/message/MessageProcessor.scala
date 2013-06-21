@@ -29,7 +29,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
 
   /**
    * Sub-classes can override this method to provide the message handling logic.
-   * This should handle all Message where Message.data is not of type: SystemMessage
+   * This should handle all Messages where Message.data is not of type: SystemMessage
    *
    * The Message status should be updated by this method.
    * If not set, then it will be set to SUCCESS_MESSAGE_STATUS if no exception was thrown, and set to ERROR_MESSAGE_STATUS if this method throws an Exception.
@@ -53,7 +53,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
    * Otherwise, it records that that the message failed and logs an UnhandledMessage to the ActorSystem.eventStream
    *
    */
-  protected def unhandledMessage: Receive = {
+  private def unhandledMessage: Receive = {
     case t: Terminated => process(Message(t))
     case msg: Message[_] if msg.metadata.expectingReply =>
       sender ! akka.actor.Status.Failure(new IllegalArgumentException(s"Message was not handled: $msg"))
@@ -65,15 +65,13 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
   }
 
   private def unsupportedMessageTypeException: Receive = {
-    case _ =>
-      throw new UnsupportedMessageTypeException()
+    case _ => throw new UnsupportedMessageTypeException()
   }
 
   /**
    * invoked if a akka.actor.ReceiveTimeout message is received
    */
-  def receiveTimeout(): Unit = {
-  }
+  protected def receiveTimeout(): Unit = {}
 
   /**
    *
@@ -91,7 +89,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
    * </ul>
    *
    */
-  def process: Receive = {
+  protected def process: Receive = {
     def receive: Receive = {
       case msg: Message[_] =>
         val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(senderActorPath = sender.path, actorPath = self.path) :: msg.metadata.processingResults)

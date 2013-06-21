@@ -117,7 +117,7 @@ object MessagingActorSpec {
   def createActorSystem() = {
     val testConfig = ConfigFactory.parseString("""
         akka {
-    		log-config-on-start = on
+    		log-config-on-start = off
         
     		actor{
     			serialize-messages = on

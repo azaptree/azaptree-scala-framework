@@ -40,7 +40,7 @@ trait MessageLogging {
 }
 
 class MessageLoggingStats {
-  private[this] val actorCreatedOn: Long = System.currentTimeMillis()
+  val actorCreatedOn: Long = System.currentTimeMillis()
   var messageCount: Long = 0l
   var lastMessageReceivedOn: Long = 0l
   var lastHeartbeatOn: Long = 0l
