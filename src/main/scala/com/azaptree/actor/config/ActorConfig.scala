@@ -19,8 +19,7 @@ case class ActorConfig(
     actorPath: ActorPath,
     routedTo: Boolean = false,
     loggingReceive: Boolean = false,
-    supervisorStrategy: Either[SupervisorStrategyConfig, SupervisorStrategy] = Right(new OneForOneStrategy()(
-      unsupportedMessageTypeExceptionDecider orElse SupervisorStrategy.defaultStrategy.decider)),
+    supervisorStrategy: Either[SupervisorStrategyConfig, SupervisorStrategy] = Left(SupervisorStrategyConfig()),
     topLevelActor: Boolean = false,
     // used to provide any Actor specific config
     config: Option[Config] = None,
