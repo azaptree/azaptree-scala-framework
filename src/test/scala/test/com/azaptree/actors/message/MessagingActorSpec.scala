@@ -330,7 +330,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
       }
 
       val now = System.currentTimeMillis()
-      Thread.sleep(10l)
+      Thread.sleep(100l)
 
       val msgStatsBefore2 = getMessageActorStats(printer)
       println(s"*** msgStatsBefore2 = $msgStatsBefore2")

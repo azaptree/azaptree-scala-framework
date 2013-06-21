@@ -143,6 +143,7 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
     }
 
     eventBus.publish(PostApplicationShutdownEvent(this))
+    log.debug("Published PostApplicationShutdownEvent")
     app
   }
 

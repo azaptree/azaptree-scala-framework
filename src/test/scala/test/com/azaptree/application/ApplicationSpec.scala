@@ -171,6 +171,8 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
 
       app.shutdown()
 
+      Thread.sleep(50l)
+
       (compRegisteredCount + ComponentShutdownEventCount) should be(comps.size * 2)
     }
 
