@@ -1,8 +1,7 @@
 package com.azaptree.application.model
 
-case class Component(name: String)
+case class ComponentId(group: String, name: String)
 
-case class ComponentVersion(
-  comp: Component,
-  version: String,
-  compDependencies: Option[Iterable[ComponentVersion]] = None)
+case class ComponentVersionId(compId: ComponentId, version: String)
+
+case class ComponentVersion(id: ComponentVersionId, compDependencies: Option[Iterable[ComponentVersion]] = None)

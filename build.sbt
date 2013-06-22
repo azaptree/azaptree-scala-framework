@@ -1,3 +1,5 @@
+organization := "com.azaptree"
+
 name := "azaptree-scala-framework"
 
 version := "0.0.1-SNAPSHOT"
