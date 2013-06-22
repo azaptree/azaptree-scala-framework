@@ -110,7 +110,7 @@
 								}
 								
 							},							
-							"component-dependencies":[
+							"component-dependency-refs":[
 								{
 									"group":"com.azaptree",
 									"name":"azaptree-security-model",

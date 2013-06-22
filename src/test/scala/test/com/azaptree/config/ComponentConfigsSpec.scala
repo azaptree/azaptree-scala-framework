@@ -102,9 +102,59 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
               }
           }
         }
-
       }
     }
+
+    it("can return the ComponentVersionConfig for the specified ComponentVersionId") {
+      val compIds = compConfigs.componentIds
+      compIds.isDefined should be(true)
+      for {
+        ids <- compIds
+      } yield {
+        ids.foreach { id =>
+          compConfigs.componentVersions(ComponentId(group = id.group, name = id.name)) match {
+            case None => throw new IllegalStateException("Did not find component versions for: " + id)
+            case Some(versionIds) =>
+              versionIds.foreach { versionId =>
+                compConfigs.componentVersionConfig(versionId) match {
+                  case None => throw new IllegalStateException("Failed to find ComponentVersionConfig for: " + versionId)
+                  case Some(componentVersionConfig) =>
+                    log.info(componentVersionConfig.toString())
+                }
+              }
+          }
+        }
+      }
+    }
+
+    it("can return the ComponentConfigInstance for the specified ComponentConfigInstanceId") {
+      val compIds = compConfigs.componentIds
+      compIds.isDefined should be(true)
+      for {
+        ids <- compIds
+      } yield {
+        ids.foreach { id =>
+          compConfigs.componentVersions(ComponentId(group = id.group, name = id.name)) match {
+            case None => throw new IllegalStateException("Did not find component versions for: " + id)
+            case Some(versionIds) =>
+              versionIds.foreach { versionId =>
+                compConfigs.componentConfigInstanceIds(versionId) match {
+                  case None => throw new IllegalStateException("Expected some ComponentConfigInstanceIds")
+                  case Some(componentConfigInstanceIds) =>
+                    componentConfigInstanceIds.foreach { componentConfigInstanceId =>
+                      compConfigs.componentConfigInstance(componentConfigInstanceId) match {
+                        case None => throw new IllegalStateException("Expected componentConfigInstance to be found for: " + componentConfigInstanceId)
+                        case Some(componentConfigInstance) =>
+                          log.info(componentConfigInstance.toString())
+                      }
+                    }
+                }
+              }
+          }
+        }
+      }
+    }
+
   }
 
 }

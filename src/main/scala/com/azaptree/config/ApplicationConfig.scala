@@ -2,18 +2,17 @@ package com.azaptree.config
 
 import com.azaptree.application.model.ApplicationVersion
 import com.azaptree.application.model.ApplicationVersionId
+import com.azaptree.application.model.ComponentVersionId
 
-case class ApplicationConfig(
+case class ApplicationVersionConfig(
   appVersionId: ApplicationVersionId,
   configSchema: Option[com.typesafe.config.Config] = None,
-  validators: Option[ConfigValidator] = None)
+  validators: Option[Iterable[ConfigValidator]] = None,
+  compDependencies: Option[Iterable[ComponentVersionId]] = None)
 
 case class ApplicationConfigInstance(
-    appConfig: ApplicationConfig,
-    name: String,
-    config: Option[com.typesafe.config.Config],
-    compDependencies: Option[Iterable[ComponentDependency]] = None) {
-  val id = ApplicationConfigInstanceId(versionId = appConfig.appVersionId, configInstanceName = name)
-}
+  id: ApplicationConfigInstanceId,
+  config: Option[com.typesafe.config.Config],
+  compDependencyRefs: Option[Iterable[ComponentConfigInstanceId]] = None)
 
 case class ApplicationConfigInstanceId(versionId: ApplicationVersionId, configInstanceName: String)

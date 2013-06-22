@@ -12,6 +12,8 @@ import com.azaptree.application.model.ApplicationVersionId
 import scala.collection.JavaConversions._
 import com.typesafe.config.ConfigValue
 import javax.naming.OperationNotSupportedException
+import com.azaptree.application.model.ComponentVersionId
+import org.slf4j.LoggerFactory
 
 trait ConfigService extends ApplicationConfigs with ComponentConfigs {
   def applicationConfig(id: ApplicationConfigInstanceId): Config
@@ -36,6 +38,7 @@ trait ApplicationConfigs extends ConfigLookup {
 }
 
 trait ComponentConfigs extends ConfigLookup {
+  protected val log = LoggerFactory.getLogger("com.azaptree.config.ComponentConfigs")
 
   val compConfigs: Map[ComponentId, Config] = {
     val c: Config = config()
@@ -142,6 +145,9 @@ trait ComponentConfigs extends ConfigLookup {
     }
   }
 
+  /**
+   * if the configuration is invalid, then an Exception is returned
+   */
   def componentConfigInstance(id: ComponentConfigInstanceId): Option[ComponentConfigInstance] = {
     if (compConfigs.isEmpty) {
       None
@@ -158,13 +164,93 @@ trait ComponentConfigs extends ConfigLookup {
                 configInstances.find(_.getString("name") == id.configInstanceName) match {
                   case None => None
                   case Some(configInstance) =>
-                    None
-                  // TODO: create ComponentConfigInstance
+                    val compVersionConfig = componentVersionConfig(id.versionId)
+                    val configInstanceConfig = getConfig(configInstance, "config")
 
+                    val compDependencyRefs = {
+                      try {
+                        val compDependencyRefs: Seq[Config] = configInstance.getConfigList("component-dependency-refs")
+                        val refs = compDependencyRefs.foldLeft(List.empty[ComponentConfigInstanceId]) { (refs, compDependencyRef) =>
+                          val compId = ComponentId(group = compDependencyRef.getString("group"), name = compDependencyRef.getString("name"))
+                          val version = compVersionConfig.get.compDependency(compId).get.version
+                          val compConfigInstanceId = ComponentConfigInstanceId(
+                            versionId = ComponentVersionId(compId = compId, version = version),
+                            configInstanceName = compDependencyRef.getString("configName"))
+
+                          compConfigInstanceId :: refs
+                        }
+
+                        Some(refs)
+                      } catch {
+                        case e: com.typesafe.config.ConfigException.Missing => None
+                        case e: Exception => throw e
+                      }
+                    }
+
+                    Some(ComponentConfigInstance(id = id, config = configInstanceConfig, compDependencyRefs = compDependencyRefs))
                 }
             }
           } catch {
             case e: com.typesafe.config.ConfigException.Missing => None
+            case e: Exception => throw e
+          }
+      }
+    }
+  }
+
+  def componentVersionConfig(versionId: ComponentVersionId): Option[ComponentVersionConfig] = {
+    if (compConfigs.isEmpty) {
+      None
+    } else {
+      compConfigs.get(versionId.compId) match {
+        case None => None
+        case Some(compConfig) =>
+          try {
+            val versions: Seq[Config] = compConfig.getConfigList("versions")
+            versions.find(_.getString("version") == versionId.version) match {
+              case None =>
+                log.debug("no matching version found for : {}", versionId)
+                None
+              case Some(version) =>
+                val validators = {
+                  try {
+                    val configValidatorClassNames: Seq[String] = version.getStringList("config-validators")
+                    val cl = getClass().getClassLoader()
+                    Some(configValidatorClassNames.map { className =>
+                      cl.loadClass(className).newInstance().asInstanceOf[ConfigValidator]
+                    })
+                  } catch {
+                    case e: com.typesafe.config.ConfigException.Missing => None
+                    case e: Exception => throw e
+                  }
+                }
+
+                val compDependencies = {
+                  try {
+                    val configs: Seq[Config] = version.getConfigList("component-dependencies")
+                    Some(configs.foldLeft(List.empty[ComponentVersionId]) { (compDependencies, config) =>
+                      val group = config.getString("group")
+                      val name = config.getString("name")
+                      val version = config.getString("version")
+                      val compVersionId = ComponentVersionId(compId = ComponentId(group = group, name = name), version = version)
+                      compVersionId :: compDependencies
+                    })
+                  } catch {
+                    case e: com.typesafe.config.ConfigException.Missing => None
+                    case e: Exception => throw e
+                  }
+                }
+
+                Some(ComponentVersionConfig(
+                  compVersionId = versionId,
+                  configSchema = getConfig(version, "config-schema"),
+                  validators = validators,
+                  compDependencies = compDependencies))
+            }
+          } catch {
+            case e: com.typesafe.config.ConfigException.Missing =>
+              if (log.isDebugEnabled()) log.debug(s"no matching version found for [$versionId] because of missing config path ", e)
+              None
             case e: Exception => throw e
           }
       }
