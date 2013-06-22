@@ -32,7 +32,7 @@ case class ApplicationPidFile(appName: String, watchDir: File)(implicit fileWatc
     val log = LoggerFactory.getLogger("ApplicationPidFile")
     val f = pidFile
     FileUtils.touch(f)
-    log.info("Created  PID file : {}", f)
+    log.info("Created  PID file : {}", f.getAbsolutePath())
     fileWatcherService.watch(watchDir.toPath(), ENTRY_DELETE :: Nil, (watchEvent) => {
       watchEvent.context() match {
         case p: Path =>
