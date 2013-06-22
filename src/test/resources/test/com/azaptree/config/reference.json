@@ -77,6 +77,58 @@
 			"name":"azaptree-security-service",
 			"group":"com.azaptree",
 			"versions":[
+			{
+					"version":"1.1.0",
+					"component-dependencies":[
+						{
+							"group":"com.azaptree",
+							"name":"azaptree-security-model",
+							"version":"1.1.0"
+						},
+						{
+							"group":"com.azaptree",
+							"name":"azaptree-cassandra",
+							"version":"1.0.0"
+						}
+						
+					],
+					"config-schema":{
+						"security-service-actor-pool":{
+							"min":1,
+							"max":10
+						}
+						
+					},
+					"config-validators":["test.com.azaptree.config.AlwaysValid"],
+					"configs":[
+						{
+							"name":"dev-local",
+							"config":{
+								"security-service-actor-pool":{
+									"min":1,
+									"max":5
+								}
+								
+							},							
+							"component-dependency-refs":[
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-security-model",
+									"configName":"default"
+								},
+								{
+									"group":"com.azaptree----invalid",
+									"name":"azaptree-cassandra",
+									"configName":"cassandra-local"
+								}
+								
+							]
+							
+						}
+						
+					]
+					
+				},
 				{
 					"version":"1.2.0",
 					"component-dependencies":[

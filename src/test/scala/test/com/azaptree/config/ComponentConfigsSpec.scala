@@ -9,6 +9,7 @@ import com.azaptree.application.model.ComponentId
 import java.util.UUID
 import com.typesafe.config.ConfigRenderOptions
 import com.azaptree.config._
+import com.azaptree.application.model.ComponentVersionId
 
 case class ComponentConfigs(override val config: Config) extends com.azaptree.config.ComponentConfigs
 
@@ -142,10 +143,53 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
                   case None => throw new IllegalStateException("Expected some ComponentConfigInstanceIds")
                   case Some(componentConfigInstanceIds) =>
                     componentConfigInstanceIds.foreach { componentConfigInstanceId =>
-                      compConfigs.componentConfigInstance(componentConfigInstanceId) match {
-                        case None => throw new IllegalStateException("Expected componentConfigInstance to be found for: " + componentConfigInstanceId)
-                        case Some(componentConfigInstance) =>
-                          log.info(componentConfigInstance.toString())
+                      try {
+                        compConfigs.componentConfigInstance(componentConfigInstanceId) match {
+                          case None => throw new IllegalStateException("Expected componentConfigInstance to be found for: " + componentConfigInstanceId)
+                          case Some(componentConfigInstance) =>
+                            log.info(componentConfigInstance.toString())
+                        }
+                      } catch {
+                        case e: IllegalStateException =>
+                          if (componentConfigInstanceId.versionId != ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.1.0")) throw e
+                      }
+                    }
+                }
+              }
+          }
+        }
+      }
+    }
+
+    it("can validate ComponentConfigInstances") {
+      val compIds = compConfigs.componentIds
+      compIds.isDefined should be(true)
+      for {
+        ids <- compIds
+      } yield {
+        ids.foreach { id =>
+          compConfigs.componentVersions(ComponentId(group = id.group, name = id.name)) match {
+            case None => throw new IllegalStateException("Did not find component versions for: " + id)
+            case Some(versionIds) =>
+              versionIds.foreach { versionId =>
+                compConfigs.componentConfigInstanceIds(versionId) match {
+                  case None => throw new IllegalStateException("Expected some ComponentConfigInstanceIds")
+                  case Some(componentConfigInstanceIds) =>
+                    componentConfigInstanceIds.foreach { componentConfigInstanceId =>
+                      try {
+                        compConfigs.componentConfigInstance(componentConfigInstanceId) match {
+                          case None => throw new IllegalStateException("Expected componentConfigInstance to be found for: " + componentConfigInstanceId)
+                          case Some(componentConfigInstance) =>
+                            log.info(componentConfigInstance.toString())
+                            compConfigs.validate(componentConfigInstanceId) match {
+                              case None => // is valid
+                              case Some(e) =>
+                                if (componentConfigInstanceId.versionId != ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.1.0")) throw e
+                            }
+                        }
+                      } catch {
+                        case e: IllegalStateException =>
+                          if (componentConfigInstanceId.versionId != ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.1.0")) throw e
                       }
                     }
                 }
