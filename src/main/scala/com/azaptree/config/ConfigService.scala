@@ -142,8 +142,33 @@ trait ComponentConfigs extends ConfigLookup {
     }
   }
 
-  def componentConfigInstance(id: ComponentVersionId): Option[ComponentConfigInstance] = {
-    throw new OperationNotSupportedException
+  def componentConfigInstance(id: ComponentConfigInstanceId): Option[ComponentConfigInstance] = {
+    if (compConfigs.isEmpty) {
+      None
+    } else {
+      compConfigs.get(id.versionId.compId) match {
+        case None => None
+        case Some(compConfig) =>
+          try {
+            val versions: Seq[Config] = compConfig.getConfigList("versions")
+            versions.find(_.getString("version") == id.versionId.version) match {
+              case None => None
+              case Some(versionConfig) =>
+                val configInstances: Seq[Config] = versionConfig.getConfigList("configs")
+                configInstances.find(_.getString("name") == id.configInstanceName) match {
+                  case None => None
+                  case Some(configInstance) =>
+                    None
+                  // TODO: create ComponentConfigInstance
+
+                }
+            }
+          } catch {
+            case e: com.typesafe.config.ConfigException.Missing => None
+            case e: Exception => throw e
+          }
+      }
+    }
   }
 
   /**

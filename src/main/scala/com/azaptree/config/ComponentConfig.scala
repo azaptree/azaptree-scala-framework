@@ -6,7 +6,7 @@ import com.azaptree.application.model.ComponentVersionId
 import com.typesafe.config.Config
 
 case class ComponentConfig(
-  compVersion: ComponentVersion,
+  compVersionId: ComponentVersionId,
   configSchema: Option[com.typesafe.config.Config] = None,
   validators: Option[ConfigValidator] = None)
 
@@ -15,7 +15,7 @@ case class ComponentConfigInstance(
     name: String,
     config: com.typesafe.config.Config,
     compDependencies: Option[Iterable[ComponentDependency]] = None) {
-  val id = ComponentConfigInstanceId(versionId = compConfig.compVersion.id, configInstanceName = name)
+  val id = ComponentConfigInstanceId(versionId = compConfig.compVersionId, configInstanceName = name)
 }
 
 case class ComponentDependency(

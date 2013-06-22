@@ -99,6 +99,7 @@
 						}
 						
 					},
+					"config-validators":["test.com.azaptree.config.AlwaysValid"],
 					"configs":[
 						{
 							"name":"dev-local",
@@ -108,8 +109,7 @@
 									"max":5
 								}
 								
-							},
-							"config-validators":["test.com.azaptree.config.AlwaysValid"],
+							},							
 							"component-dependencies":[
 								{
 									"group":"com.azaptree",
