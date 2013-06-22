@@ -12,6 +12,12 @@ import com.azaptree.config._
 
 case class ComponentConfigs(override val config: Config) extends com.azaptree.config.ComponentConfigs
 
+class AlwaysValid extends ConfigValidator {
+  override def validate(config: Config) = {
+    None
+  }
+}
+
 class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
   val log = LoggerFactory.getLogger("ComponentConfigsSpec")
 
@@ -69,6 +75,29 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
                 compConfigs.componentVersion(versionId) match {
                   case None => throw new IllegalStateException("Failed to find ComponentVersion for: " + versionId)
                   case Some(compVersion) => log.info(compVersion.toString())
+                }
+              }
+          }
+        }
+
+      }
+    }
+
+    it("can list ComponentConfigInstanceId for a specified ComponentVersionId") {
+      val compIds = compConfigs.componentIds
+      compIds.isDefined should be(true)
+      for {
+        ids <- compIds
+      } yield {
+        ids.foreach { id =>
+          compConfigs.componentVersions(ComponentId(group = id.group, name = id.name)) match {
+            case None => throw new IllegalStateException("Did not find component versions for: " + id)
+            case Some(versionIds) =>
+              versionIds.foreach { versionId =>
+                compConfigs.componentConfigInstanceIds(versionId) match {
+                  case None => throw new IllegalStateException("Failed to find ComponentInstanceIds for: " + versionId)
+                  case Some(compInstanceIds) =>
+                    compInstanceIds.foreach(id => log.info(id.toString()))
                 }
               }
           }

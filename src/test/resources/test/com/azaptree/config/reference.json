@@ -10,13 +10,17 @@
 						"host":"host",
 						"port":123
 					},
-					"configs":{
-						"cassandra-local":{
-							"host":"localhost",
-							"port":9876
+					"configs":[
+						{
+							"name":"cassandra-local",
+							"config":{
+								"host":"localhost",
+								"port":9876
+							}
+							
 						}
 						
-					}
+					]
 					
 				}
 				
@@ -33,13 +37,17 @@
 						"cacheSize":100000,
 						"domain":"domain"
 					},
-					"configs":{
-						"default":{
-							"cacheSize":100000,
-							"domain":"com.azaptree"
+					"configs":[
+						{
+							"name":"default",
+							"config":{
+								"cacheSize":100000,
+								"domain":"com.azaptree"
+							}
+							
 						}
 						
-					}
+					]
 					
 				},
 				{
@@ -48,13 +56,17 @@
 						"cacheSize":100000,
 						"domain":"domain"
 					},
-					"configs":{
-						"default":{
-							"cacheSize":100000,
-							"domain":"com.azaptree"
+					"configs":[
+						{
+							"name":"default",
+							"config":{
+								"cacheSize":100000,
+								"domain":"com.azaptree"
+							}
+							
 						}
 						
-					}
+					]
 					
 				}
 				
@@ -87,19 +99,34 @@
 						}
 						
 					},
-					"configs":{
-						"dev-local":{
+					"configs":[
+						{
+							"name":"dev-local",
 							"config":{
 								"security-service-actor-pool":{
 									"min":1,
 									"max":5
 								}
 								
-							}
+							},
+							"config-validators":["test.com.azaptree.config.AlwaysValid"],
+							"component-dependencies":[
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-security-model",
+									"configName":"default"
+								},
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-cassandra",
+									"configName":"cassandra-local"
+								}
+								
+							]
 							
 						}
 						
-					}
+					]
 					
 				}
 				

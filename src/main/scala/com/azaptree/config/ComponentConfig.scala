@@ -3,6 +3,7 @@ package com.azaptree.config
 import com.azaptree.application.model.ComponentVersion
 import com.azaptree.application.model.ComponentId
 import com.azaptree.application.model.ComponentVersionId
+import com.typesafe.config.Config
 
 case class ComponentConfig(
   compVersion: ComponentVersion,
@@ -18,8 +19,12 @@ case class ComponentConfigInstance(
 }
 
 case class ComponentDependency(
-  compVersion: ComponentVersion,
+  compVersionId: ComponentVersionId,
   compConfigInstanceName: String,
   config: Option[com.typesafe.config.Config] = None)
 
 case class ComponentConfigInstanceId(versionId: ComponentVersionId, configInstanceName: String)
+
+trait ConfigValidator {
+  def validate(config: Config): Option[Exception]
+}

@@ -6,8 +6,6 @@ import com.typesafe.config.ConfigRenderOptions
 
 package object config {
 
-  type ConfigValidator = Config => Option[Exception]
-
   lazy val globalConfig: Config = ConfigFactory.load()
 
   val jsonFormattedRenderOptions = ConfigRenderOptions.defaults().setComments(false).setOriginComments(false)

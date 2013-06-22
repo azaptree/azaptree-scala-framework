@@ -73,7 +73,7 @@ trait ComponentConfigs extends ConfigLookup {
               val versionId = ComponentVersionId(id, versionConfig.getString("version"))
               versionId :: versionList
             }
-            if (versionIds.isEmpty) None else Some(versionIds)
+            Some(versionIds)
           } catch {
             case e: com.typesafe.config.ConfigException.Missing => None
             case e: Exception => throw e
@@ -117,10 +117,39 @@ trait ComponentConfigs extends ConfigLookup {
   }
 
   def componentConfigInstanceIds(id: ComponentVersionId): Option[Iterable[ComponentConfigInstanceId]] = {
-    throw new OperationNotSupportedException
+    if (compConfigs.isEmpty) {
+      None
+    } else {
+      compConfigs.get(id.compId) match {
+        case None => None
+        case Some(compConfig) =>
+          try {
+            val versions: Seq[Config] = compConfig.getConfigList("versions")
+            versions.find(_.getString("version") == id.version) match {
+              case None => None
+              case Some(versionConfig) =>
+                val configInstances: Seq[Config] = versionConfig.getConfigList("configs")
+                val compConfigInstanceIds = configInstances.foldLeft(List.empty[ComponentConfigInstanceId]) { (compConfigInstanceIds, configInstance) =>
+                  ComponentConfigInstanceId(id, configInstance.getString("name")) :: compConfigInstanceIds
+                }
+                Some(compConfigInstanceIds)
+            }
+          } catch {
+            case e: com.typesafe.config.ConfigException.Missing => None
+            case e: Exception => throw e
+          }
+      }
+    }
   }
 
   def componentConfigInstance(id: ComponentVersionId): Option[ComponentConfigInstance] = {
+    throw new OperationNotSupportedException
+  }
+
+  /**
+   * Will return an IllegalArgumentException if the compConfigInstanceId was not found
+   */
+  def validate(compConfigInstanceId: ComponentConfigInstanceId): Option[Exception] = {
     throw new OperationNotSupportedException
   }
 }
