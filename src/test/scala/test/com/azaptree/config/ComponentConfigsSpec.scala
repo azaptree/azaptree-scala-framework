@@ -54,6 +54,28 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
 
       }
     }
+
+    it("can retrieve a ComponentVersion for a specified ComponentVersionId") {
+      val compIds = compConfigs.componentIds
+      compIds.isDefined should be(true)
+      for {
+        ids <- compIds
+      } yield {
+        ids.foreach { id =>
+          compConfigs.componentVersions(ComponentId(group = id.group, name = id.name)) match {
+            case None => throw new IllegalStateException("Did not find component versions for: " + id)
+            case Some(versionIds) =>
+              versionIds.foreach { versionId =>
+                compConfigs.componentVersion(versionId) match {
+                  case None => throw new IllegalStateException("Failed to find ComponentVersion for: " + versionId)
+                  case Some(compVersion) => log.info(compVersion.toString())
+                }
+              }
+          }
+        }
+
+      }
+    }
   }
 
 }
