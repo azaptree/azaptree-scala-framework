@@ -1,0 +1,20 @@
+{
+	"applications":{
+		"application-security-server":{
+			"group"="com.azaptree",
+			"versions":{
+				"1.0.0":{
+					"component-dependencies":{
+						
+					},
+					"config-schema":{
+						
+					}
+					
+				}
+				
+			}
+			
+		}
+	}
+}

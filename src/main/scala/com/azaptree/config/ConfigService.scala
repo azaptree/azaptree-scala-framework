@@ -14,7 +14,11 @@ trait ConfigService extends ApplicationConfigs with ComponentConfigs {
   def componentConfig(versionId: ComponentVersionId, configInstanceName: String): Config
 }
 
-trait ApplicationConfigs {
+trait ConfigLookup {
+  def config(): Config
+}
+
+trait ApplicationConfigs extends ConfigLookup {
   def applicationIds(): Option[Iterable[ApplicationId]]
 
   def applicationVersions(name: String): Option[Iterable[String]]
@@ -26,7 +30,7 @@ trait ApplicationConfigs {
   def applicationConfigInstance(name: String, version: String, instanceName: String): Option[ApplicationConfigInstance]
 }
 
-trait ComponentConfigs {
+trait ComponentConfigs extends ConfigLookup {
   def componentIds(): ComponentId
 
   def componentVersions(name: String): Option[Iterable[String]]
