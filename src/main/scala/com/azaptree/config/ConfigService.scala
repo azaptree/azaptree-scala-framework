@@ -36,21 +36,43 @@ trait ApplicationConfigs extends ConfigLookup {
 }
 
 trait ComponentConfigs extends ConfigLookup {
-  def componentIds(): Option[Iterable[ComponentId]] = {
+
+  val compConfigs: Map[ComponentId, Config] = {
     val c: Config = config()
     val components: Seq[Config] = c.getConfigList("components")
 
-    val emptyComponentIdsList: List[ComponentId] = Nil
-    val componentIds: List[ComponentId] = components.foldLeft(emptyComponentIdsList) { (compIds, compConfig) =>
+    val emptyComponentConfigsMap: Map[ComponentId, Config] = Map.empty[ComponentId, Config]
+    components.foldLeft(emptyComponentConfigsMap) { (compConfigsMap, compConfig) =>
       val compId = ComponentId(group = compConfig.getString("group"), name = compConfig.getString("name"))
-      compId :: compIds
+      compConfigsMap + (compId -> compConfig)
     }
+  }
 
-    if (componentIds.isEmpty) None else Some(componentIds)
+  def componentIds(): Option[Iterable[ComponentId]] = {
+    if (compConfigs.isEmpty) None else Some(compConfigs.keys)
   }
 
   def componentVersions(id: ComponentId): Option[Iterable[ComponentVersionId]] = {
-    throw new OperationNotSupportedException
+    if (compConfigs.isEmpty) {
+      None
+    } else {
+      compConfigs.get(id) match {
+        case None => None
+        case Some(compConfig) =>
+          val versions: Seq[Config] = compConfig.getConfigList("versions")
+          if (versions.isEmpty) {
+            None
+          } else {
+            val emptyList: List[ComponentVersionId] = Nil
+            val versionIds = versions.foldLeft(emptyList) { (versionList, versionConfig) =>
+              val versionId = ComponentVersionId(id, versionConfig.getString("version"))
+              versionId :: versionList
+            }
+
+            if (versionIds.isEmpty) None else Some(versionIds)
+          }
+      }
+    }
   }
 
   def componentVersion(id: ComponentVersionId): Option[ComponentVersion] = {

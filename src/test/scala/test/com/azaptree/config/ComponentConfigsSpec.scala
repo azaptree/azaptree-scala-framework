@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 import com.azaptree.application.model.ComponentId
 import java.util.UUID
 import com.typesafe.config.ConfigRenderOptions
+import com.azaptree.config._
 
 case class ComponentConfigs(override val config: Config) extends com.azaptree.config.ComponentConfigs
 
@@ -16,8 +17,7 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
 
   val config = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/reference.json")
 
-  val renderOptions = ConfigRenderOptions.defaults().setComments(false).setOriginComments(false)
-  log.info(config.root().render(renderOptions))
+  log.info(toFormattedJson(config))
 
   val compConfigs = ComponentConfigs(config)
 
@@ -35,6 +35,23 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
         assert(ids.find(compId => compId.group == "com.azaptree" && compId.name == "azaptree-cassandra").isDefined)
         assert(ids.find(compId => compId.group == "com.azaptree" && compId.name == UUID.randomUUID().toString()).isEmpty)
         assert(ids.find(compId => compId.group == UUID.randomUUID().toString() && compId.name == "azaptree-cassandra").isEmpty)
+      }
+    }
+
+    it("can list ComponentVersionIds for a ComponentId") {
+      val compIds = compConfigs.componentIds
+      compIds.isDefined should be(true)
+      for {
+        ids <- compIds
+      } yield {
+        ids.foreach { id =>
+          compConfigs.componentVersions(ComponentId(group = id.group, name = id.name)) match {
+            case None => throw new IllegalStateException("Did not find component versions for: " + id)
+            case Some(versionIds) =>
+              versionIds.foreach(id => log.info(id.toString()))
+          }
+        }
+
       }
     }
   }

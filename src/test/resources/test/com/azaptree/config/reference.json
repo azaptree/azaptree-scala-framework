@@ -28,6 +28,21 @@
 			"group":"com.azaptree",
 			"versions":[
 				{
+					"version":"1.0.0",
+					"config-schema":{
+						"cacheSize":100000,
+						"domain":"domain"
+					},
+					"configs":{
+						"default":{
+							"cacheSize":100000,
+							"domain":"com.azaptree"
+						}
+						
+					}
+					
+				},
+				{
 					"version":"1.1.0",
 					"config-schema":{
 						"cacheSize":100000,
