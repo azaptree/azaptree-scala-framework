@@ -24,11 +24,6 @@ case class ComponentConfigInstance(
   config: Option[com.typesafe.config.Config] = None,
   compDependencyRefs: Option[Iterable[ComponentConfigInstanceId]] = None)
 
-case class ComponentDependency(
-  compVersionId: ComponentVersionId,
-  compConfigInstanceName: String,
-  config: Option[com.typesafe.config.Config] = None)
-
 case class ComponentConfigInstanceId(versionId: ComponentVersionId, configInstanceName: String)
 
 trait ConfigValidator {
