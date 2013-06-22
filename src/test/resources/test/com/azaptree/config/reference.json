@@ -1,9 +1,11 @@
 {
-	"components":{
-		"azaptree-cassandra":{
+	"components":[
+		{
+			"name":"azaptree-cassandra",
 			"group":"com.azaptree",
-			"versions":{
-				"1.0.0":{
+			"versions":[
+				{
+					"version":"1.0.0",
 					"config-schema":{
 						"host":"host",
 						"port":123
@@ -13,14 +15,20 @@
 							"host":"localhost",
 							"port":9876
 						}
+						
 					}
+					
 				}
-			}
+				
+			]
+			
 		},
-		"azaptree-security-model":{
+		{
+			"name":"azaptree-security-model",
 			"group":"com.azaptree",
-			"versions":{
-				"1.1.0":{
+			"versions":[
+				{
+					"version":"1.1.0",
 					"config-schema":{
 						"cacheSize":100000,
 						"domain":"domain"
@@ -30,14 +38,20 @@
 							"cacheSize":100000,
 							"domain":"com.azaptree"
 						}
+						
 					}
+					
 				}
-			}
+				
+			]
+			
 		},
-		"azaptree-security-service":{
+		{
+			"name":"azaptree-security-service",
 			"group":"com.azaptree",
-			"versions":{
-				"1.2.0":{
+			"versions":[
+				{
+					"version":"1.2.0",
 					"component-dependencies":[
 						{
 							"group":"com.azaptree",
@@ -49,12 +63,14 @@
 							"name":"azaptree-cassandra",
 							"version":"1.0.0"
 						}
+						
 					],
 					"config-schema":{
 						"security-service-actor-pool":{
 							"min":1,
 							"max":10
 						}
+						
 					},
 					"configs":{
 						"dev-local":{
@@ -63,11 +79,18 @@
 									"min":1,
 									"max":5
 								}
+								
 							}
+							
 						}
+						
 					}
+					
 				}
-			}
+				
+			]
+			
 		}
-	}
+		
+	]
 }

@@ -7,11 +7,16 @@ import com.azaptree.application.model.ComponentId
 import com.azaptree.application.model.ComponentVersion
 import com.azaptree.application.model.ComponentVersionId
 import com.typesafe.config.Config
+import com.azaptree.application.model.ComponentVersionId
+import com.azaptree.application.model.ApplicationVersionId
+import scala.collection.JavaConversions._
+import com.typesafe.config.ConfigValue
+import javax.naming.OperationNotSupportedException
 
 trait ConfigService extends ApplicationConfigs with ComponentConfigs {
-  def applicationConfig(versionId: ApplicationVersionId, configInstanceName: String): Config
+  def applicationConfig(id: ApplicationConfigInstanceId): Config
 
-  def componentConfig(versionId: ComponentVersionId, configInstanceName: String): Config
+  def componentConfig(id: ComponentVersionId): Config
 }
 
 trait ConfigLookup {
@@ -21,23 +26,42 @@ trait ConfigLookup {
 trait ApplicationConfigs extends ConfigLookup {
   def applicationIds(): Option[Iterable[ApplicationId]]
 
-  def applicationVersions(name: String): Option[Iterable[String]]
+  def applicationVersions(id: ApplicationId): Option[Iterable[ApplicationVersionId]]
 
-  def applicationVersion(name: String, version: String): Option[ApplicationVersion]
+  def applicationVersion(id: ApplicationVersionId): Option[ApplicationVersion]
 
-  def applicationConfigInstanceNames(name: String, version: String): Option[Iterable[String]]
+  def applicationConfigInstanceNames(id: ApplicationVersionId): Option[Iterable[ApplicationConfigInstanceId]]
 
-  def applicationConfigInstance(name: String, version: String, instanceName: String): Option[ApplicationConfigInstance]
+  def applicationConfigInstance(id: ApplicationConfigInstanceId): Option[ApplicationConfigInstance]
 }
 
 trait ComponentConfigs extends ConfigLookup {
-  def componentIds(): ComponentId
+  def componentIds(): Option[Iterable[ComponentId]] = {
+    val c: Config = config()
+    val components: Seq[Config] = c.getConfigList("components")
 
-  def componentVersions(name: String): Option[Iterable[String]]
+    val emptyComponentIdsList: List[ComponentId] = Nil
+    val componentIds: List[ComponentId] = components.foldLeft(emptyComponentIdsList) { (compIds, compConfig) =>
+      val compId = ComponentId(group = compConfig.getString("group"), name = compConfig.getString("name"))
+      compId :: compIds
+    }
 
-  def componentVersion(name: String, version: String): Option[ComponentVersion]
+    if (componentIds.isEmpty) None else Some(componentIds)
+  }
 
-  def componentConfigInstanceNames(name: String, version: String): Option[Iterable[String]]
+  def componentVersions(id: ComponentId): Option[Iterable[ComponentVersionId]] = {
+    throw new OperationNotSupportedException
+  }
 
-  def componentConfigInstance(name: String, version: String, instanceName: String): Option[ComponentConfigInstance]
+  def componentVersion(id: ComponentVersionId): Option[ComponentVersion] = {
+    throw new OperationNotSupportedException
+  }
+
+  def componentConfigInstanceIds(id: ComponentVersionId): Option[Iterable[ComponentConfigInstanceId]] = {
+    throw new OperationNotSupportedException
+  }
+
+  def componentConfigInstance(id: ComponentVersionId): Option[ComponentConfigInstance] = {
+    throw new OperationNotSupportedException
+  }
 }
