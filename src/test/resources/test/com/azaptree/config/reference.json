@@ -1,4 +1,4 @@
-{	
+{
 	"components":[
 		{
 			"name":"azaptree-cassandra",
@@ -7,15 +7,21 @@
 				{
 					"version":"1.0.0",
 					"config-schema":{
-						"host":"host",
-						"port":123
+						"azaptree-cassandra":{
+							"host":"host",
+							"port":123
+						}
+						
 					},
 					"configs":[
 						{
 							"name":"cassandra-local",
 							"config":{
-								"host":"localhost",
-								"port":9876
+								"azaptree-cassandra":{
+									"host":"localhost",
+									"port":9876
+								}
+								
 							}
 							
 						}
@@ -34,15 +40,21 @@
 				{
 					"version":"1.0.0",
 					"config-schema":{
-						"cacheSize":100000,
-						"domain":"domain"
+						"azaptree-security-model":{
+							"cacheSize":100000,
+							"domain":"domain"
+						}
+						
 					},
 					"configs":[
 						{
 							"name":"default",
 							"config":{
-								"cacheSize":100000,
-								"domain":"com.azaptree"
+								"azaptree-security-model":{
+									"cacheSize":100000,
+									"domain":"com.azaptree"
+								}
+								
 							}
 							
 						}
@@ -53,15 +65,20 @@
 				{
 					"version":"1.1.0",
 					"config-schema":{
-						"cacheSize":100000,
-						"domain":"domain"
+						"azaptree-security-model":{
+							"cacheSize":100000,
+							"domain":"domain"
+						}
+						
 					},
 					"configs":[
 						{
 							"name":"default",
 							"config":{
-								"cacheSize":100000,
-								"domain":"com.azaptree"
+								"azaptree-security-model":{
+									"cacheSize":100000,
+									"domain":"com.azaptree"
+								}
 							}
 							
 						}
@@ -77,7 +94,7 @@
 			"name":"azaptree-security-service",
 			"group":"com.azaptree",
 			"versions":[
-			{
+				{
 					"version":"1.1.0",
 					"component-dependencies":[
 						{
@@ -99,7 +116,9 @@
 						}
 						
 					},
-					"config-validators":["test.com.azaptree.config.AlwaysValid"],
+					"config-validators":[
+						"test.com.azaptree.config.AlwaysValid"
+					],
 					"configs":[
 						{
 							"name":"dev-local",
@@ -109,7 +128,7 @@
 									"max":5
 								}
 								
-							},							
+							},
 							"component-dependency-refs":[
 								{
 									"group":"com.azaptree",
@@ -148,9 +167,12 @@
 						"security-service-actor-pool":{
 							"min":1,
 							"max":10
-						}						
+						}
+						
 					},
-					"config-validators":["test.com.azaptree.config.AlwaysValid"],
+					"config-validators":[
+						"test.com.azaptree.config.AlwaysValid"
+					],
 					"configs":[
 						{
 							"name":"dev-local",
@@ -160,7 +182,7 @@
 									"max":5
 								}
 								
-							},							
+							},
 							"component-dependency-refs":[
 								{
 									"group":"com.azaptree",

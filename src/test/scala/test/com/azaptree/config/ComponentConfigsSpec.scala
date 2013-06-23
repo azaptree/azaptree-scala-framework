@@ -58,7 +58,7 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
         ids <- compIds
       } yield {
         ids.foreach { id =>
-          compConfigs.componentVersions(ComponentId(group = id.group, name = id.name)) match {
+          compConfigs.componentVersionIds(ComponentId(group = id.group, name = id.name)) match {
             case None => throw new IllegalStateException("Did not find component versions for: " + id)
             case Some(versionIds) =>
               versionIds.foreach(id => log.info(id.toString()))
@@ -75,7 +75,7 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
         ids <- compIds
       } yield {
         ids.foreach { id =>
-          compConfigs.componentVersions(ComponentId(group = id.group, name = id.name)) match {
+          compConfigs.componentVersionIds(ComponentId(group = id.group, name = id.name)) match {
             case None => throw new IllegalStateException("Did not find component versions for: " + id)
             case Some(versionIds) =>
               versionIds.foreach { versionId =>
@@ -97,7 +97,7 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
         ids <- compIds
       } yield {
         ids.foreach { id =>
-          compConfigs.componentVersions(ComponentId(group = id.group, name = id.name)) match {
+          compConfigs.componentVersionIds(ComponentId(group = id.group, name = id.name)) match {
             case None => throw new IllegalStateException("Did not find component versions for: " + id)
             case Some(versionIds) =>
               versionIds.foreach { versionId =>
@@ -119,7 +119,7 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
         ids <- compIds
       } yield {
         ids.foreach { id =>
-          compConfigs.componentVersions(ComponentId(group = id.group, name = id.name)) match {
+          compConfigs.componentVersionIds(ComponentId(group = id.group, name = id.name)) match {
             case None => throw new IllegalStateException("Did not find component versions for: " + id)
             case Some(versionIds) =>
               versionIds.foreach { versionId =>
@@ -141,7 +141,7 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
         ids <- compIds
       } yield {
         ids.foreach { id =>
-          compConfigs.componentVersions(ComponentId(group = id.group, name = id.name)) match {
+          compConfigs.componentVersionIds(ComponentId(group = id.group, name = id.name)) match {
             case None => throw new IllegalStateException("Did not find component versions for: " + id)
             case Some(versionIds) =>
               versionIds.foreach { versionId =>
@@ -169,7 +169,7 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
         ids <- compIds
       } yield {
         ids.foreach { id =>
-          compConfigs.componentVersions(ComponentId(group = id.group, name = id.name)) match {
+          compConfigs.componentVersionIds(ComponentId(group = id.group, name = id.name)) match {
             case None => throw new IllegalStateException("Did not find component versions for: " + id)
             case Some(versionIds) =>
               versionIds.foreach { versionId =>

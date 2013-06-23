@@ -16,18 +16,56 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 
 trait ConfigService extends ApplicationConfigs {
-  def applicationConfig(id: ApplicationConfigInstanceId): Either[Exception, Option[Config]]
 
+  /**
+   * The configuration instance is validated before returning
+   */
+  def applicationConfig(id: ApplicationConfigInstanceId): Either[Exception, Option[Config]] = {
+    def configWithDependencies(config: Config, configInstance: ApplicationConfigInstance): Either[Exception, Option[Config]] = {
+      configInstance.compDependencyRefs match {
+        case None => Right(Some(config))
+        case Some(compDependencyRefs) =>
+          try {
+            Right(Some(compDependencyRefs.foldLeft(config) { (c, compDependencyRefId) =>
+              componentConfig(compDependencyRefId) match {
+                case Left(e) => throw e
+                case Right(None) => c
+                case Right(Some(compConfig)) => c.withFallback(compConfig)
+              }
+            }))
+          } catch {
+            case e: Exception => Left(e)
+          }
+      }
+    }
+
+    validate(id) match {
+      case Some(e) => Left(e)
+      case None =>
+        applicationConfigInstance(id) match {
+          case None => Right(None)
+          case Some(appConfigInstance) =>
+            appConfigInstance.config match {
+              case None => configWithDependencies(ConfigFactory.empty(), appConfigInstance)
+              case Some(appConfig) => configWithDependencies(appConfig, appConfigInstance)
+            }
+        }
+    }
+  }
+
+  /**
+   * The configuration instance is validated before returning
+   */
   def componentConfig(id: ComponentConfigInstanceId): Either[Exception, Option[Config]] = {
-    def componentConfigWithDependencies(config: Config, compConfigInstance: ComponentConfigInstance) = {
+    def configWithDependencies(config: Config, compConfigInstance: ComponentConfigInstance): Either[Exception, Option[Config]] = {
       compConfigInstance.compDependencyRefs match {
-        case None => Right(None)
+        case None => Right(Some(config))
         case Some(compDependencyRefs) =>
           try {
             Right(Some(compDependencyRefs.foldLeft(config) { (config, compDependencyRefId) =>
               componentConfig(compDependencyRefId) match {
                 case Right(None) => config
-                case Right(Some(config2)) => config.withFallback(config2)
+                case Right(Some(compConfig)) => config.withFallback(compConfig)
                 case Left(e) => throw e
               }
             }))
@@ -37,18 +75,19 @@ trait ConfigService extends ApplicationConfigs {
       }
     }
 
-    componentConfigInstance(id) match {
-      case None => Right(None)
-      case Some(compConfigInstance) =>
-        compConfigInstance.config match {
-          case None =>
-            compConfigInstance.compDependencyRefs match {
-              case None => Right(None)
-              case Some(compDependencyRefs) => componentConfigWithDependencies(ConfigFactory.empty(), compConfigInstance)
+    validate(id) match {
+      case None =>
+        componentConfigInstance(id) match {
+          case None => Right(None)
+          case Some(compConfigInstance) =>
+            compConfigInstance.config match {
+              case None => configWithDependencies(ConfigFactory.empty(), compConfigInstance)
+              case Some(config) => configWithDependencies(config, compConfigInstance)
             }
-          case Some(config) => componentConfigWithDependencies(config, compConfigInstance)
         }
+      case Some(e) => Left(e)
     }
+
   }
 }
 
@@ -336,7 +375,7 @@ trait ComponentConfigs extends ConfigLookup {
     if (compConfigs.isEmpty) None else Some(compConfigs.keys)
   }
 
-  def componentVersions(id: ComponentId): Option[Iterable[ComponentVersionId]] = {
+  def componentVersionIds(id: ComponentId): Option[Iterable[ComponentVersionId]] = {
     if (compConfigs.isEmpty) {
       None
     } else {
