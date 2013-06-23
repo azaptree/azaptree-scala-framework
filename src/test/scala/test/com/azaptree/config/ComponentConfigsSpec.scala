@@ -19,6 +19,12 @@ class AlwaysValid extends ConfigValidator {
   }
 }
 
+class AlwaysInalid extends ConfigValidator {
+  override def validate(config: Config) = {
+    Some(new Exception("ALWAYS INVALID"))
+  }
+}
+
 class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
   val log = LoggerFactory.getLogger("ComponentConfigsSpec")
 
@@ -200,6 +206,7 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
           ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "invalid-dependency-ref") ::
           ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "missing-dependency-ref") ::
           ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "invalid-dependency-ref-configName") ::
+          ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.3.0"), "dev-local") ::
           Nil
       }
 

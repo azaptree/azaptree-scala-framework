@@ -43,4 +43,13 @@ package object config {
     }
   }
 
+  def getStringList(config: Config, path: String): Option[Seq[String]] = {
+    try {
+      Some(config.getStringList(path))
+    } catch {
+      case e: ConfigException.Missing => None
+      case e: Exception => throw e
+    }
+  }
+
 }

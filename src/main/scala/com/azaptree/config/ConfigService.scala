@@ -157,6 +157,101 @@ trait ApplicationConfigs extends ConfigLookup {
         }
     }
   }
+
+  def applicationVersionConfig(versionId: ApplicationVersionId): Option[ApplicationVersionConfig] = {
+    def getValidators(versionConfig: Config): Option[Iterable[ConfigValidator]] = {
+      getStringList(versionConfig, "config-validators") match {
+        case None => None
+        case Some(configValidatorClassNames) =>
+          val cl = getClass().getClassLoader()
+          Some(configValidatorClassNames.map { className =>
+            cl.loadClass(className).newInstance().asInstanceOf[ConfigValidator]
+          })
+      }
+    }
+
+    def getComponentDependencies(versionConfig: Config): Option[Iterable[ComponentVersionId]] = {
+      getConfigList(versionConfig, "component-dependencies") match {
+        case None => None
+        case Some(configs) =>
+          Some(configs.foldLeft(List.empty[ComponentVersionId]) { (compDependencies, config) =>
+            val group = config.getString("group")
+            val name = config.getString("name")
+            val version = config.getString("version")
+            val compVersionId = ComponentVersionId(compId = ComponentId(group = group, name = name), version = version)
+            compVersionId :: compDependencies
+          })
+      }
+    }
+
+    appConfigs.get(versionId.appId) match {
+      case None => None
+      case Some(appConfig) =>
+        getConfigList(config, "versions") match {
+          case None => None
+          case Some(versionConfigs) =>
+            versionConfigs.find(_.getString("version") == versionId.version) match {
+              case None => None
+              case Some(versionConfig) =>
+                val appVersionConfig = ApplicationVersionConfig(
+                  appVersionId = versionId,
+                  configSchema = getConfig(versionConfig, "config-schema"),
+                  validators = getValidators(versionConfig),
+                  compDependencies = getComponentDependencies(versionConfig))
+                Some(appVersionConfig)
+            }
+        }
+    }
+  }
+
+  def validate(id: ApplicationConfigInstanceId): Option[Exception] = {
+
+    def validateConfigSchema(appVersionConfig: ApplicationVersionConfig, appConfigInstance: ApplicationConfigInstance) = {
+      appConfigInstance.config match {
+        case None => if (appVersionConfig.configSchema.isDefined) throw new IllegalStateException("The application config instance requires a Config to be defined")
+        case Some(config) =>
+          appVersionConfig.configSchema match {
+            case None => throw new IllegalStateException("The application config instance has a Config defined even though there is no Config schema defined for the application version")
+            case Some(configSchema) =>
+              config.checkValid(configSchema)
+          }
+      }
+    }
+
+    def runValidators(appVersionConfig: ApplicationVersionConfig, appConfigInstance: ApplicationConfigInstance) = {
+      for {
+        validators <- appVersionConfig.validators
+      } yield {
+        validators.foreach { validator =>
+          validator.validate(appConfigInstance.config.get) match {
+            case None =>
+            case Some(e) => throw e
+          }
+        }
+      }
+    }
+
+    def validateComponentDependencies(appVersionConfig: ApplicationVersionConfig, appConfigInstance: ApplicationConfigInstance) = {
+
+    }
+
+    applicationConfigInstance(id) match {
+      case None => throw new IllegalArgumentException(s"ApplicationConfigInstance not found for : $id")
+      case Some(appConfigInstance) =>
+        try {
+          applicationVersionConfig(id.versionId) match {
+            case None => throw new IllegalStateException("No ApplicationVersionConfig was found for :" + id.versionId)
+            case Some(appVersionConfig) =>
+              validateConfigSchema(appVersionConfig, appConfigInstance)
+              runValidators(appVersionConfig, appConfigInstance)
+              validateComponentDependencies(appVersionConfig, appConfigInstance)
+              None
+          }
+        } catch {
+          case e: Exception => Some(e)
+        }
+    }
+  }
 }
 
 trait ComponentConfigs extends ConfigLookup {
@@ -312,15 +407,13 @@ trait ComponentConfigs extends ConfigLookup {
 
   def componentVersionConfig(versionId: ComponentVersionId): Option[ComponentVersionConfig] = {
     def validators(version: com.typesafe.config.Config): Option[Seq[com.azaptree.config.ConfigValidator]] = {
-      try {
-        val configValidatorClassNames: Seq[String] = version.getStringList("config-validators")
-        val cl = getClass().getClassLoader()
-        Some(configValidatorClassNames.map { className =>
-          cl.loadClass(className).newInstance().asInstanceOf[ConfigValidator]
-        })
-      } catch {
-        case e: com.typesafe.config.ConfigException.Missing => None
-        case e: Exception => throw e
+      getStringList(version, "config-validators") match {
+        case None => None
+        case Some(configValidatorClassNames) =>
+          val cl = getClass().getClassLoader()
+          Some(configValidatorClassNames.map { className =>
+            cl.loadClass(className).newInstance().asInstanceOf[ConfigValidator]
+          })
       }
     }
 
@@ -411,9 +504,19 @@ trait ComponentConfigs extends ConfigLookup {
             case None => Some(new IllegalStateException(s"ComponentVersionConfig not found for: " + compConfigInstanceId.versionId))
             case Some(versionConfig) =>
 
-              versionConfig.configSchema.foreach { configSchema =>
-                instance.config.foreach(_.checkValid(configSchema))
+              versionConfig.configSchema match {
+                case None =>
+                  if (instance.config.isDefined) {
+                    throw new IllegalStateException("There is a ComponenConfigInstace.config defined even though there is no config schema defined on the ComponentVersionConfig");
+                  }
+
+                case Some(configSchema) =>
+                  instance.config match {
+                    case None => throw new IllegalStateException("The ComponentConfigInstance requires a config because the ComponentVersionConfig has a configSchema defined")
+                    case Some(config) => config.checkValid(configSchema)
+                  }
               }
+
               versionConfig.validators.foreach(_.foreach(_.validate(instance.config.get)))
               checkThatAllDependenciesAreFullfilled(versionConfig, instance.compDependencyRefs)
               None
