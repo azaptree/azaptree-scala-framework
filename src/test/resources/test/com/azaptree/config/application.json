@@ -38,6 +38,16 @@
 								"azaptree-cassandra":{
 									"port":9999,
 									"host":"localhost"
+								},
+								"security-service-actor-pool":{
+									"array":[
+										6,
+										7,
+										8,
+										9,
+										10
+									]
+									
 								}
 								
 							}

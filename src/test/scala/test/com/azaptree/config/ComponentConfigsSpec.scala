@@ -19,7 +19,7 @@ class AlwaysValid extends ConfigValidator {
   }
 }
 
-class AlwaysInalid extends ConfigValidator {
+class AlwaysInvalid extends ConfigValidator {
   override def validate(config: Config) = {
     Some(new Exception("ALWAYS INVALID"))
   }
