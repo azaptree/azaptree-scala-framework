@@ -49,6 +49,35 @@ class ConfigServiceTest extends FunSpec with ShouldMatchers {
       }
     }
 
+    it("can return the configuration for an ApplicationInstance") {
+      for {
+        applicationIds <- configService.applicationIds
+      } yield {
+        applicationIds.foreach { appId =>
+          for {
+            applicationVersionIds <- configService.applicationVersionIds(appId)
+          } yield {
+            applicationVersionIds.foreach { appVersionId =>
+              for {
+                applicationConfigInstanceIds <- configService.applicationConfigInstanceIds(appVersionId)
+              } yield {
+                applicationConfigInstanceIds.foreach { id =>
+                  configService.applicationConfig(id) match {
+                    case Left(e) => throw e
+                    case Right(None) => throw new IllegalStateException(s"No Config was found for : $id")
+                    case Right(Some(config)) => log.info(s"$id config :\n" + toFormattedJson(config))
+                  }
+                }
+
+              }
+
+            }
+          }
+
+        }
+      }
+    }
+
   }
 
 }

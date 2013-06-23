@@ -114,7 +114,7 @@ trait ApplicationConfigs extends ComponentConfigs {
     if (appConfigs.isEmpty) None else Some(appConfigs.keys)
   }
 
-  def applicationVersions(id: ApplicationId): Option[Iterable[ApplicationVersionId]] = {
+  def applicationVersionIds(id: ApplicationId): Option[Iterable[ApplicationVersionId]] = {
     appConfigs.get(id) match {
       case None => None
       case Some(appConfig) =>

@@ -35,7 +35,7 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
         case None => throw new IllegalStateException("Expecting some ApplicationIds")
         case Some(appIds) =>
           appIds.foreach { appId =>
-            appConfigs.applicationVersions(appId) match {
+            appConfigs.applicationVersionIds(appId) match {
               case None => throw new IllegalStateException("Found application which has no versions: " + appId)
               case Some(appVersionIds) => appVersionIds.foreach(id => log.info(id.toString))
             }
@@ -48,7 +48,7 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
         case None => throw new IllegalStateException("Expecting some ApplicationIds")
         case Some(appIds) =>
           appIds.foreach { appId =>
-            appConfigs.applicationVersions(appId) match {
+            appConfigs.applicationVersionIds(appId) match {
               case None => throw new IllegalStateException("Found application which has no versions: " + appId)
               case Some(appVersionIds) =>
                 appVersionIds.foreach { id =>
@@ -67,7 +67,7 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
         case None => throw new IllegalStateException("Expecting some ApplicationIds")
         case Some(appIds) =>
           appIds.foreach { appId =>
-            appConfigs.applicationVersions(appId) match {
+            appConfigs.applicationVersionIds(appId) match {
               case None => throw new IllegalStateException("Found application which has no versions: " + appId)
               case Some(appVersionIds) =>
                 appVersionIds.foreach { id =>
@@ -87,7 +87,7 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
         case None => throw new IllegalStateException("Expecting some ApplicationIds")
         case Some(appIds) =>
           appIds.foreach { appId =>
-            appConfigs.applicationVersions(appId) match {
+            appConfigs.applicationVersionIds(appId) match {
               case None => throw new IllegalStateException("Found application which has no versions: " + appId)
               case Some(appVersionIds) =>
                 appVersionIds.foreach { id =>
@@ -112,7 +112,7 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
         case None => throw new IllegalStateException("Expecting some ApplicationIds")
         case Some(appIds) =>
           appIds.foreach { appId =>
-            appConfigs.applicationVersions(appId) match {
+            appConfigs.applicationVersionIds(appId) match {
               case None => throw new IllegalStateException("Found application which has no versions: " + appId)
               case Some(appVersionIds) =>
                 appVersionIds.foreach { id =>
