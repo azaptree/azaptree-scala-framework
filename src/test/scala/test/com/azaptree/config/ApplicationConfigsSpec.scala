@@ -105,6 +105,31 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
       }
     }
 
+    it("can validate an ApplicationConfigInstance") {
+      appConfigs.applicationIds match {
+        case None => throw new IllegalStateException("Expecting some ApplicationIds")
+        case Some(appIds) =>
+          appIds.foreach { appId =>
+            appConfigs.applicationVersions(appId) match {
+              case None => throw new IllegalStateException("Found application which has no versions: " + appId)
+              case Some(appVersionIds) =>
+                appVersionIds.foreach { id =>
+                  appConfigs.applicationConfigInstanceIds(id) match {
+                    case None => throw new IllegalStateException(s"Failed to find ApplicationConfigInstanceIds for $id")
+                    case Some(applicationConfigInstanceIds) =>
+                      applicationConfigInstanceIds.foreach { id =>
+                        appConfigs.validate(id) match {
+                          case None => // expected to be valid 
+                          case Some(e) => throw e
+                        }
+                      }
+                  }
+                }
+            }
+          }
+      }
+    }
+
   }
 
 }

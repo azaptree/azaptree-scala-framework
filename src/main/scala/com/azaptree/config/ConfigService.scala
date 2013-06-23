@@ -16,7 +16,7 @@ import com.azaptree.application.model.ComponentVersionId
 import org.slf4j.LoggerFactory
 import com.azaptree.application.model.ApplicationVersionId
 
-trait ConfigService extends ApplicationConfigs with ComponentConfigs {
+trait ConfigService extends ApplicationConfigs {
   def applicationConfig(id: ApplicationConfigInstanceId): Config
 
   def componentConfig(id: ComponentVersionId): Config
@@ -26,7 +26,7 @@ trait ConfigLookup {
   def config(): Config
 }
 
-trait ApplicationConfigs extends ConfigLookup {
+trait ApplicationConfigs extends ComponentConfigs {
   protected val applicationConfigsLog = LoggerFactory.getLogger("com.azaptree.config.ApplicationConfigs")
 
   val appConfigs: Map[ApplicationId, Config] = {
@@ -187,11 +187,15 @@ trait ApplicationConfigs extends ConfigLookup {
     appConfigs.get(versionId.appId) match {
       case None => None
       case Some(appConfig) =>
-        getConfigList(config, "versions") match {
-          case None => None
+        getConfigList(appConfig, "versions") match {
+          case None =>
+            applicationConfigsLog.warn("no versions found for : {}", versionId.appId)
+            None
           case Some(versionConfigs) =>
             versionConfigs.find(_.getString("version") == versionId.version) match {
-              case None => None
+              case None =>
+                applicationConfigsLog.debug("no version config found for : {}", versionId)
+                None
               case Some(versionConfig) =>
                 val appVersionConfig = ApplicationVersionConfig(
                   appVersionId = versionId,
@@ -232,6 +236,34 @@ trait ApplicationConfigs extends ConfigLookup {
     }
 
     def validateComponentDependencies(appVersionConfig: ApplicationVersionConfig, appConfigInstance: ApplicationConfigInstance) = {
+      appVersionConfig.compDependencies match {
+        case None =>
+          if (appConfigInstance.compDependencyRefs.isDefined) {
+            throw new IllegalStateException("""There should not be any component dependency refs defined 
+              | because there are no component dependencies defined on the application version config""".stripMargin)
+          }
+        case Some(compDependencies) =>
+          if (appConfigInstance.compDependencyRefs.isEmpty || appConfigInstance.compDependencyRefs.get.size != compDependencies.size) {
+            throw new IllegalStateException("The number of component dependency refs defined does not match the number of component dependencies defined in the application version config")
+          }
+
+          val refs = appConfigInstance.compDependencyRefs.get
+
+          compDependencies.foreach { compDependency =>
+            refs.find(_.versionId == compDependency) match {
+              case None => throw new IllegalStateException(s"There is no component dependency ref defined for : $compDependency")
+              case Some(compDependencyRef) =>
+                componentConfigInstance(compDependencyRef) match {
+                  case None => throw new IllegalStateException(s"There is no such ComponentConfigInstance for: $compDependencyRef")
+                  case Some(compConfigInstance) => validate(compDependencyRef) match {
+                    case Some(e) => throw e
+                    case None => // is valid
+                  }
+                }
+            }
+
+          }
+      }
 
     }
 
