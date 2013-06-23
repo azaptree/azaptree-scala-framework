@@ -12,20 +12,23 @@
 							"name":"azaptree-security-service",
 							"version":"1.2.0"
 						}
-					]
-					,
+					],
 					"config-schema":{
-						
+						"app.baseDir":"",
+						"app.logDir":""
 					},
 					"configs":[
-						
+						{
+							"name":"dev-local",
+							"config":{
+								"app.baseDir":"/azaptree/apps/com.azaptree/application-security-server/1.0.0",
+								"app.logDir":""
+							}
+							
+						}
 					]
-					
 				}
-				
 			]
-			
 		}
-		
 	]
 }

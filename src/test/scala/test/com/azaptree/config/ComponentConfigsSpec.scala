@@ -22,7 +22,7 @@ class AlwaysValid extends ConfigValidator {
 class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
   val log = LoggerFactory.getLogger("ComponentConfigsSpec")
 
-  val config = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/reference.json")
+  val config = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/reference.json").resolve()
 
   log.info(toFormattedJson(config))
 
@@ -192,7 +192,7 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
     }
 
     it("can detect when a ComponentConfigInstance is invalid") {
-      val config = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/referenceWithInvalidConfigSchema.json")
+      val config = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/referenceWithInvalidConfigSchema.json").resolve()
       val compConfigs = ComponentConfigs(config)
 
       val invalidConfigs: List[ComponentConfigInstanceId] = {
