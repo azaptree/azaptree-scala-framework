@@ -53,7 +53,7 @@ trait ApplicationConfigs extends ConfigLookup {
           case None => None
           case Some(versionConfigs) =>
             val appVersionIds = versionConfigs.foldLeft(List.empty[ApplicationVersionId]) { (list, config) =>
-              ApplicationVersionId(app = id, version = config.getString("version")) :: list
+              ApplicationVersionId(appId = id, version = config.getString("version")) :: list
             }
 
             if (appVersionIds.isEmpty) None else Some(appVersionIds)
@@ -62,15 +62,100 @@ trait ApplicationConfigs extends ConfigLookup {
   }
 
   def applicationVersion(id: ApplicationVersionId): Option[ApplicationVersion] = {
-    throw new UnsupportedOperationException
+    appConfigs.get(id.appId) match {
+      case None => None
+      case Some(appConfig) =>
+        getConfigList(appConfig, "versions") match {
+          case None => None
+          case Some(versionConfigs) =>
+            versionConfigs.find(_.getString("version") == id.version) match {
+              case None => None
+              case Some(versionConfig) =>
+                getConfigList(versionConfig, "component-dependencies") match {
+                  case None => Some(ApplicationVersion(id))
+                  case Some(compDependencyConfigs) =>
+                    val compDependencies = compDependencyConfigs.foldLeft(List.empty[ComponentVersionId]) { (list, config) =>
+                      val compId = ComponentId(group = config.getString("group"), name = config.getString("name"))
+                      ComponentVersionId(compId = compId, version = config.getString("version")) :: list
+                    }
+                    Some(ApplicationVersion(id, Some(compDependencies)))
+                }
+            }
+        }
+    }
   }
 
-  def applicationConfigInstanceNames(id: ApplicationVersionId): Option[Iterable[ApplicationConfigInstanceId]] = {
-    throw new UnsupportedOperationException
+  def applicationConfigInstanceIds(id: ApplicationVersionId): Option[Iterable[ApplicationConfigInstanceId]] = {
+    appConfigs.get(id.appId) match {
+      case None => None
+      case Some(appConfig) =>
+        getConfigList(appConfig, "versions") match {
+          case None => None
+          case Some(versionConfigs) =>
+            versionConfigs.find(_.getString("version") == id.version) match {
+              case None => None
+              case Some(versionConfig) =>
+                getConfigList(versionConfig, "configs") match {
+                  case None => None
+                  case Some(instanceConfigs) =>
+                    val appConfigInstanceIds = instanceConfigs.foldLeft(List.empty[ApplicationConfigInstanceId]) { (list, config) =>
+                      ApplicationConfigInstanceId(id, config.getString("name")) :: list
+                    }
+                    Some(appConfigInstanceIds)
+                }
+            }
+        }
+    }
   }
 
   def applicationConfigInstance(id: ApplicationConfigInstanceId): Option[ApplicationConfigInstance] = {
-    throw new UnsupportedOperationException
+    def getComponentDependencyRefs(versionConfig: Config, instanceConfig: Config): Option[Iterable[ComponentConfigInstanceId]] = {
+      getConfigList(instanceConfig, "component-dependency-refs") match {
+        case None => None
+        case Some(refs) =>
+          Some(refs.foldLeft(List.empty[ComponentConfigInstanceId]) { (list, config) =>
+            val compId = ComponentId(group = config.getString("group"), name = config.getString("name"))
+            val versionId = getComponentDependencyVersionId(versionConfig, compId)
+            ComponentConfigInstanceId(versionId = versionId, configInstanceName = config.getString("configName")) :: list
+          })
+      }
+    }
+
+    def getComponentDependencyVersionId(versionConfig: Config, compId: ComponentId): ComponentVersionId = {
+      getConfigList(versionConfig, "component-dependencies") match {
+        case None => throw new IllegalStateException(s"No component dependencies were found : $versionConfig")
+        case Some(compDependencyConfigs) =>
+          compDependencyConfigs.find(c => c.getString("group") == compId.group && c.getString("name") == compId.name) match {
+            case None => throw new IllegalStateException(s"No component dependency was found for: $compId")
+            case Some(compDependencyConfig) => ComponentVersionId(compId = compId, version = compDependencyConfig.getString("version"))
+          }
+      }
+    }
+
+    appConfigs.get(id.versionId.appId) match {
+      case None => None
+      case Some(appConfig) =>
+        getConfigList(appConfig, "versions") match {
+          case None => None
+          case Some(versionConfigs) =>
+            versionConfigs.find(_.getString("version") == id.versionId.version) match {
+              case None => None
+              case Some(versionConfig) =>
+                getConfigList(versionConfig, "configs") match {
+                  case None => None
+                  case Some(instanceConfigs) =>
+                    instanceConfigs.find(_.getString("name") == id.configInstanceName) match {
+                      case None => None
+                      case Some(instanceConfig) =>
+                        Some(ApplicationConfigInstance(
+                          id = id,
+                          config = getConfig(instanceConfig, "config"),
+                          compDependencyRefs = getComponentDependencyRefs(versionConfig, instanceConfig)))
+                    }
+                }
+            }
+        }
+    }
   }
 }
 
@@ -135,8 +220,7 @@ trait ComponentConfigs extends ConfigLookup {
                         ComponentVersionId(compId, compDependencyConfig.getString("version")) :: compVersionIds
                       }
 
-                      val compVersions = compVersionIds.map(id => componentVersion(id)).filter(_.isDefined).map(_.get).toIterable
-                      Some(ComponentVersion(id, Some(compVersions)))
+                      Some(ComponentVersion(id, Some(compVersionIds)))
                   }
               }
           }

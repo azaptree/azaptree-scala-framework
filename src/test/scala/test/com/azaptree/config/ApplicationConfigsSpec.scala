@@ -40,6 +40,71 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
           }
       }
     }
+
+    it("can find ApplicationVersions for a specified ApplicationVersionId") {
+      appConfigs.applicationIds match {
+        case None => throw new IllegalStateException("Expecting some ApplicationIds")
+        case Some(appIds) =>
+          appIds.foreach { appId =>
+            appConfigs.applicationVersions(appId) match {
+              case None => throw new IllegalStateException("Found application which has no versions: " + appId)
+              case Some(appVersionIds) =>
+                appVersionIds.foreach { id =>
+                  appConfigs.applicationVersion(id) match {
+                    case None => throw new IllegalStateException(s"Failed to find ApplicationVersion for $id")
+                    case Some(appVersion) => log.info(appVersion.toString())
+                  }
+                }
+            }
+          }
+      }
+    }
+
+    it("can list ApplicationConfigInstanceIds for a specified ApplicationVersionId") {
+      appConfigs.applicationIds match {
+        case None => throw new IllegalStateException("Expecting some ApplicationIds")
+        case Some(appIds) =>
+          appIds.foreach { appId =>
+            appConfigs.applicationVersions(appId) match {
+              case None => throw new IllegalStateException("Found application which has no versions: " + appId)
+              case Some(appVersionIds) =>
+                appVersionIds.foreach { id =>
+                  appConfigs.applicationConfigInstanceIds(id) match {
+                    case None => throw new IllegalStateException(s"Failed to find ApplicationConfigInstanceIds for $id")
+                    case Some(applicationConfigInstanceIds) =>
+                      applicationConfigInstanceIds.foreach(id => log.info(id.toString()))
+                  }
+                }
+            }
+          }
+      }
+    }
+
+    it("can retrieve an ApplicationConfigInstance for a specified ApplicationConfigInstanceId") {
+      appConfigs.applicationIds match {
+        case None => throw new IllegalStateException("Expecting some ApplicationIds")
+        case Some(appIds) =>
+          appIds.foreach { appId =>
+            appConfigs.applicationVersions(appId) match {
+              case None => throw new IllegalStateException("Found application which has no versions: " + appId)
+              case Some(appVersionIds) =>
+                appVersionIds.foreach { id =>
+                  appConfigs.applicationConfigInstanceIds(id) match {
+                    case None => throw new IllegalStateException(s"Failed to find ApplicationConfigInstanceIds for $id")
+                    case Some(applicationConfigInstanceIds) =>
+                      applicationConfigInstanceIds.foreach { id =>
+                        appConfigs.applicationConfigInstance(id) match {
+                          case None => throw new IllegalStateException(s"Failed to find ApplicationConfigInstance for: $id")
+                          case Some(configInstance) => log.info(configInstance.toString())
+                        }
+                      }
+                  }
+                }
+            }
+          }
+      }
+    }
+
   }
 
 }
