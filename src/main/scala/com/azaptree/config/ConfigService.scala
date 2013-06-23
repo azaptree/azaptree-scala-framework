@@ -1,25 +1,55 @@
 package com.azaptree.config
 
+import scala.collection.JavaConversions._
+import org.slf4j.LoggerFactory
 import com.azaptree.application.model.ApplicationId
 import com.azaptree.application.model.ApplicationVersion
+import com.azaptree.application.model.ApplicationVersionId
+import com.azaptree.application.model.ApplicationVersionId
 import com.azaptree.application.model.ApplicationVersionId
 import com.azaptree.application.model.ComponentId
 import com.azaptree.application.model.ComponentVersion
 import com.azaptree.application.model.ComponentVersionId
+import com.azaptree.application.model.ComponentVersionId
+import com.azaptree.application.model.ComponentVersionId
 import com.typesafe.config.Config
-import com.azaptree.application.model.ComponentVersionId
-import com.azaptree.application.model.ApplicationVersionId
-import scala.collection.JavaConversions._
-import com.typesafe.config.ConfigValue
-import javax.naming.OperationNotSupportedException
-import com.azaptree.application.model.ComponentVersionId
-import org.slf4j.LoggerFactory
-import com.azaptree.application.model.ApplicationVersionId
+import com.typesafe.config.ConfigFactory
 
 trait ConfigService extends ApplicationConfigs {
-  def applicationConfig(id: ApplicationConfigInstanceId): Config
+  def applicationConfig(id: ApplicationConfigInstanceId): Either[Exception, Option[Config]]
 
-  def componentConfig(id: ComponentVersionId): Config
+  def componentConfig(id: ComponentConfigInstanceId): Either[Exception, Option[Config]] = {
+    def componentConfigWithDependencies(config: Config, compConfigInstance: ComponentConfigInstance) = {
+      compConfigInstance.compDependencyRefs match {
+        case None => Right(None)
+        case Some(compDependencyRefs) =>
+          try {
+            Right(Some(compDependencyRefs.foldLeft(config) { (config, compDependencyRefId) =>
+              componentConfig(compDependencyRefId) match {
+                case Right(None) => config
+                case Right(Some(config2)) => config.withFallback(config2)
+                case Left(e) => throw e
+              }
+            }))
+          } catch {
+            case e: Exception => Left(e)
+          }
+      }
+    }
+
+    componentConfigInstance(id) match {
+      case None => Right(None)
+      case Some(compConfigInstance) =>
+        compConfigInstance.config match {
+          case None =>
+            compConfigInstance.compDependencyRefs match {
+              case None => Right(None)
+              case Some(compDependencyRefs) => componentConfigWithDependencies(ConfigFactory.empty(), compConfigInstance)
+            }
+          case Some(config) => componentConfigWithDependencies(config, compConfigInstance)
+        }
+    }
+  }
 }
 
 trait ConfigLookup {
