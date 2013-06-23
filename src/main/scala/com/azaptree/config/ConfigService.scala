@@ -267,10 +267,10 @@ trait ApplicationConfigs extends ComponentConfigs {
 
     }
 
-    applicationConfigInstance(id) match {
-      case None => throw new IllegalArgumentException(s"ApplicationConfigInstance not found for : $id")
-      case Some(appConfigInstance) =>
-        try {
+    try {
+      applicationConfigInstance(id) match {
+        case None => throw new IllegalArgumentException(s"ApplicationConfigInstance not found for : $id")
+        case Some(appConfigInstance) =>
           applicationVersionConfig(id.versionId) match {
             case None => throw new IllegalStateException("No ApplicationVersionConfig was found for :" + id.versionId)
             case Some(appVersionConfig) =>
@@ -279,9 +279,9 @@ trait ApplicationConfigs extends ComponentConfigs {
               validateComponentDependencies(appVersionConfig, appConfigInstance)
               None
           }
-        } catch {
-          case e: Exception => Some(e)
-        }
+      }
+    } catch {
+      case e: Exception => Some(e)
     }
   }
 }

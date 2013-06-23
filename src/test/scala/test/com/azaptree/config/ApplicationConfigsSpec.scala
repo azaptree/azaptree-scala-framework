@@ -6,6 +6,8 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
 import com.azaptree.config._
+import com.azaptree.application.model.ApplicationId
+import com.azaptree.application.model.ApplicationVersionId
 
 case class ApplicationConfigs(override val config: Config) extends com.azaptree.config.ApplicationConfigs
 
@@ -128,6 +130,32 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
             }
           }
       }
+    }
+
+    it("can detect when an ApplicationConfigInstance is invalid") {
+      val compConfig = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/reference.json")
+      val appConfig = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/application-invalid-config.json")
+      val config = appConfig.withFallback(compConfig)
+      val appConfigs = ApplicationConfigs(config)
+
+      val appId = ApplicationId(group = "com.azaptree", name = "application-security-server")
+
+      val appConfigInstanceIds = {
+        ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.0.0"), configInstanceName = "missing-config-schema-but-instance-has-config") ::
+          ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), configInstanceName = "invalid-config") ::
+          ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), configInstanceName = "invalid-comp-dependency-ref") ::
+          ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), configInstanceName = "invalid-comp-dependency-ref-config-ref") ::
+          Nil
+      }
+
+      appConfigInstanceIds.foreach { id =>
+        appConfigs.validate(id) match {
+          case None => throw new Exception(s"Expected application config instance to be invalid: $id")
+          case Some(e) => log.info(s"$id is invalid - as expected : $e")
+        }
+
+      }
+
     }
 
   }
