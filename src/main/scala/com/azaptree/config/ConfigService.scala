@@ -14,6 +14,7 @@ import com.typesafe.config.ConfigValue
 import javax.naming.OperationNotSupportedException
 import com.azaptree.application.model.ComponentVersionId
 import org.slf4j.LoggerFactory
+import com.azaptree.application.model.ApplicationVersionId
 
 trait ConfigService extends ApplicationConfigs with ComponentConfigs {
   def applicationConfig(id: ApplicationConfigInstanceId): Config
@@ -31,15 +32,12 @@ trait ApplicationConfigs extends ConfigLookup {
   val appConfigs: Map[ApplicationId, Config] = {
     val c = config()
 
-    val apps: Seq[Config] = try {
-      c.getConfigList("applications")
-    } catch {
-      case e: com.typesafe.config.ConfigException.Missing => Nil
-      case e: Exception => throw e
-    }
-
-    apps.foldLeft(Map.empty[ApplicationId, Config]) { (map, config) =>
-      map + (ApplicationId(group = config.getString("group"), name = config.getString("name")) -> config)
+    getConfigList(c, "applications") match {
+      case None => throw new IllegalStateException("There are no applications in the configuration")
+      case Some(apps) =>
+        apps.foldLeft(Map.empty[ApplicationId, Config]) { (map, config) =>
+          map + (ApplicationId(group = config.getString("group"), name = config.getString("name")) -> config)
+        }
     }
   }
 
@@ -48,7 +46,19 @@ trait ApplicationConfigs extends ConfigLookup {
   }
 
   def applicationVersions(id: ApplicationId): Option[Iterable[ApplicationVersionId]] = {
-    throw new UnsupportedOperationException
+    appConfigs.get(id) match {
+      case None => None
+      case Some(appConfig) =>
+        getConfigList(appConfig, "versions") match {
+          case None => None
+          case Some(versionConfigs) =>
+            val appVersionIds = versionConfigs.foldLeft(List.empty[ApplicationVersionId]) { (list, config) =>
+              ApplicationVersionId(app = id, version = config.getString("version")) :: list
+            }
+
+            if (appVersionIds.isEmpty) None else Some(appVersionIds)
+        }
+    }
   }
 
   def applicationVersion(id: ApplicationVersionId): Option[ApplicationVersion] = {
@@ -70,18 +80,13 @@ trait ComponentConfigs extends ConfigLookup {
   val compConfigs: Map[ComponentId, Config] = {
     val c: Config = config()
 
-    val components: Seq[Config] = {
-      try {
-        c.getConfigList("components")
-      } catch {
-        case e: com.typesafe.config.ConfigException.Missing => Nil
-        case e: Exception => throw e
-      }
-    }
-
-    components.foldLeft(Map.empty[ComponentId, Config]) { (compConfigsMap, compConfig) =>
-      val compId = ComponentId(group = compConfig.getString("group"), name = compConfig.getString("name"))
-      compConfigsMap + (compId -> compConfig)
+    getConfigList(c, "components") match {
+      case None => throw new IllegalStateException("No components were found in the configuration")
+      case Some(components) =>
+        components.foldLeft(Map.empty[ComponentId, Config]) { (compConfigsMap, compConfig) =>
+          val compId = ComponentId(group = compConfig.getString("group"), name = compConfig.getString("name"))
+          compConfigsMap + (compId -> compConfig)
+        }
     }
   }
 
@@ -96,16 +101,14 @@ trait ComponentConfigs extends ConfigLookup {
       compConfigs.get(id) match {
         case None => None
         case Some(compConfig) =>
-          try {
-            val versions: Seq[Config] = compConfig.getConfigList("versions")
-            val versionIds = versions.foldLeft(List.empty[ComponentVersionId]) { (versionList, versionConfig) =>
-              val versionId = ComponentVersionId(id, versionConfig.getString("version"))
-              versionId :: versionList
-            }
-            Some(versionIds)
-          } catch {
-            case e: com.typesafe.config.ConfigException.Missing => None
-            case e: Exception => throw e
+          getConfigList(compConfig, "versions") match {
+            case None => None
+            case Some(versions) =>
+              val versionIds = versions.foldLeft(List.empty[ComponentVersionId]) { (versionList, versionConfig) =>
+                val versionId = ComponentVersionId(id, versionConfig.getString("version"))
+                versionId :: versionList
+              }
+              Some(versionIds)
           }
       }
     }
@@ -118,28 +121,24 @@ trait ComponentConfigs extends ConfigLookup {
       compConfigs.get(id.compId) match {
         case None => None
         case Some(compConfig) =>
-          try {
-            val versions: Seq[Config] = compConfig.getConfigList("versions")
-            versions.find(_.getString("version") == id.version) match {
-              case None => None
-              case Some(versionConfig) =>
-                try {
-                  val compDependencies: Seq[Config] = versionConfig.getConfigList("component-dependencies")
-                  val compVersionIds = compDependencies.foldLeft(List.empty[ComponentVersionId]) { (compVersionIds, compDependencyConfig) =>
-                    val compId = ComponentId(group = compDependencyConfig.getString("group"), name = compDependencyConfig.getString("name"))
-                    ComponentVersionId(compId, compDependencyConfig.getString("version")) :: compVersionIds
-                  }
+          getConfigList(compConfig, "versions") match {
+            case None => None
+            case Some(versions) =>
+              versions.find(_.getString("version") == id.version) match {
+                case None => None
+                case Some(versionConfig) =>
+                  getConfigList(versionConfig, "component-dependencies") match {
+                    case None => Some(ComponentVersion(id))
+                    case Some(compDependencies) =>
+                      val compVersionIds = compDependencies.foldLeft(List.empty[ComponentVersionId]) { (compVersionIds, compDependencyConfig) =>
+                        val compId = ComponentId(group = compDependencyConfig.getString("group"), name = compDependencyConfig.getString("name"))
+                        ComponentVersionId(compId, compDependencyConfig.getString("version")) :: compVersionIds
+                      }
 
-                  val compVersions = compVersionIds.map(id => componentVersion(id)).filter(_.isDefined).map(_.get).toIterable
-                  Some(ComponentVersion(id, Some(compVersions)))
-                } catch {
-                  case e: com.typesafe.config.ConfigException.Missing => Some(ComponentVersion(id))
-                  case e: Exception => throw e
-                }
-            }
-          } catch {
-            case e: com.typesafe.config.ConfigException.Missing => None
-            case e: Exception => throw e
+                      val compVersions = compVersionIds.map(id => componentVersion(id)).filter(_.isDefined).map(_.get).toIterable
+                      Some(ComponentVersion(id, Some(compVersions)))
+                  }
+              }
           }
       }
     }
@@ -152,20 +151,21 @@ trait ComponentConfigs extends ConfigLookup {
       compConfigs.get(id.compId) match {
         case None => None
         case Some(compConfig) =>
-          try {
-            val versions: Seq[Config] = compConfig.getConfigList("versions")
-            versions.find(_.getString("version") == id.version) match {
-              case None => None
-              case Some(versionConfig) =>
-                val configInstances: Seq[Config] = versionConfig.getConfigList("configs")
-                val compConfigInstanceIds = configInstances.foldLeft(List.empty[ComponentConfigInstanceId]) { (compConfigInstanceIds, configInstance) =>
-                  ComponentConfigInstanceId(id, configInstance.getString("name")) :: compConfigInstanceIds
-                }
-                Some(compConfigInstanceIds)
-            }
-          } catch {
-            case e: com.typesafe.config.ConfigException.Missing => None
-            case e: Exception => throw e
+          getConfigList(compConfig, "versions") match {
+            case None => None
+            case Some(versions) =>
+              versions.find(_.getString("version") == id.version) match {
+                case None => None
+                case Some(versionConfig) =>
+                  getConfigList(versionConfig, "configs") match {
+                    case None => None
+                    case Some(configInstances) =>
+                      val compConfigInstanceIds = configInstances.foldLeft(List.empty[ComponentConfigInstanceId]) { (compConfigInstanceIds, configInstance) =>
+                        ComponentConfigInstanceId(id, configInstance.getString("name")) :: compConfigInstanceIds
+                      }
+                      Some(compConfigInstanceIds)
+                  }
+              }
           }
       }
     }
@@ -176,25 +176,23 @@ trait ComponentConfigs extends ConfigLookup {
    */
   def componentConfigInstance(id: ComponentConfigInstanceId): Option[ComponentConfigInstance] = {
     def compDependencyRefs(configInstance: Config, compVersionConfig: Option[com.azaptree.config.ComponentVersionConfig]): Option[List[com.azaptree.config.ComponentConfigInstanceId]] = {
-      try {
-        val compDependencyRefs: Seq[Config] = configInstance.getConfigList("component-dependency-refs")
-        val refs = compDependencyRefs.foldLeft(List.empty[ComponentConfigInstanceId]) { (refs, compDependencyRef) =>
-          val compId = ComponentId(group = compDependencyRef.getString("group"), name = compDependencyRef.getString("name"))
-          val version = compVersionConfig.get.compDependency(compId) match {
-            case None => throw new IllegalStateException(s"Invalid component dependency [$compId] is defined for : $compVersionConfig")
-            case Some(compVersionId) => compVersionId.version
+      getConfigList(configInstance, "component-dependency-refs") match {
+        case None => None
+        case Some(compDependencyRefs) =>
+          val refs = compDependencyRefs.foldLeft(List.empty[ComponentConfigInstanceId]) { (refs, compDependencyRef) =>
+            val compId = ComponentId(group = compDependencyRef.getString("group"), name = compDependencyRef.getString("name"))
+            val version = compVersionConfig.get.compDependency(compId) match {
+              case None => throw new IllegalStateException(s"Invalid component dependency [$compId] is defined for : $compVersionConfig")
+              case Some(compVersionId) => compVersionId.version
+            }
+            val compConfigInstanceId = ComponentConfigInstanceId(
+              versionId = ComponentVersionId(compId = compId, version = version),
+              configInstanceName = compDependencyRef.getString("configName"))
+
+            compConfigInstanceId :: refs
           }
-          val compConfigInstanceId = ComponentConfigInstanceId(
-            versionId = ComponentVersionId(compId = compId, version = version),
-            configInstanceName = compDependencyRef.getString("configName"))
 
-          compConfigInstanceId :: refs
-        }
-
-        Some(refs)
-      } catch {
-        case e: com.typesafe.config.ConfigException.Missing => None
-        case e: Exception => throw e
+          Some(refs)
       }
     }
 
@@ -204,24 +202,26 @@ trait ComponentConfigs extends ConfigLookup {
       compConfigs.get(id.versionId.compId) match {
         case None => None
         case Some(compConfig) =>
-          try {
-            val versions: Seq[Config] = compConfig.getConfigList("versions")
-            versions.find(_.getString("version") == id.versionId.version) match {
-              case None => None
-              case Some(versionConfig) =>
-                val configInstances: Seq[Config] = versionConfig.getConfigList("configs")
-                configInstances.find(_.getString("name") == id.configInstanceName) match {
-                  case None => None
-                  case Some(configInstance) =>
-                    val compVersionConfig = componentVersionConfig(id.versionId)
-                    val configInstanceConfig = getConfig(configInstance, "config")
-                    Some(ComponentConfigInstance(id = id, config = configInstanceConfig, compDependencyRefs = compDependencyRefs(configInstance, compVersionConfig)))
-                }
-            }
-          } catch {
-            case e: com.typesafe.config.ConfigException.Missing => None
-            case e: Exception => throw e
+          getConfigList(compConfig, "versions") match {
+            case None => None
+            case Some(versions) =>
+              versions.find(_.getString("version") == id.versionId.version) match {
+                case None => None
+                case Some(versionConfig) =>
+                  getConfigList(versionConfig, "configs") match {
+                    case None => None
+                    case Some(configInstances) =>
+                      configInstances.find(_.getString("name") == id.configInstanceName) match {
+                        case None => None
+                        case Some(configInstance) =>
+                          val compVersionConfig = componentVersionConfig(id.versionId)
+                          val configInstanceConfig = getConfig(configInstance, "config")
+                          Some(ComponentConfigInstance(id = id, config = configInstanceConfig, compDependencyRefs = compDependencyRefs(configInstance, compVersionConfig)))
+                      }
+                  }
+              }
           }
+
       }
     }
   }
@@ -241,18 +241,16 @@ trait ComponentConfigs extends ConfigLookup {
     }
 
     def compDependencies(version: com.typesafe.config.Config) = {
-      try {
-        val configs: Seq[Config] = version.getConfigList("component-dependencies")
-        Some(configs.foldLeft(List.empty[ComponentVersionId]) { (compDependencies, config) =>
-          val group = config.getString("group")
-          val name = config.getString("name")
-          val version = config.getString("version")
-          val compVersionId = ComponentVersionId(compId = ComponentId(group = group, name = name), version = version)
-          compVersionId :: compDependencies
-        })
-      } catch {
-        case e: com.typesafe.config.ConfigException.Missing => None
-        case e: Exception => throw e
+      getConfigList(version, "component-dependencies") match {
+        case None => None
+        case Some(configs) =>
+          Some(configs.foldLeft(List.empty[ComponentVersionId]) { (compDependencies, config) =>
+            val group = config.getString("group")
+            val name = config.getString("name")
+            val version = config.getString("version")
+            val compVersionId = ComponentVersionId(compId = ComponentId(group = group, name = name), version = version)
+            compVersionId :: compDependencies
+          })
       }
     }
 
@@ -262,24 +260,20 @@ trait ComponentConfigs extends ConfigLookup {
       compConfigs.get(versionId.compId) match {
         case None => None
         case Some(compConfig) =>
-          try {
-            val versions: Seq[Config] = compConfig.getConfigList("versions")
-            versions.find(_.getString("version") == versionId.version) match {
-              case None =>
-                componentConfigsLog.debug("no matching version found for : {}", versionId)
-                None
-              case Some(version) =>
-                Some(ComponentVersionConfig(
-                  compVersionId = versionId,
-                  configSchema = getConfig(version, "config-schema"),
-                  validators = validators(version),
-                  compDependencies = compDependencies(version)))
-            }
-          } catch {
-            case e: com.typesafe.config.ConfigException.Missing =>
-              if (componentConfigsLog.isDebugEnabled()) componentConfigsLog.debug(s"no matching version found for [$versionId] because of missing config path ", e)
-              None
-            case e: Exception => throw e
+          getConfigList(compConfig, "versions") match {
+            case None => None
+            case Some(versions) =>
+              versions.find(_.getString("version") == versionId.version) match {
+                case None =>
+                  componentConfigsLog.debug("no matching version found for : {}", versionId)
+                  None
+                case Some(version) =>
+                  Some(ComponentVersionConfig(
+                    compVersionId = versionId,
+                    configSchema = getConfig(version, "config-schema"),
+                    validators = validators(version),
+                    compDependencies = compDependencies(version)))
+              }
           }
       }
     }

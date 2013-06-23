@@ -4,6 +4,7 @@ import com.typesafe.config.ConfigFactory
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigRenderOptions
 import com.typesafe.config.ConfigException
+import scala.collection.JavaConversions._
 
 package object config {
 
@@ -27,6 +28,15 @@ package object config {
   def getConfig(config: Config, path: String): Option[Config] = {
     try {
       Some(config.getConfig(path))
+    } catch {
+      case e: ConfigException.Missing => None
+      case e: Exception => throw e
+    }
+  }
+
+  def getConfigList(config: Config, path: String): Option[Seq[Config]] = {
+    try {
+      Some(config.getConfigList(path))
     } catch {
       case e: ConfigException.Missing => None
       case e: Exception => throw e

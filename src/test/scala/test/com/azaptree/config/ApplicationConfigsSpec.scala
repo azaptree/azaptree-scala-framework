@@ -24,7 +24,20 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
     it("can list all found ApplicationIds") {
       appConfigs.applicationIds match {
         case None => throw new IllegalStateException("Expecting some ApplicationIds")
-        case Some(appIds) => appIds.foreach(appId => log.info(appId.toString))
+        case Some(appIds) => appIds.foreach(id => log.info(id.toString))
+      }
+    }
+
+    it("can list all ApplicationVersionIds for an ApplicationId") {
+      appConfigs.applicationIds match {
+        case None => throw new IllegalStateException("Expecting some ApplicationIds")
+        case Some(appIds) =>
+          appIds.foreach { appId =>
+            appConfigs.applicationVersions(appId) match {
+              case None => throw new IllegalStateException("Found application which has no versions: " + appId)
+              case Some(appVersionIds) => appVersionIds.foreach(id => log.info(id.toString))
+            }
+          }
       }
     }
   }

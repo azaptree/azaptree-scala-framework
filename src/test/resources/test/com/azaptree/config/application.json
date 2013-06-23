@@ -10,6 +10,38 @@
 						{
 							"group":"com.azaptree",
 							"name":"azaptree-security-service",
+							"version":"1.1.0"
+						}
+					],
+					"config-schema":{
+						"app.baseDir":"",
+						"app.logDir":""
+					},
+					"config-validators":["test.com.azaptree.config.AlwaysValid"],
+					"configs":[
+						{
+							"name":"dev-local",
+							"component-dependency-refs":[
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-security-service",
+									"configName":"dev-local"
+								}								
+							],
+							"config":{
+								"app.baseDir":"/azaptree/apps/com.azaptree/application-security-server/1.0.0",
+								"app.logDir":"/azaptree/apps/com.azaptree/application-security-server/1.0.0/logs"
+							}
+							
+						}
+					]
+				},
+				{
+					"version":"1.1.0",
+					"component-dependencies":[
+						{
+							"group":"com.azaptree",
+							"name":"azaptree-security-service",
 							"version":"1.2.0"
 						}
 					],
