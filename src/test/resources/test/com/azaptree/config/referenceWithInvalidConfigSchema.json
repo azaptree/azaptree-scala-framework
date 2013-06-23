@@ -222,6 +222,30 @@
 								
 							]
 							
+						},
+						{
+							"name":"invalid-dependency-ref-configName",
+							"config":{
+								"security-service-actor-pool":{
+									"min":1,
+									"max":5
+								}
+								
+							},
+							"component-dependency-refs":[
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-security-model",
+									"configName":"default"
+								},
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-cassandra",
+									"configName":"XXX"
+								}
+								
+							]
+							
 						}
 						
 						

@@ -281,9 +281,18 @@ trait ComponentConfigs extends ConfigLookup {
           val refs = compDependencyRefs.get
 
           compDependencies.foreach { compDependency =>
-            if (refs.find(_.versionId == compDependency).isEmpty) {
-              throw new IllegalStateException(s"There is no component dependency ref defined for : $compDependency")
+            refs.find(_.versionId == compDependency) match {
+              case None => throw new IllegalStateException(s"There is no component dependency ref defined for : $compDependency")
+              case Some(compDependencyRef) =>
+                componentConfigInstance(compDependencyRef) match {
+                  case None => throw new IllegalStateException(s"There is no such ComponentConfigInstance for: $compDependencyRef")
+                  case Some(compConfigInstance) => validate(compDependencyRef) match {
+                    case Some(e) => throw e
+                    case None => // is valid
+                  }
+                }
             }
+
           }
       }
     }

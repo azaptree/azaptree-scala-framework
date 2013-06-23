@@ -1,20 +1,31 @@
 {
-	"applications":{
-		"application-security-server":{
+	"applications":[
+		{
 			"group":"com.azaptree",
-			"versions":{
-				"1.0.0":{
-					"component-dependencies":{
-						
-					},
+			"name":"application-security-server",
+			"versions":[
+				{
+					"version":"1.0.0",
+					"component-dependencies":[
+						{
+							"group":"com.azaptree",
+							"name":"azaptree-security-service",
+							"version":"1.2.0"
+						}
+					]
+					,
 					"config-schema":{
 						
-					}
+					},
+					"configs":[
+						
+					]
 					
 				}
 				
-			}
+			]
 			
 		}
-	}
+		
+	]
 }

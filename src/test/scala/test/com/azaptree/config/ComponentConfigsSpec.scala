@@ -199,13 +199,14 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
         ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.1.0"), "dev-local") ::
           ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "invalid-dependency-ref") ::
           ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "missing-dependency-ref") ::
+          ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "invalid-dependency-ref-configName") ::
           Nil
       }
 
       invalidConfigs.foreach { componentConfigInstanceId =>
         compConfigs.validate(componentConfigInstanceId) match {
           case None => throw new Exception(s"$componentConfigInstanceId -> should be invalid")
-          case Some(e) => log.info(s"Validation failed as epected for $componentConfigInstanceId")
+          case Some(e) => log.info(s"Validation failed as epected for $componentConfigInstanceId : $e")
         }
       }
 
