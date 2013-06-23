@@ -263,21 +263,28 @@ trait ComponentConfigs extends ConfigLookup {
    * Will return an IllegalArgumentException if the compConfigInstanceId was not found
    */
   def validate(compConfigInstanceId: ComponentConfigInstanceId): Option[Exception] = {
-    def checkThatAllDependenciesAreFullfilled(versionConfig: ComponentVersionConfig, compDependencyRefs: Option[Iterable[ComponentConfigInstanceId]]): Option[Exception] = {
-      try {
-        versionConfig.compDependencies.foreach { compDependencies =>
-          compDependencies.foreach { compDependency =>
-            compDependencyRefs match {
-              case None => throw new IllegalStateException("There are no compDependencyRefs when there are some component dependcies on the ComponentVersionConfig")
-              case Some(refs) =>
-                refs.find(_.versionId == compDependency)
-            }
+    def checkThatAllDependenciesAreFullfilled(versionConfig: ComponentVersionConfig, compDependencyRefs: Option[Iterable[ComponentConfigInstanceId]]) = {
+      versionConfig.compDependencies match {
+        case None => if (compDependencyRefs.isDefined) throw new IllegalStateException("""There should not be any component dependency refs defined 
+              | because there are no component dependencies defined on the component version config""".stripMargin)
+        case Some(compDependencies) =>
+          if (log.isDebugEnabled()) {
+            log.debug("compDependencyRefs.isEmpty || compDependencyRefs.get.size != compDependencies.size = " + (compDependencyRefs.isEmpty || compDependencyRefs.get.size != compDependencies.size))
+            log.debug("compDependencyRefs.isEmpty = " + compDependencyRefs.isEmpty)
+            log.debug("(compDependencyRefs.get.size, compDependencies.size) = (%d,%d) ".format(compDependencyRefs.get.size, compDependencies.size))
           }
 
-        }
-        None
-      } catch {
-        case e: Exception => Some(e)
+          if (compDependencyRefs.isEmpty || compDependencyRefs.get.size != compDependencies.size) {
+            throw new IllegalStateException("The number of component dependency refs defined does not match the number of component dependencies defined in the component version config")
+          }
+
+          val refs = compDependencyRefs.get
+
+          compDependencies.foreach { compDependency =>
+            if (refs.find(_.versionId == compDependency).isEmpty) {
+              throw new IllegalStateException(s"There is no component dependency ref defined for : $compDependency")
+            }
+          }
       }
     }
 
@@ -285,25 +292,19 @@ trait ComponentConfigs extends ConfigLookup {
       componentConfigInstance(compConfigInstanceId) match {
         case None => Some(new IllegalArgumentException(s"ComponentConfigInstance not found for: $compConfigInstanceId"))
         case Some(instance) =>
+          log.debug("validating instance: {}", instance)
+
           componentVersionConfig(compConfigInstanceId.versionId) match {
             case None => Some(new IllegalStateException(s"ComponentVersionConfig not found for: " + compConfigInstanceId.versionId))
             case Some(versionConfig) =>
 
               versionConfig.configSchema.foreach { configSchema =>
-                instance.config.foreach { config =>
-                  config.checkValid(configSchema)
-                }
+                instance.config.foreach(_.checkValid(configSchema))
               }
-              versionConfig.validators.foreach { validators =>
-                validators.foreach { validator =>
-                  validator.validate(instance.config.get)
-                }
-              }
-
+              versionConfig.validators.foreach(_.foreach(_.validate(instance.config.get)))
               checkThatAllDependenciesAreFullfilled(versionConfig, instance.compDependencyRefs)
               None
           }
-
       }
     } catch {
       case e: Exception => Some(e)

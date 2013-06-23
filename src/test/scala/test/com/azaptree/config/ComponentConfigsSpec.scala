@@ -143,15 +143,10 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
                   case None => throw new IllegalStateException("Expected some ComponentConfigInstanceIds")
                   case Some(componentConfigInstanceIds) =>
                     componentConfigInstanceIds.foreach { componentConfigInstanceId =>
-                      try {
-                        compConfigs.componentConfigInstance(componentConfigInstanceId) match {
-                          case None => throw new IllegalStateException("Expected componentConfigInstance to be found for: " + componentConfigInstanceId)
-                          case Some(componentConfigInstance) =>
-                            log.info(componentConfigInstance.toString())
-                        }
-                      } catch {
-                        case e: IllegalStateException =>
-                          if (componentConfigInstanceId.versionId != ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.1.0")) throw e
+                      compConfigs.componentConfigInstance(componentConfigInstanceId) match {
+                        case None => throw new IllegalStateException("Expected componentConfigInstance to be found for: " + componentConfigInstanceId)
+                        case Some(componentConfigInstance) =>
+                          log.info(componentConfigInstance.toString())
                       }
                     }
                 }
@@ -176,27 +171,44 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
                   case None => throw new IllegalStateException("Expected some ComponentConfigInstanceIds")
                   case Some(componentConfigInstanceIds) =>
                     componentConfigInstanceIds.foreach { componentConfigInstanceId =>
-                      try {
-                        compConfigs.componentConfigInstance(componentConfigInstanceId) match {
-                          case None => throw new IllegalStateException("Expected componentConfigInstance to be found for: " + componentConfigInstanceId)
-                          case Some(componentConfigInstance) =>
-                            log.info(componentConfigInstance.toString())
-                            compConfigs.validate(componentConfigInstanceId) match {
-                              case None => // is valid
-                              case Some(e) =>
-                                if (componentConfigInstanceId.versionId != ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.1.0")) throw e
-                            }
-                        }
-                      } catch {
-                        case e: IllegalStateException =>
-                          if (componentConfigInstanceId.versionId != ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.1.0")) throw e
+
+                      compConfigs.componentConfigInstance(componentConfigInstanceId) match {
+                        case None => throw new IllegalStateException("Expected componentConfigInstance to be found for: " + componentConfigInstanceId)
+                        case Some(componentConfigInstance) =>
+                          log.info(componentConfigInstance.toString())
+                          compConfigs.validate(componentConfigInstanceId) match {
+                            case None => // is valid
+                            case Some(e) => throw e
+                          }
                       }
+
                     }
                 }
               }
           }
         }
       }
+
+    }
+
+    it("can detect when a ComponentConfigInstance is invalid") {
+      val config = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/referenceWithInvalidConfigSchema.json")
+      val compConfigs = ComponentConfigs(config)
+
+      val invalidConfigs: List[ComponentConfigInstanceId] = {
+        ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.1.0"), "dev-local") ::
+          ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "invalid-dependency-ref") ::
+          ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "missing-dependency-ref") ::
+          Nil
+      }
+
+      invalidConfigs.foreach { componentConfigInstanceId =>
+        compConfigs.validate(componentConfigInstanceId) match {
+          case None => throw new Exception(s"$componentConfigInstanceId -> should be invalid")
+          case Some(e) => log.info(s"Validation failed as epected for $componentConfigInstanceId")
+        }
+      }
+
     }
 
   }

@@ -77,7 +77,7 @@
 			"name":"azaptree-security-service",
 			"group":"com.azaptree",
 			"versions":[
-			{
+				{
 					"version":"1.1.0",
 					"component-dependencies":[
 						{
@@ -99,17 +99,18 @@
 						}
 						
 					},
-					"config-validators":["test.com.azaptree.config.AlwaysValid"],
+					"config-validators":[
+						"test.com.azaptree.config.AlwaysValid"
+					],
 					"configs":[
 						{
 							"name":"dev-local",
 							"config":{
 								"security-service-actor-pool":{
-									"min":1,
-									"max":5
+									"min":1
 								}
 								
-							},							
+							},
 							"component-dependency-refs":[
 								{
 									"group":"com.azaptree",
@@ -151,17 +152,19 @@
 						}
 						
 					},
-					"config-validators":["test.com.azaptree.config.AlwaysValid"],
+					"config-validators":[
+						"test.com.azaptree.config.AlwaysValid"
+					],
 					"configs":[
 						{
-							"name":"dev-local",
+							"name":"valid",
 							"config":{
 								"security-service-actor-pool":{
 									"min":1,
 									"max":5
 								}
 								
-							},							
+							},
 							"component-dependency-refs":[
 								{
 									"group":"com.azaptree",
@@ -176,7 +179,51 @@
 								
 							]
 							
+						},
+						{
+							"name":"invalid-dependency-ref",
+							"config":{
+								"security-service-actor-pool":{
+									"min":1,
+									"max":5
+								}
+								
+							},
+							"component-dependency-refs":[
+								{
+									"group":"XXX",
+									"name":"azaptree-security-model",
+									"configName":"default"
+								},
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-cassandra",
+									"configName":"cassandra-local"
+								}
+								
+							]
+							
+						},
+						{
+							"name":"missing-dependency-ref",
+							"config":{
+								"security-service-actor-pool":{
+									"min":1,
+									"max":5
+								}
+								
+							},
+							"component-dependency-refs":[							
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-cassandra",
+									"configName":"cassandra-local"
+								}
+								
+							]
+							
 						}
+						
 						
 					]
 					
