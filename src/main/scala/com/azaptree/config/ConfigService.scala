@@ -26,19 +26,46 @@ trait ConfigLookup {
 }
 
 trait ApplicationConfigs extends ConfigLookup {
-  def applicationIds(): Option[Iterable[ApplicationId]]
+  protected val applicationConfigsLog = LoggerFactory.getLogger("com.azaptree.config.ApplicationConfigs")
 
-  def applicationVersions(id: ApplicationId): Option[Iterable[ApplicationVersionId]]
+  val appConfigs: Map[ApplicationId, Config] = {
+    val c = config()
 
-  def applicationVersion(id: ApplicationVersionId): Option[ApplicationVersion]
+    val apps: Seq[Config] = try {
+      c.getConfigList("applications")
+    } catch {
+      case e: com.typesafe.config.ConfigException.Missing => Nil
+      case e: Exception => throw e
+    }
 
-  def applicationConfigInstanceNames(id: ApplicationVersionId): Option[Iterable[ApplicationConfigInstanceId]]
+    apps.foldLeft(Map.empty[ApplicationId, Config]) { (map, config) =>
+      map + (ApplicationId(group = config.getString("group"), name = config.getString("name")) -> config)
+    }
+  }
 
-  def applicationConfigInstance(id: ApplicationConfigInstanceId): Option[ApplicationConfigInstance]
+  def applicationIds(): Option[Iterable[ApplicationId]] = {
+    if (appConfigs.isEmpty) None else Some(appConfigs.keys)
+  }
+
+  def applicationVersions(id: ApplicationId): Option[Iterable[ApplicationVersionId]] = {
+    throw new UnsupportedOperationException
+  }
+
+  def applicationVersion(id: ApplicationVersionId): Option[ApplicationVersion] = {
+    throw new UnsupportedOperationException
+  }
+
+  def applicationConfigInstanceNames(id: ApplicationVersionId): Option[Iterable[ApplicationConfigInstanceId]] = {
+    throw new UnsupportedOperationException
+  }
+
+  def applicationConfigInstance(id: ApplicationConfigInstanceId): Option[ApplicationConfigInstance] = {
+    throw new UnsupportedOperationException
+  }
 }
 
 trait ComponentConfigs extends ConfigLookup {
-  protected val log = LoggerFactory.getLogger("com.azaptree.config.ComponentConfigs")
+  protected val componentConfigsLog = LoggerFactory.getLogger("com.azaptree.config.ComponentConfigs")
 
   val compConfigs: Map[ComponentId, Config] = {
     val c: Config = config()
@@ -52,8 +79,7 @@ trait ComponentConfigs extends ConfigLookup {
       }
     }
 
-    val emptyComponentConfigsMap: Map[ComponentId, Config] = Map.empty[ComponentId, Config]
-    components.foldLeft(emptyComponentConfigsMap) { (compConfigsMap, compConfig) =>
+    components.foldLeft(Map.empty[ComponentId, Config]) { (compConfigsMap, compConfig) =>
       val compId = ComponentId(group = compConfig.getString("group"), name = compConfig.getString("name"))
       compConfigsMap + (compId -> compConfig)
     }
@@ -240,7 +266,7 @@ trait ComponentConfigs extends ConfigLookup {
             val versions: Seq[Config] = compConfig.getConfigList("versions")
             versions.find(_.getString("version") == versionId.version) match {
               case None =>
-                log.debug("no matching version found for : {}", versionId)
+                componentConfigsLog.debug("no matching version found for : {}", versionId)
                 None
               case Some(version) =>
                 Some(ComponentVersionConfig(
@@ -251,7 +277,7 @@ trait ComponentConfigs extends ConfigLookup {
             }
           } catch {
             case e: com.typesafe.config.ConfigException.Missing =>
-              if (log.isDebugEnabled()) log.debug(s"no matching version found for [$versionId] because of missing config path ", e)
+              if (componentConfigsLog.isDebugEnabled()) componentConfigsLog.debug(s"no matching version found for [$versionId] because of missing config path ", e)
               None
             case e: Exception => throw e
           }
@@ -268,10 +294,10 @@ trait ComponentConfigs extends ConfigLookup {
         case None => if (compDependencyRefs.isDefined) throw new IllegalStateException("""There should not be any component dependency refs defined 
               | because there are no component dependencies defined on the component version config""".stripMargin)
         case Some(compDependencies) =>
-          if (log.isDebugEnabled()) {
-            log.debug("compDependencyRefs.isEmpty || compDependencyRefs.get.size != compDependencies.size = " + (compDependencyRefs.isEmpty || compDependencyRefs.get.size != compDependencies.size))
-            log.debug("compDependencyRefs.isEmpty = " + compDependencyRefs.isEmpty)
-            log.debug("(compDependencyRefs.get.size, compDependencies.size) = (%d,%d) ".format(compDependencyRefs.get.size, compDependencies.size))
+          if (componentConfigsLog.isDebugEnabled()) {
+            componentConfigsLog.debug("compDependencyRefs.isEmpty || compDependencyRefs.get.size != compDependencies.size = " + (compDependencyRefs.isEmpty || compDependencyRefs.get.size != compDependencies.size))
+            componentConfigsLog.debug("compDependencyRefs.isEmpty = " + compDependencyRefs.isEmpty)
+            componentConfigsLog.debug("(compDependencyRefs.get.size, compDependencies.size) = (%d,%d) ".format(compDependencyRefs.get.size, compDependencies.size))
           }
 
           if (compDependencyRefs.isEmpty || compDependencyRefs.get.size != compDependencies.size) {
@@ -301,7 +327,7 @@ trait ComponentConfigs extends ConfigLookup {
       componentConfigInstance(compConfigInstanceId) match {
         case None => Some(new IllegalArgumentException(s"ComponentConfigInstance not found for: $compConfigInstanceId"))
         case Some(instance) =>
-          log.debug("validating instance: {}", instance)
+          componentConfigsLog.debug("validating instance: {}", instance)
 
           componentVersionConfig(compConfigInstanceId.versionId) match {
             case None => Some(new IllegalStateException(s"ComponentVersionConfig not found for: " + compConfigInstanceId.versionId))
