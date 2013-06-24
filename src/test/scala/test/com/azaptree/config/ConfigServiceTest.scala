@@ -13,8 +13,11 @@ class ConfigServiceTest extends FunSpec with ShouldMatchers {
 
   val log = LoggerFactory.getLogger("ConfigServiceTest")
 
-  val appConfig = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/application.json")
-  val compConfig = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/reference.json")
+  //val appConfig = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/application.json")
+  //val compConfig = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/reference.json")
+
+  val compConfig = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/components/components.conf").resolve()
+  val appConfig = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/applications/applications.conf").resolve()
 
   val config = appConfig.withFallback(compConfig).resolve()
   log.info(toFormattedJson(config))
@@ -77,7 +80,7 @@ class ConfigServiceTest extends FunSpec with ShouldMatchers {
 
         }
       }
-    }
+    }   
 
   }
 
