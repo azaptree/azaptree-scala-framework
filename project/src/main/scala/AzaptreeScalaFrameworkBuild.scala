@@ -7,7 +7,7 @@ object AzaptreeScalaFrameworkBuild extends Build {
 
   println(String.format("*** Building %s",projectId))
   
-  val akkaVersion = "2.1.4"
+  val akkaVersion = "2.2.0-RC1"
 
   lazy val root = Project(id = projectId, base = file("."))
    

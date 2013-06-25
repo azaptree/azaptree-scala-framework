@@ -32,7 +32,8 @@ scalacOptions ++= Seq("-P:continuations:enable",
 					  "-optimise",
 					  "-feature",
 					  "-language:postfixOps",
-					  "-language:higherKinds")
+					  "-language:higherKinds",
+					  "-deprecation")
 
 scalariformSettings
 

@@ -19,6 +19,7 @@ import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
 import com.azaptree.actor.message.system.HeartbeatResponse
 import org.slf4j.LoggerFactory
+import akka.actor.ActorRef
 
 object ActorSystemManager {
 
@@ -31,8 +32,8 @@ object ActorSystemManager {
    * Any messages in the Actor's mailbox will be discarded
    */
   def stopActorNow(actorSystem: ActorSystem, actorPath: ActorPath): Unit = {
-    val actor = actorSystem.actorFor(actorPath)
-    actorSystem.stop(actor)
+    val actor = actorSystem.actorSelection(actorPath)
+    actor ! Kill
   }
 
   /**
@@ -40,20 +41,19 @@ object ActorSystemManager {
    * PoisonPill is enqueued as ordinary messages and will be handled after messages that were already queued in the mailbox
    */
   def stopActor(actorSystem: ActorSystem, actorPath: ActorPath): Unit = {
-    val actor = actorSystem.actorFor(actorPath)
+    val actor = actorSystem.actorSelection(actorPath)
     actor ! PoisonPill
   }
 
-  def gracefulStop(actorSystem: ActorSystem, actorPath: ActorPath, timeout: FiniteDuration = 1 second): Unit = {
+  def gracefulStop(actor: ActorRef, timeout: FiniteDuration = 1 second): Unit = {
     import scala.concurrent.duration._
-    val actor = actorSystem.actorFor(actorPath)
     try {
-      val stopped: Future[Boolean] = akka.pattern.gracefulStop(actor, timeout)(actorSystem)
-      Await.result(stopped, timeout)
+      val stopped: Future[Boolean] = akka.pattern.gracefulStop(actor, timeout)
+      Await.result(stopped, (timeout plus (1 second)))
     } catch {
       case e: AskTimeoutException =>
         val log = LoggerFactory.getLogger("com.azaptree.actor.ActorSystemManager")
-        val msgArgs = Array(actorPath, timeout)
+        val msgArgs = Array(actor.path, timeout)
         log.warn("gracefulStop() timed out for : {} : timeout = {}", msgArgs: _*)
     }
   }
@@ -63,7 +63,7 @@ object ActorSystemManager {
   }
 
   def sendHeartbeat(actorSystem: ActorSystem, actorPath: ActorPath, timeout: FiniteDuration = 1 second): Option[Message[HeartbeatResponse.type]] = {
-    val actor = actorSystem.actorFor(actorPath)
+    val actor = actorSystem.actorSelection(actorPath)
 
     import scala.concurrent.duration._
     import akka.pattern.ask

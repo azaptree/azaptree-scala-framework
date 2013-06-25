@@ -34,6 +34,7 @@ import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout
 import com.azaptree.actor.component.ActorComponentLifeCycle
+import akka.actor.ActorSelection
 
 object Actors {
   import akka.actor.SupervisorStrategy._
@@ -169,7 +170,7 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
 
   Thread.sleep(100l)
 
-  def actorRegistryActor: ActorRef = actorSystem.actorFor(actorRegistryActorPath)
+  def actorRegistryActor = actorSystem.actorSelection(actorRegistryActorPath)
 
   def actorRegistryActorPath: ActorPath = actorSystem / ActorRegistry.ACTOR_NAME
 
@@ -182,7 +183,7 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
 
   implicit val defaultTimeout = new Timeout(1 second)
 
-  def log(actors: Set[ActorRef])(implicit actorRegistry: ActorRef) = {
+  def log(actors: Set[ActorRef])(implicit actorRegistry: ActorSelection) = {
     println(actors.mkString("\n**************** ACTORS ***************\n", "\n", "\n**************** END - ACTORS ***************\n"))
 
     actors.foreach {

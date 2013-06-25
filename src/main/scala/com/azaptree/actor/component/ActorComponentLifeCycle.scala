@@ -20,7 +20,7 @@ case class ActorComponentLifeCycle(actorConfig: ActorConfig)(implicit actorSyste
   }
 
   override protected def stop(comp: Component[ComponentStarted, ActorRef]): Component[ComponentStopped, ActorRef] = {
-    actorConfig.gracefulStopTimeout.foreach(ActorSystemManager.gracefulStop(actorSystem, actorConfig.actorPath, _))
+    actorConfig.gracefulStopTimeout.foreach(ActorSystemManager.gracefulStop(comp.componentObject.get, _))
     comp.copy[ComponentStopped, ActorRef](componentObject = None)
   }
 

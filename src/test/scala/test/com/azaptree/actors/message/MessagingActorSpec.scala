@@ -50,6 +50,7 @@ import akka.testkit.DefaultTimeout
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import com.azaptree.actor.application.ApplicationActor
+import akka.actor.ActorSelection
 
 object MessagingActorSpec {
 
@@ -168,6 +169,12 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     	}
         """)))
   val appActor = appActorConfig.actorOfActorSystem
+
+  def getMessageActorStats(actor: ActorSelection): MessageStats = {
+    val messageStatsFuture = ask(actor, Message[GetMessageStats.type](GetMessageStats)).mapTo[Message[MessageStats]]
+    implicit val dispatcher = system.dispatcher
+    Await.result(messageStatsFuture, 100 millis).data
+  }
 
   def getMessageActorStats(actor: ActorRef): MessageStats = {
     val messageStatsFuture = ask(actor, Message[GetMessageStats.type](GetMessageStats)).mapTo[Message[MessageStats]]
@@ -321,7 +328,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
       println(s"echoMessageActorWithResumeSupervisorStrategy.supervisorStrategy = $supervisorStrategy")
       supervisorStrategy should be(MessagingActorSpec.resumeStrategy)
 
-      val printer = system.actorFor("akka://%s/user/%s/Printer".format(system.name, echoMessageActorWithResumeSupervisorStrategyConfig.name))
+      val printer = system.actorSelection("akka://%s/user/%s/Printer".format(system.name, echoMessageActorWithResumeSupervisorStrategyConfig.name))
       val msgStatsBefore = getMessageActorStats(printer)
 
       val requestCount = 10
@@ -437,7 +444,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
 
   feature("""Actors will register with an ActorRegistry when started/restarted and unregister when terminated""") {
     scenario("Create an Actor and check that is has registered. Then stop the actor and check that is has unregistered") {
-      val actorRegistry = system.actorFor(system / ActorRegistry.ACTOR_NAME)
+      val actorRegistry = system.actorSelection(system / ActorRegistry.ACTOR_NAME)
       val registeredActorsFuture = ask(actorRegistry, Message(ActorRegistry.GetRegisteredActors())).mapTo[Message[ActorRegistry.RegisteredActors]]
 
       val actors = Await.result(registeredActorsFuture, 100 millis).data.actors
@@ -447,7 +454,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
       val actorConfig = ActorConfig(actorClass = classOf[MessagingActorSpec.EchoMessageActor], actorPath = system / "ActorRegistryTest")
       val actor = actorConfig.actorOfActorSystem
       Await.result(actor ? Message(HeartbeatRequest), 100 millis)
-      Await.result(system.actorFor(system / actorConfig.name / "Printer") ? Message(HeartbeatRequest), 100 millis)
+      Await.result(system.actorSelection(system / actorConfig.name / "Printer") ? Message(HeartbeatRequest), 100 millis)
 
       Thread.sleep(10l)
 
