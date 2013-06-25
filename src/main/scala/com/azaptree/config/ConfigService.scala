@@ -267,10 +267,9 @@ trait ApplicationConfigs extends ComponentConfigs {
                 None
               case Some(versionConfig) =>
                 val appVersionConfig = ApplicationVersionConfig(
-                  appVersionId = versionId,
+                  ApplicationVersion(id = versionId, dependencies = getComponentDependencies(versionConfig)),
                   configSchema = getConfig(versionConfig, "config-schema"),
-                  validators = getValidators(versionConfig),
-                  compDependencies = getComponentDependencies(versionConfig))
+                  validators = getValidators(versionConfig))
                 Some(appVersionConfig)
             }
         }
@@ -305,7 +304,7 @@ trait ApplicationConfigs extends ComponentConfigs {
     }
 
     def validateComponentDependencies(appVersionConfig: ApplicationVersionConfig, appConfigInstance: ApplicationConfigInstance) = {
-      appVersionConfig.compDependencies match {
+      appVersionConfig.appVersion.dependencies match {
         case None =>
           if (appConfigInstance.compDependencyRefs.isDefined) {
             throw new IllegalStateException("""There should not be any component dependency refs defined 
@@ -461,7 +460,7 @@ trait ComponentConfigs extends ConfigLookup {
         case Some(compDependencyRefs) =>
           val refs = compDependencyRefs.foldLeft(List.empty[ComponentConfigInstanceId]) { (refs, compDependencyRef) =>
             val compId = ComponentId(group = compDependencyRef.getString("group"), name = compDependencyRef.getString("name"))
-            val version = compVersionConfig.get.compDependency(compId) match {
+            val version = compVersionConfig.get.compVersion.compDependency(compId) match {
               case None => throw new IllegalStateException(s"Invalid component dependency [$compId] is defined for : $compVersionConfig")
               case Some(compVersionId) => compVersionId.version
             }
@@ -547,10 +546,9 @@ trait ComponentConfigs extends ConfigLookup {
                   None
                 case Some(version) =>
                   Some(ComponentVersionConfig(
-                    compVersionId = versionId,
+                    ComponentVersion(id = versionId, compDependencies = compDependencies(version)),
                     configSchema = getConfig(version, "config-schema"),
-                    validators = validators(version),
-                    compDependencies = compDependencies(version)))
+                    validators = validators(version)))
               }
           }
       }
@@ -562,7 +560,7 @@ trait ComponentConfigs extends ConfigLookup {
    */
   def validate(compConfigInstanceId: ComponentConfigInstanceId): Option[Exception] = {
     def checkThatAllDependenciesAreFullfilled(versionConfig: ComponentVersionConfig, compDependencyRefs: Option[Iterable[ComponentConfigInstanceId]]) = {
-      versionConfig.compDependencies match {
+      versionConfig.compVersion.compDependencies match {
         case None => if (compDependencyRefs.isDefined) throw new IllegalStateException("""There should not be any component dependency refs defined 
               | because there are no component dependencies defined on the component version config""".stripMargin)
         case Some(compDependencies) =>

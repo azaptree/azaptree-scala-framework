@@ -52,4 +52,13 @@ package object config {
     }
   }
 
+  def getString(config: Config, path: String): Option[String] = {
+    try {
+      Some(config.getString(path))
+    } catch {
+      case e: ConfigException.Missing => None
+      case e: Exception => throw e
+    }
+  }
+
 }

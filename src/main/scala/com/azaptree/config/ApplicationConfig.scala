@@ -5,10 +5,9 @@ import com.azaptree.application.model.ApplicationVersionId
 import com.azaptree.application.model.ComponentVersionId
 
 case class ApplicationVersionConfig(
-  appVersionId: ApplicationVersionId,
+  appVersion: ApplicationVersion,
   configSchema: Option[com.typesafe.config.Config] = None,
-  validators: Option[Iterable[ConfigValidator]] = None,
-  compDependencies: Option[Iterable[ComponentVersionId]] = None)
+  validators: Option[Iterable[ConfigValidator]] = None)
 
 case class ApplicationConfigInstance(
   id: ApplicationConfigInstanceId,

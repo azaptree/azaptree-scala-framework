@@ -6,18 +6,9 @@ import com.azaptree.application.model.ComponentVersionId
 import com.typesafe.config.Config
 
 case class ComponentVersionConfig(
-    compVersionId: ComponentVersionId,
-    configSchema: Option[com.typesafe.config.Config] = None,
-    validators: Option[Iterable[ConfigValidator]] = None,
-    compDependencies: Option[Iterable[ComponentVersionId]] = None) {
-
-  def compDependency(compId: ComponentId): Option[ComponentVersionId] = {
-    compDependencies match {
-      case None => None
-      case Some(versionIds) => versionIds.find(_.compId == compId)
-    }
-  }
-}
+  compVersion: ComponentVersion,
+  configSchema: Option[com.typesafe.config.Config] = None,
+  validators: Option[Iterable[ConfigValidator]] = None)
 
 case class ComponentConfigInstance(
   id: ComponentConfigInstanceId,

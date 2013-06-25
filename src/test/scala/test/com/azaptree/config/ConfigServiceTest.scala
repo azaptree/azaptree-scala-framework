@@ -80,7 +80,7 @@ class ConfigServiceTest extends FunSpec with ShouldMatchers {
 
         }
       }
-    }   
+    }
 
   }
 
