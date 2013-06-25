@@ -10,8 +10,20 @@ import com.azaptree.application.ApplicationService
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds._
+import com.azaptree.application.deployment.ApplicationDeployment
 
-case class ApplicationPidFile(appName: String, watchDir: File)(implicit fileWatcherService: FileWatcherService, applicationService: ApplicationService)
+object ApplicationPidFile {
+  def apply(applicationDeployment: ApplicationDeployment)(implicit fileWatcherService: FileWatcherService, applicationService: ApplicationService) = {
+    val watchDir = new File(applicationDeployment.baseDir, "pid")
+    new ApplicationPidFile(applicationDeployment.applicationInstanceId.id, watchDir)
+  }
+
+  def apply(appName: String, watchDir: File)(implicit fileWatcherService: FileWatcherService, applicationService: ApplicationService) = {
+    new ApplicationPidFile(appName, watchDir)
+  }
+}
+
+class ApplicationPidFile(appName: String, watchDir: File)(implicit fileWatcherService: FileWatcherService, applicationService: ApplicationService)
     extends ApplicationExtension {
   require(!appName.trim().isEmpty(), "appName cannot be blank")
 

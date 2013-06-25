@@ -4,6 +4,7 @@ import com.typesafe.config.Config
 import java.io.File
 import com.azaptree.config._
 import java.net.URL
+import com.azaptree.application.ApplicationExtension
 
 /**
  * Config Schema:
@@ -23,7 +24,12 @@ import java.net.URL
  * }
  * </code>
  */
-case class ApplicationDeployment(config: Config, namespace: String = "com.azaptree") {
+case class ApplicationDeployment(config: Config, namespace: String = "com.azaptree") extends ApplicationExtension {
+  require(namespace.trim().length() > 0, "namespace is required")
+
+  override def start() = { /*no action needed*/ }
+
+  override def stop() = { /*no action needed*/ }
 
   /**
    * "${namespace}.base-dir" or falls back to JVM system property "user.dir"
@@ -35,15 +41,20 @@ case class ApplicationDeployment(config: Config, namespace: String = "com.azaptr
     }
   }
 
-  def applicationInstanceId: Option[ApplicationInstanceId] = {
+  def applicationInstanceId: ApplicationInstanceId = {
     val appInstanceId = s"${namespace}.app-instance-id"
-    for {
+    val id = for {
       group <- getString(config, s"$appInstanceId.group")
       name <- getString(config, s"$appInstanceId.name")
       version <- getString(config, s"$appInstanceId.version")
       instance <- getString(config, s"$appInstanceId.instance")
     } yield {
       ApplicationInstanceId(group = group, name = name, version = version, instance = instance)
+    }
+
+    id match {
+      case None => throw new IllegalStateException("$appInstanceId is not properly defined in the config")
+      case Some(x) => x
     }
   }
 
@@ -56,4 +67,6 @@ case class ApplicationDeployment(config: Config, namespace: String = "com.azaptr
 
 }
 
-case class ApplicationInstanceId(group: String, name: String, version: String, instance: String)
+case class ApplicationInstanceId(group: String, name: String, version: String, instance: String) {
+  val id = s"${group}_${name}_${version}_${instance}"
+}
