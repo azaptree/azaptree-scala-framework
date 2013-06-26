@@ -516,4 +516,18 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     }
   }
 
+  feature("You can lookup an ActorRef by ActorPath via the ActorRegistry") {
+    scenario("Request ActorRefs for each registered actor") {
+      import com.azaptree.actor.config._
+      ActorConfigRegistry.actorPaths(system.name).isEmpty should be(false)
+
+      val registeredActors = Await.result(ask(actorRegistry, Message(GetRegisteredActors())).mapTo[Message[RegisteredActors]], 100 millis).data
+      registeredActors.actors.foreach { actor =>
+        logger.info("actorPath = {}", actor.path)
+        val actorRef = Await.result(ask(actorRegistry, Message(GetRegisteredActor(actor.path))).asInstanceOf[Future[Message[Option[ActorRef]]]], 100 millis).data.get
+        actorRef.path should be(actor.path)
+      }
+    }
+  }
+
 }

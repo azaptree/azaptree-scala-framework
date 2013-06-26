@@ -24,6 +24,7 @@ class ActorRegistry extends MessageActor {
     case Message(t: Terminated, _) => registeredActors -= t.actor
 
     case Message(GetRegisteredActors(actorPath), _) => sender ! getRegisteredActors(actorPath)
+    case Message(GetRegisteredActor(actorPath), _) => sender ! getRegisteredActor(actorPath)
     case Message(GetRegisteredActorCount(actorPath), _) => sender ! getRegisteredActorCount(actorPath)
   }
 
@@ -38,6 +39,11 @@ class ActorRegistry extends MessageActor {
         })
         Message(RegisteredActors(actorPath, actors))
     }
+  }
+
+  def getRegisteredActor(actorPath: ActorPath): Message[Option[ActorRef]] = {
+    Message[Option[ActorRef]](registeredActors.find(_.path == actorPath))
+
   }
 
   def getRegisteredActorCount(actorPath: Option[ActorPath]): Message[RegisteredActorCount] = {
@@ -68,6 +74,11 @@ object ActorRegistry {
    *
    */
   case class GetRegisteredActors(actorPath: Option[ActorPath] = None) extends ActorRegistryRequest
+
+  /**
+   * response message type is Message[Option[ActorRef]]
+   */
+  case class GetRegisteredActor(actorPath: ActorPath) extends ActorRegistryRequest
 
   case class GetRegisteredActorCount(actorPath: Option[ActorPath] = None) extends ActorRegistryRequest
 
