@@ -311,10 +311,6 @@ trait ApplicationConfigs extends ComponentConfigs {
               | because there are no component dependencies defined on the application version config""".stripMargin)
           }
         case Some(compDependencies) =>
-          if (appConfigInstance.compDependencyRefs.isEmpty || appConfigInstance.compDependencyRefs.get.size != compDependencies.size) {
-            throw new IllegalStateException("The number of component dependency refs defined does not match the number of component dependencies defined in the application version config")
-          }
-
           val refs = appConfigInstance.compDependencyRefs.get
 
           compDependencies.foreach { compDependency =>
@@ -568,10 +564,6 @@ trait ComponentConfigs extends ConfigLookup {
             componentConfigsLog.debug("compDependencyRefs.isEmpty || compDependencyRefs.get.size != compDependencies.size = " + (compDependencyRefs.isEmpty || compDependencyRefs.get.size != compDependencies.size))
             componentConfigsLog.debug("compDependencyRefs.isEmpty = " + compDependencyRefs.isEmpty)
             componentConfigsLog.debug("(compDependencyRefs.get.size, compDependencies.size) = (%d,%d) ".format(compDependencyRefs.get.size, compDependencies.size))
-          }
-
-          if (compDependencyRefs.isEmpty || compDependencyRefs.get.size != compDependencies.size) {
-            throw new IllegalStateException("The number of component dependency refs defined does not match the number of component dependencies defined in the component version config")
           }
 
           val refs = compDependencyRefs.get
