@@ -11,10 +11,11 @@ import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.IsApplicationMessageSupported
 import com.azaptree.actor.message.system.MessageStats
 import com.azaptree.actor.message.system.SystemMessage
-
 import akka.actor.UnhandledMessage
 import akka.actor.actorRef2Scala
 import com.azaptree.actor.message.system.HeartbeatResponse
+import com.azaptree.actor.message.system.GetActorRef
+import akka.actor.ActorRef
 
 trait SystemMessageProcessing {
   self: MessageProcessor =>
@@ -36,6 +37,7 @@ trait SystemMessageProcessing {
     case m @ Message(HeartbeatRequest, _) => tryProcessingSystemMessage(m, processHeartbeat)
     case m @ Message(GetMessageStats, _) => tryProcessingSystemMessage(m, processGetMessageStats)
     case m @ Message(GetActorConfig, _) => tryProcessingSystemMessage(m, processGetActorConfig)
+    case m @ Message(GetActorRef, _) => tryProcessingSystemMessage(m, processGetActorRef)
     case m @ Message(GetChildrenActorPaths, _) => tryProcessingSystemMessage(m, processGetChildrenActorPaths)
     case m @ Message(IsApplicationMessageSupported(_), _) => tryProcessingSystemMessage(m, isApplicationMessageSupported)
   }
@@ -66,11 +68,20 @@ trait SystemMessageProcessing {
   }
 
   /**
-   * Sends a Message[MessageStats] reply back to the sender.
+   * Sends a Message[ActorConfig] reply back to the sender.
    */
   private def processGetActorConfig(message: Message[_]): Unit = {
     sender ! Message[ActorConfig](
       data = actorConfig,
+      metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
+  }
+
+  /**
+   * Sends a Message[ActorConfig] reply back to the sender.
+   */
+  private def processGetActorRef(message: Message[_]): Unit = {
+    sender ! Message[ActorRef](
+      data = context.self,
       metadata = MessageMetadata(processingResults = message.metadata.processingResults.head.success :: message.metadata.processingResults.tail))
   }
 

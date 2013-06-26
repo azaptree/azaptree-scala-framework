@@ -28,6 +28,9 @@ case object GetMessageStats extends SystemMessageRequest
 case object GetActorConfig extends SystemMessageRequest
 
 @SerialVersionUID(1L)
+case object GetActorRef extends SystemMessageRequest
+
+@SerialVersionUID(1L)
 case object GetChildrenActorPaths extends SystemMessageRequest
 
 @SerialVersionUID(1L)

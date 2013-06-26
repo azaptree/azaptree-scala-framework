@@ -51,8 +51,12 @@ import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import com.azaptree.actor.application.ApplicationActor
 import akka.actor.ActorSelection
+import com.azaptree.actor.ActorSystemManager
+import com.azaptree.actor.message.system.GetActorRef
+import org.slf4j.LoggerFactory
 
 object MessagingActorSpec {
+  val logger = LoggerFactory.getLogger("MessagingActorSpec")
 
   import akka.actor.SupervisorStrategy._
 
@@ -68,7 +72,7 @@ object MessagingActorSpec {
     override def receiveMessage = {
       case Message(msg: String, _) =>
         val path = self.path
-        println(s"$path : msg = $msg")
+        logger.info(s"$path : msg = $msg")
       case Message(e: Exception, _) =>
         throw e
     }
@@ -134,6 +138,8 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     with DefaultTimeout with ImplicitSender
     with FeatureSpec with ShouldMatchers with BeforeAndAfterAll {
 
+  val logger = LoggerFactory.getLogger("MessagingActorSpec")
+
   def this() = this(MessagingActorSpec.createActorSystem())
 
   val messageLogger = system.actorOf(Props[MessagingActorSpec.MessageLoggingTracker], "MessageLoggingTracker")
@@ -189,7 +195,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
   }
 
   def log(actors: Set[ActorRef]) = {
-    println(actors.foldLeft("\n")((s, a) => s + "\n" + a.path) + "\n")
+    logger.info(actors.foldLeft("\n")((s, a) => s + "\n" + a.path) + "\n")
 
     actors.foreach {
       actor =>
@@ -198,7 +204,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
 
         var sortedActors = TreeSet[ActorRef]()
         sortedActors = sortedActors ++ actors2
-        println(sortedActors.foldLeft("*** " + actor.path + " ***")((s, a) => s + "\n   |--" + a.path) + "\n")
+        logger.info(sortedActors.foldLeft("*** " + actor.path + " ***")((s, a) => s + "\n   |--" + a.path) + "\n")
     }
   }
 
@@ -283,7 +289,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
         case msg: Message[_] =>
           msg.data match {
             case response @ HeartbeatResponse =>
-              println(response)
+              logger.info("{}", response)
           }
       }
 
@@ -325,7 +331,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
         |Thus, the message count should have increased, but lastMessageProcessedOn should not have changed.""".stripMargin) {
 
       val supervisorStrategy = getEchoMessageActorSupervisorStrategy(echoMessageActorWithResumeSupervisorStrategy)
-      println(s"echoMessageActorWithResumeSupervisorStrategy.supervisorStrategy = $supervisorStrategy")
+      logger.info(s"echoMessageActorWithResumeSupervisorStrategy.supervisorStrategy = $supervisorStrategy")
       supervisorStrategy should be(MessagingActorSpec.resumeStrategy)
 
       val printer = system.actorSelection("akka://%s/user/%s/Printer".format(system.name, echoMessageActorWithResumeSupervisorStrategyConfig.name))
@@ -340,12 +346,12 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
       Thread.sleep(100l)
 
       val msgStatsBefore2 = getMessageActorStats(printer)
-      println(s"*** msgStatsBefore2 = $msgStatsBefore2")
+      logger.info(s"*** msgStatsBefore2 = $msgStatsBefore2")
       Thread.sleep(10l)
       printer ! Message[Exception](data = new Exception("Testing Message Failure"))
 
       val msgStats = getMessageActorStats(printer)
-      println(s"*** msgStats = $msgStats")
+      logger.info(s"*** msgStats = $msgStats")
 
       msgStats.actorCreatedOn should be(msgStatsBefore2.actorCreatedOn)
       msgStats.messageCount should be(msgStatsBefore2.messageCount + 1)
@@ -474,7 +480,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     scenario("Submit a GetApplicationInfo request and check that a ApplicationInfo response is returned") {
       import ApplicationActor._
       val appInfo = Await.result(ask(appActor, Message(GetApplicationInfo)).mapTo[Message[ApplicationInfo]], 100 millis).data
-      println(s"\nappInfo = $appInfo\n")
+      logger.info(s"\nappInfo = $appInfo\n")
 
       appInfo.appName should be(appActorConfig.config.get.getString(ApplicationActor.ConfigKeys.APP_NAME))
       appInfo.appVersion should be(appActorConfig.config.get.getString(ApplicationActor.ConfigKeys.APP_VERSION))
@@ -487,13 +493,27 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     scenario("Submit a GetJvmInfo request and check that a Seq[JvmInfo]  response is returned") {
       import ApplicationActor._
       val response = Await.result(ask(appActor, Message(GetJvmInfo(RuntimeInfoRequest :: ClassLoadingInfoRequest :: Nil))).mapTo[Message[Seq[JvmInfo]]], 100 millis).data
-      println(s"\n response = $response\n")
+      logger.info(s"\n response = $response\n")
 
       response.size should be(2)
       response(0).isInstanceOf[RuntimeInfo] should be(true)
       response(1).isInstanceOf[ClassLoadingInfo] should be(true)
     }
 
+  }
+
+  feature("You can ask a MessageActor for its ActorRef") {
+    scenario("Submit a GetActorRef request and check that it returns the correct ActorRef") {
+      import com.azaptree.actor.config._
+      ActorConfigRegistry.actorPaths(system.name).isEmpty should be(false)
+
+      val registeredActors = Await.result(ask(actorRegistry, Message(GetRegisteredActors())).mapTo[Message[RegisteredActors]], 100 millis).data
+      registeredActors.actors.foreach { actor =>
+        logger.info("actorPath = {}", actor.path)
+        val actorRef = Await.result(ask(actor, Message(GetActorRef)).asInstanceOf[Future[Message[ActorRef]]], 100 millis).data
+        actorRef.path should be(actor.path)
+      }
+    }
   }
 
 }
