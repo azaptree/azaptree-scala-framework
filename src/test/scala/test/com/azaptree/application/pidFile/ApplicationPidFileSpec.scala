@@ -36,6 +36,8 @@ object ApplicationPidFileSpec extends ApplicationLauncher {
 }
 
 object ApplicationPidFileUsingApplictionDeploymentSpec extends ApplicationLauncher {
+  val log = LoggerFactory.getLogger("ApplicationPidFileUsingApplictionDeploymentSpec")
+
   var appPidFile: ApplicationPidFile = _
 
   override def createApplicationService(): ApplicationService = {
@@ -50,22 +52,25 @@ com.azaptree{
    }
  
    config-service{
-      url = "http://localhost:8080/api/config-service/1-0-0/{com.azaptree.app-instance-id.group}/{com.azaptree.app-instance-id.name}/{com.azaptree.app-instance-id.version}/{com.azaptree.application-instance-id.instance}"
+      url = "http://localhost:8080/api/config-service/1-0-0/"${com.azaptree.app-instance-id.group}/${com.azaptree.app-instance-id.name}/${com.azaptree.app-instance-id.version}/${com.azaptree.app-instance-id.instance}
    }
 }
-""")
+""").resolve()
 
-    val appDeployment = ApplicationDeployment(config)
+    log.info("com.azaptree.config-service.url = {}", config.getString("com.azaptree.config-service.url"))
+    log.info("com.azaptree.app-instance-id.group = {}", config.getString("com.azaptree.app-instance-id.group"))
+    log.info("com.azaptree.app-instance-id.group = {}", config.getString("com.azaptree.app-instance-id.name"))
+    log.info("com.azaptree.app-instance-id.group = {}", config.getString("com.azaptree.app-instance-id.version"))
+    log.info("com.azaptree.app-instance-id.group = {}", config.getString("com.azaptree.app-instance-id.instance"))
 
     implicit val appService = new ApplicationService()
 
     val fileWatcherComponent = Component[ComponentNotConstructed, FileWatcherService]("FileWatcherService", new FileWatcherServiceComponentLifeCycle())
     implicit val fileWatcherService = appService.registerComponent(fileWatcherComponent).get
 
+    val appDeployment = ApplicationDeployment(config)
     appService.registerComponent(Component[ComponentNotConstructed, ApplicationExtension]("ApplicationDeployment", new ApplicationExtensionComponentLifeCycle(appDeployment)))
-    val appPidFile = ApplicationPidFile(appDeployment)
-    appService.registerComponent(Component[ComponentNotConstructed, ApplicationExtension]("ApplicationPidFile", new ApplicationExtensionComponentLifeCycle(appPidFile)))
-    ApplicationPidFileUsingApplictionDeploymentSpec.appPidFile = appPidFile
+    ApplicationPidFileUsingApplictionDeploymentSpec.appPidFile = appDeployment.appPidFile
 
     appService
   }

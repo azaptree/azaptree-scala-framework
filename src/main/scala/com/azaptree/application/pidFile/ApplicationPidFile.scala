@@ -23,6 +23,9 @@ object ApplicationPidFile {
   }
 }
 
+/**
+ * Creates a PID file in the specified watch dir. When the pid file is deleted it will stop the ApplicationService.
+ */
 class ApplicationPidFile(appName: String, watchDir: File)(implicit fileWatcherService: FileWatcherService, applicationService: ApplicationService)
     extends ApplicationExtension {
   require(!appName.trim().isEmpty(), "appName cannot be blank")

@@ -5,6 +5,12 @@ import java.io.File
 import com.azaptree.config._
 import java.net.URL
 import com.azaptree.application.ApplicationExtension
+import com.azaptree.application.pidFile.ApplicationPidFile
+import com.azaptree.nio.file.FileWatcherService
+import com.azaptree.application.ApplicationService
+import com.azaptree.application.Component
+import com.azaptree.application.ComponentNotConstructed
+import com.azaptree.application.ApplicationExtensionComponentLifeCycle
 
 /**
  * Config Schema:
@@ -19,17 +25,23 @@ import com.azaptree.application.ApplicationExtension
  *  }
  *
  *  config-service{
- *  	url = "http://localhost:8080/api/config-service/1-0-0/{com.azaptree.app-instance-id.group}/{com.azaptree.app-instance-id.name}/{com.azaptree.app-instance-id.version}/{com.azaptree.application-instance-id.instance}"
+ *  	url = "http://localhost:8080/api/config-service/1-0-0/"${com.azaptree.app-instance-id.group}/${com.azaptree.app-instance-id.name}/${com.azaptree.app-instance-id.version}/${com.azaptree.app-instance-id.instance}"
  *  }
  * }
  * </code>
  */
-case class ApplicationDeployment(config: Config, namespace: String = "com.azaptree") extends ApplicationExtension {
+case class ApplicationDeployment(config: Config, namespace: String = "com.azaptree")(implicit fileWatcherService: FileWatcherService, applicationService: ApplicationService) extends ApplicationExtension {
   require(namespace.trim().length() > 0, "namespace is required")
 
-  override def start() = { /*no action needed*/ }
+  val appPidFile = ApplicationPidFile(this)
 
-  override def stop() = { /*no action needed*/ }
+  override def start() = {
+    appPidFile.start()
+  }
+
+  override def stop() = {
+    appPidFile.stop()
+  }
 
   /**
    * "${namespace}.base-dir" or falls back to JVM system property "user.dir"
