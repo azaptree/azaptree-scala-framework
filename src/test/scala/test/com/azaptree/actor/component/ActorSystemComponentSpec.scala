@@ -183,13 +183,13 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
 
   implicit val defaultTimeout = new Timeout(1 second)
 
-  def log(actors: Set[ActorRef])(implicit actorRegistry: ActorSelection) = {
+  def log(actors: Iterable[ActorRef])(implicit actorRegistry: ActorSelection) = {
     println(actors.mkString("\n**************** ACTORS ***************\n", "\n", "\n**************** END - ACTORS ***************\n"))
 
     actors.foreach {
       actor =>
         val actors2 = Await.result(ask(actorRegistry, Message(ActorRegistry.GetRegisteredActors(Some(actor.path)))).mapTo[Message[ActorRegistry.RegisteredActors]], 100 millis).data.actors
-        assert(actors2.contains(actor), "actor is expected in RegisteredActors response: " + actor.path)
+        assert(actors2.find(_ == actor).isDefined, "actor is expected in RegisteredActors response: " + actor.path)
 
         var sortedActors = TreeSet[ActorRef]()
         sortedActors = sortedActors ++ actors2

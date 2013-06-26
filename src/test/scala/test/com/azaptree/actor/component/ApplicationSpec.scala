@@ -144,7 +144,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers with BeforeAndAfterAll
     actors.foreach {
       actor =>
         val actors2 = Await.result(ask(actorRegistry, Message(ActorRegistry.GetRegisteredActors(Some(actor.path)))).mapTo[Message[ActorRegistry.RegisteredActors]], 100 millis).data.actors
-        assert(actors2.contains(actor), "actor is expected in RegisteredActors response: " + actor.path)
+        assert(actors2.find(_ == actor).isDefined, "actor is expected in RegisteredActors response: " + actor.path)
 
         var sortedActors = TreeSet[ActorRef]()
         sortedActors = sortedActors ++ actors2

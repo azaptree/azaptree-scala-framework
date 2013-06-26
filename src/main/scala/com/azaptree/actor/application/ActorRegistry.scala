@@ -15,13 +15,13 @@ import akka.actor.Terminated
 class ActorRegistry extends MessageActor {
   import ActorRegistry._
 
-  var registeredActors = Set[ActorRef]()
+  var registeredActors = Map.empty[ActorPath, ActorRef]
 
   override def receiveMessage = {
     case Message(m: RegisterActor, _) =>
-      registeredActors += m.actor
+      registeredActors += (m.actor.path -> m.actor)
       context.watch(m.actor)
-    case Message(t: Terminated, _) => registeredActors -= t.actor
+    case Message(t: Terminated, _) => registeredActors -= t.actor.path
 
     case Message(GetRegisteredActors(actorPath), _) => sender ! getRegisteredActors(actorPath)
     case Message(GetRegisteredActor(actorPath), _) => sender ! getRegisteredActor(actorPath)
@@ -30,10 +30,10 @@ class ActorRegistry extends MessageActor {
 
   def getRegisteredActors(actorPath: Option[ActorPath]): Message[RegisteredActors] = {
     actorPath match {
-      case None => Message(RegisteredActors(actorPath, registeredActors))
+      case None => Message(RegisteredActors(actorPath, registeredActors.values))
       case Some(a) =>
         val path = a.toString()
-        val actors = registeredActors.filter(a => {
+        val actors = registeredActors.values.filter(a => {
           val currentPath = a.path.toString()
           currentPath.equals(path) || (currentPath.startsWith(path) && currentPath.charAt(path.length()) == '/')
         })
@@ -42,8 +42,7 @@ class ActorRegistry extends MessageActor {
   }
 
   def getRegisteredActor(actorPath: ActorPath): Message[Option[ActorRef]] = {
-    Message[Option[ActorRef]](registeredActors.find(_.path == actorPath))
-
+    Message[Option[ActorRef]](registeredActors.get(actorPath))
   }
 
   def getRegisteredActorCount(actorPath: Option[ActorPath]): Message[RegisteredActorCount] = {
@@ -51,7 +50,7 @@ class ActorRegistry extends MessageActor {
       case None => Message(RegisteredActorCount(actorPath, registeredActors.size))
       case Some(a) =>
         val path = a.toString()
-        Message(RegisteredActorCount(actorPath, registeredActors.count(_.path.toString().startsWith(path))))
+        Message(RegisteredActorCount(actorPath, registeredActors.keys.count(_.toString().startsWith(path))))
     }
   }
 
@@ -84,7 +83,7 @@ object ActorRegistry {
 
   sealed trait ActorRegistryResponse
 
-  case class RegisteredActors(actorPath: Option[ActorPath] = None, actors: Set[ActorRef]) extends ActorRegistryResponse
+  case class RegisteredActors(actorPath: Option[ActorPath] = None, actors: Iterable[ActorRef]) extends ActorRegistryResponse
 
   case class RegisteredActorCount(actorPath: Option[ActorPath] = None, count: Int) extends ActorRegistryResponse
 }
