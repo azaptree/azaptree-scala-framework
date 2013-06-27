@@ -99,12 +99,12 @@
                         {
                            "group":"com.azaptree",
                            "name":"azaptree-security-model",
-                           "configName":"default"
+                           "config-ref-name":"default"
                         },
                         {
                            "group":"com.azaptree",
                            "name":"azaptree-cassandra",
-                           "configName":"cassandra-local"
+                           "config-ref-name":"cassandra-local"
                         }
                      ]
                   }
@@ -146,12 +146,12 @@
                         {
                            "group":"com.azaptree",
                            "name":"azaptree-security-model",
-                           "configName":"default"
+                           "config-ref-name":"default"
                         },
                         {
                            "group":"com.azaptree",
                            "name":"azaptree-cassandra",
-                           "configName":"cassandra-local"
+                           "config-ref-name":"cassandra-local"
                         }
                      ]
                   },
@@ -167,12 +167,12 @@
                         {
                            "group":"XXX",
                            "name":"azaptree-security-model",
-                           "configName":"default"
+                           "config-ref-name":"default"
                         },
                         {
                            "group":"com.azaptree",
                            "name":"azaptree-cassandra",
-                           "configName":"cassandra-local"
+                           "config-ref-name":"cassandra-local"
                         }
                      ]
                   },
@@ -188,12 +188,12 @@
                         {
                            "group":"com.azaptree",
                            "name":"azaptree-cassandra",
-                           "configName":"cassandra-local"
+                           "config-ref-name":"cassandra-local"
                         }
                      ]
                   },
                   {
-                     "name":"invalid-dependency-ref-configName",
+                     "name":"invalid-dependency-ref-config-ref-name",
                      "config":{
                         "security-service-actor-pool":{
                            "min":1,
@@ -204,12 +204,12 @@
                         {
                            "group":"com.azaptree",
                            "name":"azaptree-security-model",
-                           "configName":"default"
+                           "config-ref-name":"default"
                         },
                         {
                            "group":"com.azaptree",
                            "name":"azaptree-cassandra",
-                           "configName":"XXX"
+                           "config-ref-name":"XXX"
                         }
                      ]
                   }
@@ -250,12 +250,12 @@
                         {
                            "group":"com.azaptree",
                            "name":"azaptree-security-model",
-                           "configName":"default"
+                           "config-ref-name":"default"
                         },
                         {
                            "group":"com.azaptree",
                            "name":"azaptree-cassandra",
-                           "configName":"cassandra-local"
+                           "config-ref-name":"cassandra-local"
                         }
                      ]
                   }

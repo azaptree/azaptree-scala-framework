@@ -21,7 +21,7 @@
 								{
 									"group":"com.azaptree",
 									"name":"azaptree-security-service",
-									"configName":"dev-local"
+									"config-ref-name":"dev-local"
 								}								
 							],
 							"config":{
@@ -53,7 +53,7 @@
 								{
 									"group":"com.azaptree",
 									"name":"azaptree-security-service",
-									"configName":"dev-local"
+									"config-ref-name":"dev-local"
 								}								
 							],
 							"config":{
@@ -67,7 +67,7 @@
 								{
 									"group":"com.azaptree",
 									"name":"azaptree-security-service",
-									"configName":"dev-local"
+									"config-ref-name":"dev-local"
 								}								
 							],
 							"config":{
@@ -80,7 +80,7 @@
 								{
 									"group":"XXX",
 									"name":"azaptree-security-service",
-									"configName":"dev-local"
+									"config-ref-name":"dev-local"
 								}								
 							],
 							"config":{
@@ -94,7 +94,7 @@
 								{
 									"group":"com.azaptree",
 									"name":"azaptree-security-service",
-									"configName":"XXX"
+									"config-ref-name":"XXX"
 								}								
 							],
 							"config":{

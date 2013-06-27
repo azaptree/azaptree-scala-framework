@@ -28,7 +28,7 @@
 								{
 									"group":"com.azaptree",
 									"name":"azaptree-security-service",
-									"configName":"dev-local"
+									"config-ref-name":"dev-local"
 								}
 								
 							],
@@ -81,7 +81,7 @@
 								{
 									"group":"com.azaptree",
 									"name":"azaptree-security-service",
-									"configName":"dev-local"
+									"config-ref-name":"dev-local"
 								}
 								
 							],

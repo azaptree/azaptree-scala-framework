@@ -185,7 +185,7 @@ trait ApplicationConfigs extends ComponentConfigs {
           Some(refs.foldLeft(List.empty[ComponentConfigInstanceId]) { (list, config) =>
             val compId = ComponentId(group = config.getString("group"), name = config.getString("name"))
             val versionId = getComponentDependencyVersionId(versionConfig, compId)
-            ComponentConfigInstanceId(versionId = versionId, configInstanceName = config.getString("configName")) :: list
+            ComponentConfigInstanceId(versionId = versionId, configInstanceName = config.getString("config-ref-name")) :: list
           })
       }
     }
@@ -462,7 +462,7 @@ trait ComponentConfigs extends ConfigLookup {
             }
             val compConfigInstanceId = ComponentConfigInstanceId(
               versionId = ComponentVersionId(compId = compId, version = version),
-              configInstanceName = compDependencyRef.getString("configName"))
+              configInstanceName = compDependencyRef.getString("config-ref-name"))
 
             compConfigInstanceId :: refs
           }
