@@ -9,7 +9,7 @@ import com.azaptree.config._
 
 case class ConfigService(override val config: Config) extends com.azaptree.config.ConfigService
 
-class ConfigServiceTest extends FunSpec with ShouldMatchers {
+class ConfigServiceSpec extends FunSpec with ShouldMatchers {
 
   val log = LoggerFactory.getLogger("ConfigServiceTest")
 
