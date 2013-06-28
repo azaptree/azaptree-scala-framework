@@ -549,7 +549,7 @@ trait ComponentConfigs extends ConfigLookup {
   /**
    * if the configuration is invalid, then an Exception is returned
    */
-  def componentConfigInstance(id: ComponentConfigInstanceId): Option[ComponentConfigInstance] = {    
+  def componentConfigInstance(id: ComponentConfigInstanceId): Option[ComponentConfigInstance] = {
     def compDependencyRefs(configInstance: Config, compVersionConfig: Option[com.azaptree.config.ComponentVersionConfig]): Option[List[com.azaptree.config.ComponentConfigInstanceId]] = {
       getConfigList(configInstance, "component-dependency-refs") match {
         case None => None
