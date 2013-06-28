@@ -10,10 +10,21 @@ case class ComponentVersionConfig(
   configSchema: Option[com.typesafe.config.Config] = None,
   validators: Option[Iterable[ConfigValidator]] = None)
 
+/**
+ * <pre>
+ * - attributes serve as meta-data that can be used to match up dependencies. For example, a datasource can have a "database" attribute.
+ *   Another component depends on a datasource with attribute database=users - not just any datasource.
+ *   In addition, the meta-data is searchable. For example, find datasource component config instances where database=users and env=DEV
+ *
+ * - compDependencyRefs - the map key refers to the logical name used by the component / app to lookup the config
+ * </pre>
+ *
+ */
 case class ComponentConfigInstance(
   id: ComponentConfigInstanceId,
   config: Option[com.typesafe.config.Config] = None,
-  compDependencyRefs: Option[Iterable[ComponentConfigInstanceId]] = None)
+  compDependencyRefs: Option[Map[String, ComponentConfigInstanceId]] = None,
+  attributes: Option[Map[String, String]] = None)
 
 case class ComponentConfigInstanceId(versionId: ComponentVersionId, configInstanceName: String)
 

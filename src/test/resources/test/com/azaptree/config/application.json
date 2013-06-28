@@ -29,8 +29,7 @@
 									"group":"com.azaptree",
 									"name":"azaptree-security-service",
 									"config-ref-name":"dev-local"
-								}
-								
+								}								
 							],
 							"config":{
 								"app.baseDir":"/azaptree/apps/com.azaptree/application-security-server/1.0.0",

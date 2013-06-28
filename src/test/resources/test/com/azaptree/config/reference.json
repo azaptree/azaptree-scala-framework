@@ -7,23 +7,30 @@
 				{
 					"version":"1.0.0",
 					"config-schema":{
-						"azaptree-cassandra":{
 							"host":"host",
 							"port":123
-						}
-						
 					},
 					"configs":[
 						{
-							"name":"cassandra-local",
-							"config":{
-								"azaptree-cassandra":{
+							"name":"users-local",
+							"config":{								
 									"host":"localhost",
-									"port":9876
-								}
-								
-							}
+									"port":9876																								
+							},
+							"attributes":[
+								{"name":"database","value":"users"}
+							]
 							
+						},
+						{
+							"name":"sessions-local",
+							"config":{							
+									"host":"localhost",
+									"port":9876															
+							},
+							"attributes":[
+								{"name":"database","value":"sessions"}
+							]							
 						}
 						
 					]
@@ -79,6 +86,7 @@
 									"cacheSize":100000,
 									"domain":"com.azaptree"
 								}
+								
 							}
 							
 						}
@@ -105,7 +113,33 @@
 						{
 							"group":"com.azaptree",
 							"name":"azaptree-cassandra",
-							"version":"1.0.0"
+							"version":"1.0.0",
+							"configs":[
+								{
+									"name":"users-ds",
+									"attributes":[
+										{
+											"name":"database",
+											"value":"users"
+										}
+										
+									]
+									
+								},
+								{
+									"name":"sessions-ds",
+									"attributes":[
+										{
+											"name":"database",
+											"value":"users"
+										}
+										
+									]
+									
+								}
+								
+							]
+							
 						}
 						
 					],
@@ -113,7 +147,12 @@
 						"security-service-actor-pool":{
 							"min":1,
 							"max":10,
-							"array":[1,2,3]
+							"array":[
+								1,
+								2,
+								3
+							]
+							
 						}
 						
 					},
@@ -127,8 +166,16 @@
 								"security-service-actor-pool":{
 									"min":1,
 									"max":5,
-									"array":[1,2,3,4,5]
+									"array":[
+										1,
+										2,
+										3,
+										4,
+										5
+									]
+									
 								}
+								
 							},
 							"component-dependency-refs":[
 								{
@@ -139,7 +186,14 @@
 								{
 									"group":"com.azaptree",
 									"name":"azaptree-cassandra",
-									"config-ref-name":"cassandra-local"
+									"config-ref-name":"users-local",
+									"config-name":"users-ds"
+								},
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-cassandra",
+									"config-ref-name":"sessions-local",
+									"config-name":"sessions-ds"
 								}
 								
 							]
@@ -160,7 +214,33 @@
 						{
 							"group":"com.azaptree",
 							"name":"azaptree-cassandra",
-							"version":"1.0.0"
+							"version":"1.0.0",
+							"configs":[
+								{
+									"name":"users-ds",
+									"attributes":[
+										{
+											"name":"database",
+											"value":"users"
+										}
+										
+									]
+									
+								},
+								{
+									"name":"sessions-ds",
+									"attributes":[
+										{
+											"name":"database",
+											"value":"sessions"
+										}
+										
+									]
+									
+								}
+								
+							]
+							
 						}
 						
 					],
@@ -193,9 +273,19 @@
 								{
 									"group":"com.azaptree",
 									"name":"azaptree-cassandra",
-									"config-ref-name":"cassandra-local"
+									"config-ref-name":"users-local",
+									"config-name":"users-ds"
+								},
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-cassandra",
+									"config-ref-name":"sessions-local",
+									"config-name":"sessions-ds"
 								}
 								
+							],
+							"attributes":[
+								{"name":"env","value":"DEV-LOCAL"}
 							]
 							
 						}

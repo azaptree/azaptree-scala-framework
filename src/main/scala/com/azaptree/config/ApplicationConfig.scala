@@ -9,9 +9,14 @@ case class ApplicationVersionConfig(
   configSchema: Option[com.typesafe.config.Config] = None,
   validators: Option[Iterable[ConfigValidator]] = None)
 
+/**
+ * attributes serve as meta-data that are searchable. For example, find all application config instances with attribute env=DEV
+ *
+ */
 case class ApplicationConfigInstance(
   id: ApplicationConfigInstanceId,
   config: Option[com.typesafe.config.Config],
-  compDependencyRefs: Option[Iterable[ComponentConfigInstanceId]] = None)
+  compDependencyRefs: Option[Map[String /* logical name used by the component / app to lookup the config */ , ComponentConfigInstanceId]] = None,
+  attributes: Option[Map[String, String]] = None)
 
 case class ApplicationConfigInstanceId(versionId: ApplicationVersionId, configInstanceName: String)
