@@ -61,4 +61,9 @@ package object config {
     }
   }
 
+  def wrapConfig(name: String, config: Config): Config = {
+    val wrappedConfig = """"%s":%s""".format(name, toJson(config))
+    ConfigFactory.parseString(wrappedConfig)
+  }
+
 }

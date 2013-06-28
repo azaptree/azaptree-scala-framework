@@ -33,8 +33,7 @@ trait ConfigService extends ApplicationConfigs {
                 case Left(e) => throw e
                 case Right(None) => c
                 case Right(Some(compConfig)) =>
-                  //TODO: wrap config within the compDependencyRef name
-                  c.withFallback(compConfig)
+                  c.withFallback(wrapConfig(compDependencyRef._1, compConfig))
               }
             }))
           } catch {
@@ -70,8 +69,7 @@ trait ConfigService extends ApplicationConfigs {
               componentConfig(compDependencyRef._2) match {
                 case Right(None) => config
                 case Right(Some(compConfig)) =>
-                  //TODO: wrap config within the compDependencyRef name
-                  config.withFallback(compConfig)
+                  config.withFallback(wrapConfig(compDependencyRef._1, compConfig))
                 case Left(e) => throw e
               }
             }))
