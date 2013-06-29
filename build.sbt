@@ -4,7 +4,7 @@ name := "azaptree-scala-framework"
 
 version := "0.0.1-SNAPSHOT"
 
-scalaVersion in ThisBuild := "2.10.1"
+scalaVersion in ThisBuild := "2.10.2"
 
 autoCompilerPlugins := true
 
@@ -22,7 +22,7 @@ libraryDependencies ++= Seq("com.typesafe.akka" %% "akka-actor" % akkaVersion,
 							"com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
 							"com.typesafe.akka" %% "akka-dataflow" % akkaVersion)
 							
-libraryDependencies += compilerPlugin("org.scala-lang.plugins" % "continuations" % "2.10.1")
+libraryDependencies += compilerPlugin("org.scala-lang.plugins" % "continuations" % "2.10.2-RC1")
 
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.12"
 
