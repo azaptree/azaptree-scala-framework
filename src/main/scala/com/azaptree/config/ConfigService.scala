@@ -302,7 +302,7 @@ trait ApplicationConfigs extends ComponentConfigs {
 
           refs.foreach { ref =>
             if (componentConfigInstance(ref._2).isEmpty) {
-              throw new IllegalStateException("ComponentConfigInstance not foud for : " + ref._2);
+              throw new IllegalStateException("ComponentConfigInstance not found for : " + ref._2);
             }
           }
 
@@ -321,7 +321,7 @@ trait ApplicationConfigs extends ComponentConfigs {
               case Some(compDependencyConfigs) =>
                 compDependencyConfigs.foreach { compDependencyConfig =>
                   refs.get(compDependencyConfig.name) match {
-                    case None =>
+                    case None => throw new IllegalStateException("ComponentDependency not satisfied for : %s\n\n%s".format(compDependencyConfig.name, compDependency));
                     case Some(compRefConfigInstanceId) =>
                       compDependencyConfig.attributes.foreach { attributes =>
                         componentConfigInstance(compRefConfigInstanceId) match {
@@ -331,20 +331,20 @@ trait ApplicationConfigs extends ComponentConfigs {
                           case Some(compRefConfigInstance) => validate(compRefConfigInstanceId) match {
                             case Some(exception) => throw exception
                             case None =>
-                              compDependencyConfig.attributes.foreach { attributes =>
-                                compRefConfigInstance.attributes match {
-                                  case None => throw new IllegalStateException("""The following attributes are required : %s
-                          	        | appVersionConfig : %s
-                          	        | appConfigInstance: %s""".stripMargin.format(attributes.mkString(","), appVersionConfig, appConfigInstance))
-                                  case Some(refAttributes) =>
-                                    attributes.forall { keyValue =>
-                                      refAttributes.get(keyValue._1) match {
-                                        case None => false
-                                        case Some(value) => keyValue._2 == value
-                                      }
-                                    }
+                              applicationConfigsLog.debug("checking attributes match")
+                              if (compRefConfigInstance.attributes.isEmpty) {
+                                throw new IllegalStateException(s"The referenced component dependency instance is missing required attributes : $attributes\n$compRefConfigInstance");
+                              }
+
+                              val refAttributes = compRefConfigInstance.attributes.get
+
+                              attributes.foreach { attribute =>
+                                refAttributes.get(attribute._1) match {
+                                  case None => throw new IllegalStateException(s"The referenced component dependency instance is missing required attribute : $attribute\n$compRefConfigInstance");
+                                  case Some(refAttrValue) => if (refAttrValue != attribute._2) throw new IllegalStateException(s"The referenced component dependency instance is missing required attribute : $attribute\n$compRefConfigInstance");
                                 }
                               }
+
                           }
                         }
                       }

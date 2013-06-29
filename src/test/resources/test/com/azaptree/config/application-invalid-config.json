@@ -38,13 +38,21 @@
 						{
 							"group":"com.azaptree",
 							"name":"azaptree-security-service",
-							"version":"1.2.0"
+							"version":"1.2.0",
+							"configs":[
+								{
+									"name":"azaptree-security-service",
+									"attributes":[
+										{"name":"database-type","value":"oracle"}
+									]
+								}
+							]
 						}
 					],
 					"config-schema":{
 						"app.baseDir":"",
 						"app.logDir":""
-					},
+					},					
 					"config-validators":["test.com.azaptree.config.AlwaysValid"],
 					"configs":[
 						{
@@ -53,7 +61,7 @@
 								{
 									"group":"com.azaptree",
 									"name":"azaptree-security-service",
-									"config-ref-name":"dev-local"
+									"config-ref-name":"dev-local-oracle"
 								}								
 							],
 							"config":{
@@ -67,7 +75,7 @@
 								{
 									"group":"com.azaptree",
 									"name":"azaptree-security-service",
-									"config-ref-name":"dev-local"
+									"config-ref-name":"dev-local-oracle"
 								}								
 							],
 							"config":{
@@ -80,7 +88,7 @@
 								{
 									"group":"XXX",
 									"name":"azaptree-security-service",
-									"config-ref-name":"dev-local"
+									"config-ref-name":"dev-local-oracle"
 								}								
 							],
 							"config":{
@@ -101,6 +109,20 @@
 								"app.baseDir":"/azaptree/apps/com.azaptree/application-security-server/1.0.0",
 								"app.logDir":"/azaptree/apps/com.azaptree/application-security-server/1.0.0/logs"
 							}							
+						},
+						{
+							"name":"non-matching-attribute-value",
+							"component-dependency-refs":[
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-security-service",
+									"config-ref-name":"dev-local"
+								}								
+							],
+							"config":{
+								"app.baseDir":"/azaptree/apps/com.azaptree/application-security-server/1.0.0",
+								"app.logDir":"/azaptree/apps/com.azaptree/application-security-server/1.0.0/logs"
+							}						
 						}
 					]
 				}

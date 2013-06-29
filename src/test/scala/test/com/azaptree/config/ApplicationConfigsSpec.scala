@@ -22,6 +22,29 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
 
   val appConfigs = ApplicationConfigs(config)
 
+  for {
+    appIds <- appConfigs.applicationIds
+  } yield {
+    appIds.foreach { appId =>
+      log.info("========================= APPLICATION ============================================")
+      log.info(s"appId : $appId")
+      for {
+        appVersionIds <- appConfigs.applicationVersionIds(appId)
+      } yield {
+        log.info("========================= APPLICATION VERSION ============================================")
+        appVersionIds.foreach { appVersionId =>
+          log.info(s"appVersionId : $appVersionId")
+          for {
+            appVersionConfig <- appConfigs.applicationVersionConfig(appVersionId)
+          } yield {
+            log.info("====================== APPLICATION VERSION CONFIG ===============================================")
+            log.info("appVersionConfig : {}", appVersionConfig);
+          }
+        }
+      }
+    }
+  }
+
   describe("ApplicationConfigs") {
     it("can list all found ApplicationIds") {
       appConfigs.applicationIds match {
@@ -145,12 +168,15 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
           ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), configInstanceName = "invalid-config") ::
           ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), configInstanceName = "invalid-comp-dependency-ref") ::
           ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), configInstanceName = "invalid-comp-dependency-ref-config-ref") ::
+          ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), configInstanceName = "non-matching-attribute-value") ::
           Nil
       }
 
       appConfigInstanceIds.foreach { id =>
+        info("checking that config instance is invalid: " + id.configInstanceName)
         appConfigs.validate(id) match {
-          case None => throw new Exception(s"Expected application config instance to be invalid: $id")
+          case None => throw new Exception("Expected application config instance to be invalid: " + appConfigs.applicationConfigInstance(id) +
+            "\n\n" + appConfigs.applicationVersionConfig(id.versionId))
           case Some(e) => log.info(s"$id is invalid - as expected : $e")
         }
 

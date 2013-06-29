@@ -174,8 +174,7 @@
 										5
 									]
 									
-								}
-								
+								}								
 							},
 							"component-dependency-refs":[
 								{
@@ -194,10 +193,12 @@
 									"name":"azaptree-cassandra",
 									"config-ref-name":"sessions-local",
 									"config-name":"sessions-ds"
-								}
-								
-							]
-							
+								}								
+							],
+							"attributes":[
+								{"name":"env","value":"dev-local"},
+								{"name":"database-type","value":"mongodb"}	
+							]							
 						}
 						
 					]
@@ -285,9 +286,43 @@
 								
 							],
 							"attributes":[
-								{"name":"env","value":"DEV-LOCAL"}
-							]
-							
+								{"name":"env","value":"dev-local"},
+								{"name":"database-type","value":"mongodb"}	
+							]							
+						},
+						{
+							"name":"dev-local-oracle",
+							"config":{
+								"security-service-actor-pool":{
+									"min":1,
+									"max":5
+								}
+								
+							},
+							"component-dependency-refs":[
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-security-model",
+									"config-ref-name":"default"
+								},
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-cassandra",
+									"config-ref-name":"users-local",
+									"config-name":"users-ds"
+								},
+								{
+									"group":"com.azaptree",
+									"name":"azaptree-cassandra",
+									"config-ref-name":"sessions-local",
+									"config-name":"sessions-ds"
+								}
+								
+							],
+							"attributes":[
+								{"name":"env","value":"dev-local"},
+								{"name":"database-type","value":"oracle"}	
+							]							
 						}
 						
 					]

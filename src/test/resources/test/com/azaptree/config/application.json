@@ -10,7 +10,7 @@
 						{
 							"group":"com.azaptree",
 							"name":"azaptree-security-service",
-							"version":"1.1.0"
+							"version":"1.1.0"							
 						}
 						
 					],
@@ -29,7 +29,8 @@
 									"group":"com.azaptree",
 									"name":"azaptree-security-service",
 									"config-ref-name":"dev-local"
-								}								
+								}
+								
 							],
 							"config":{
 								"app.baseDir":"/azaptree/apps/com.azaptree/application-security-server/1.0.0",
@@ -62,7 +63,21 @@
 						{
 							"group":"com.azaptree",
 							"name":"azaptree-security-service",
-							"version":"1.2.0"
+							"version":"1.2.0",
+							"configs":[
+								{
+									"name":"azaptree-security-service",
+									"attributes":[
+										{
+											"name":"database-type",
+											"value":"oracle"
+										}
+										
+									]
+									
+								}
+								
+							]
 						}
 						
 					],
@@ -80,7 +95,7 @@
 								{
 									"group":"com.azaptree",
 									"name":"azaptree-security-service",
-									"config-ref-name":"dev-local"
+									"config-ref-name":"dev-local-oracle"
 								}
 								
 							],
