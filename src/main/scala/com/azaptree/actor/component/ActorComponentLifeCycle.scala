@@ -11,6 +11,7 @@ import com.azaptree.application.ComponentStopped
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import com.azaptree.actor.ActorSystemManager
+import akka.actor.Kill
 
 case class ActorComponentLifeCycle(actorConfig: ActorConfig)(implicit actorSystem: ActorSystem) extends ComponentLifeCycle[ActorRef] {
 
@@ -20,7 +21,13 @@ case class ActorComponentLifeCycle(actorConfig: ActorConfig)(implicit actorSyste
   }
 
   override protected def stop(comp: Component[ComponentStarted, ActorRef]): Component[ComponentStopped, ActorRef] = {
-    actorConfig.gracefulStopTimeout.foreach(ActorSystemManager.gracefulStop(comp.componentObject.get, _))
+    actorConfig.gracefulStopTimeout match {
+      case Some(gracefulStopTimeout) => ActorSystemManager.gracefulStop(comp.componentObject.get, gracefulStopTimeout)
+      case None => actorConfig.stopMessage match {
+        case Some(stopMessage) => comp.componentObject.get ! stopMessage
+        case None => comp.componentObject.get ! Kill
+      }
+    }
     comp.copy[ComponentStopped, ActorRef](componentObject = None)
   }
 

@@ -12,6 +12,9 @@ import akka.actor.Actor
 import scala.language.existentials
 import akka.actor.ActorPath
 import scala.concurrent.duration.FiniteDuration
+import akka.routing.Router
+import akka.routing.RouterConfig
+import akka.actor.PoisonPill
 
 @SerialVersionUID(1L)
 case class ActorConfig(
@@ -21,20 +24,28 @@ case class ActorConfig(
     loggingReceive: Boolean = false,
     supervisorStrategy: Either[SupervisorStrategyConfig, SupervisorStrategy] = Left(SupervisorStrategyConfig()),
     topLevelActor: Boolean = false,
-    // used to provide any Actor specific config
+    /**
+     * used to provide any Actor specific config
+     */
     config: Option[Config] = None,
-    /*
-   * If specified, then the Actor will be gracefully stopped before the ActorSystem shutdown commences.
-   *
-   * If not specified, then the Actor will be shutdown upon ActorSystem shutdown.
-   */
+    /**
+     * If specified, then the Actor will be gracefully stopped before the ActorSystem shutdown commences.
+     *
+     * If not specified, then the Actor will be shutdown upon ActorSystem shutdown.
+     */
     gracefulStopTimeout: Option[FiniteDuration] = None,
-    /* If specified, then the actor will be created using specified dispatcher config.
-   * 
-   * NOTE: dispatcher is in fact a path into the configuration 
-   */
+    /**
+     * If specified, then the specified message will sent to the Actor when stopping
+     */
+    stopMessage: Option[Any] = Some(PoisonPill),
+    /**
+     * If specified, then the actor will be created using specified dispatcher config.
+     *
+     * NOTE: dispatcher is in fact a path into the configuration
+     */
     dispatcher: Option[String] = None,
-    mailbox: Option[String] = None) {
+    mailbox: Option[String] = None,
+    routerConfig: Option[RouterConfig] = None) {
 
   def name: String = actorPath.name
 
@@ -52,8 +63,16 @@ case class ActorConfig(
       }
     }
 
+    val withRouter: (Props, Option[RouterConfig], (Props, RouterConfig) => Props) => Props = { (props, config, f) =>
+      config match {
+        case None => Props(actorClass)
+        case Some(c) => f(props, c)
+      }
+    }
+
     val withDispatcher = withOption.curried(Props(actorClass))(dispatcher)(_.withDispatcher(_))
-    withOption.curried(withDispatcher)(dispatcher)(_.withMailbox(_))
+    val withMailbox = withOption.curried(withDispatcher)(dispatcher)(_.withMailbox(_))
+    withRouter.curried(withMailbox)(routerConfig)(_.withRouter(_))
   }
 
   def actorOfActorContext(implicit actorContext: ActorContext): ActorRef = {
@@ -74,4 +93,3 @@ sealed trait SupervisorStrategyType
 case object OneForOne extends SupervisorStrategyType
 
 case object AllForOne extends SupervisorStrategyType
-
