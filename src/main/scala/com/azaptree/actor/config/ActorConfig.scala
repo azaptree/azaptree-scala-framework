@@ -58,14 +58,14 @@ case class ActorConfig(
   def props: Props = {
     val withOption: (Props, Option[String], (Props, String) => Props) => Props = { (props, configPath, f) =>
       configPath match {
-        case None => Props(actorClass)
+        case None => props
         case Some(p) => f(props, p)
       }
     }
 
     val withRouter: (Props, Option[RouterConfig], (Props, RouterConfig) => Props) => Props = { (props, config, f) =>
       config match {
-        case None => Props(actorClass)
+        case None => props
         case Some(c) => f(props, c)
       }
     }
