@@ -4,6 +4,7 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import com.azaptree.config._
 import com.azaptree.application.model._
+import org.slf4j.LoggerFactory
 
 package object deployment {
 
@@ -24,6 +25,8 @@ package object deployment {
   import applicationDeploymentConfigParams._
 
   val loadLocalApplicationDeploymentConfig: (ApplicationConfigRoot, ComponentConfigRoot, Namespace) => Either[Exception, Option[Config]] = (applicationConfigRoot, componentConfigRoot, namespace) => {
+    val log = LoggerFactory.getLogger("com.azaptree.application.deployment.loadLocalApplicationDeploymentConfig")
+
     val defaultConfig = ConfigFactory.load().resolve()
     val compConfig = ConfigFactory.parseResourcesAnySyntax(applicationConfigRoot.value).resolve()
     val appConfig = ConfigFactory.parseResourcesAnySyntax(componentConfigRoot.value).resolve()
@@ -31,8 +34,27 @@ package object deployment {
     val config = defaultConfig.withFallback(appConfig).withFallback(compConfig).resolve()
     val appInstanceId = applicationInstanceId(config, namespace)
 
+    if (log.isDebugEnabled()) {
+      log.debug("applicationConfigRoot = {}", componentConfigRoot)
+      log.debug("compConfig:\n{}", toFormattedJson(compConfig))
+
+      log.debug("componentConfigRoot = {}", componentConfigRoot)
+      log.debug("appConfig:\n{}", toFormattedJson(appConfig))
+
+      log.debug("appInstanceId = {}", appInstanceId)
+      log.debug("config:\n{}", toFormattedJson(config))
+    }
+
     val configService = DeploymentConfig.ConfigService(config)
-    configService.applicationConfig(appInstanceId)
+    configService.applicationConfig(appInstanceId) match {
+      case Right(config) =>
+        Right(for {
+          c <- config
+        } yield {
+          defaultConfig.withFallback(c)
+        })
+      case x => x
+    }
   }
 
   val applicationInstanceId: (Config, Namespace) => ApplicationInstanceId = (config, namespace) => {
@@ -49,7 +71,9 @@ package object deployment {
     }
 
     id match {
-      case None => throw new IllegalStateException(s"$appInstanceId is not properly defined in the config")
+      case None =>
+        val formattedConfigJson = toFormattedJson(config)
+        throw new IllegalStateException(s"$appInstanceId is not properly defined in the config :\n\n${formattedConfigJson}")
       case Some(x) => x
     }
   }

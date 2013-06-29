@@ -17,7 +17,7 @@ object ComponentConfigs {
         case None => throw new IllegalStateException(s"No component dependencies were found : $versionConfig")
         case Some(compDependencyConfigs) =>
           compDependencyConfigs.find(c => c.getString("group") == compId.group && c.getString("name") == compId.name) match {
-            case None => throw new IllegalStateException(s"No component dependency was found for: $compId")
+            case None => throw new IllegalStateException(s"No component dependency was found for: $compId within:\n${toFormattedJson(versionConfig)}")
             case Some(compDependencyConfig) => ComponentVersionId(compId = compId, version = compDependencyConfig.getString("version"))
           }
       }

@@ -213,7 +213,10 @@ trait ApplicationConfigs extends ComponentConfigs {
 
           refs.foreach { ref =>
             if (componentConfigInstance(ref._2).isEmpty) {
-              throw new IllegalStateException("ComponentConfigInstance not found for : " + ref._2);
+              throw new IllegalStateException(s"""ComponentConfigInstance not found for : ${ref._2}
+              
+              while validating: ${id}
+              """);
             }
           }
 
