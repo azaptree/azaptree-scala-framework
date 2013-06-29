@@ -4,6 +4,7 @@ import com.azaptree.application.model.ComponentVersion
 import com.azaptree.application.model.ComponentId
 import com.azaptree.application.model.ComponentVersionId
 import com.typesafe.config.Config
+import com.azaptree.application.model.ComponentInstanceId
 
 case class ComponentVersionConfig(
   compVersion: ComponentVersion,
@@ -21,12 +22,10 @@ case class ComponentVersionConfig(
  *
  */
 case class ComponentConfigInstance(
-  id: ComponentConfigInstanceId,
+  id: ComponentInstanceId,
   config: Option[com.typesafe.config.Config] = None,
-  compDependencyRefs: Option[Map[String, ComponentConfigInstanceId]] = None,
+  compDependencyRefs: Option[Map[String, ComponentInstanceId]] = None,
   attributes: Option[Map[String, String]] = None)
-
-case class ComponentConfigInstanceId(versionId: ComponentVersionId, configInstanceName: String)
 
 trait ConfigValidator {
   def validate(config: Config): Option[Exception]

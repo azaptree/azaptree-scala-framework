@@ -22,3 +22,5 @@ case class ComponentVersion(id: ComponentVersionId, compDependencies: Option[Ite
 case class ComponentDependency(compVersionId: ComponentVersionId, configs: Option[Iterable[ComponentDependencyConfig]] = None)
 
 case class ComponentDependencyConfig(name: String, attributes: Option[Map[String, String]] = None)
+
+case class ComponentInstanceId(versionId: ComponentVersionId, instance: String)

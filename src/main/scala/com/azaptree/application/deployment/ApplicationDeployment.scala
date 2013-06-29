@@ -11,6 +11,10 @@ import com.azaptree.application.ApplicationService
 import com.azaptree.application.Component
 import com.azaptree.application.ComponentNotConstructed
 import com.azaptree.application.ApplicationExtensionComponentLifeCycle
+import com.azaptree.application.model.ApplicationInstanceId
+import com.azaptree.application.model.ApplicationId
+import com.azaptree.application.model.ApplicationVersionId
+import applicationDeploymentConfigParams._
 
 /**
  * Config Schema:
@@ -30,8 +34,12 @@ import com.azaptree.application.ApplicationExtensionComponentLifeCycle
  * }
  * </code>
  */
-case class ApplicationDeployment(config: Config, namespace: String = "com.azaptree")(implicit fileWatcherService: FileWatcherService, applicationService: ApplicationService) extends ApplicationExtension {
+case class ApplicationDeployment(appDeploymentConfig: ApplicationDeploymentConfig, namespace: String = "com.azaptree")(implicit fileWatcherService: FileWatcherService, applicationService: ApplicationService) extends ApplicationExtension {
   require(namespace.trim().length() > 0, "namespace is required")
+
+  val config = appDeploymentConfig()
+
+  val applicationInstanceId = com.azaptree.application.deployment.applicationInstanceId(config, Namespace(namespace))
 
   val appPidFile = ApplicationPidFile(this)
 
@@ -53,23 +61,6 @@ case class ApplicationDeployment(config: Config, namespace: String = "com.azaptr
     }
   }
 
-  def applicationInstanceId: ApplicationInstanceId = {
-    val appInstanceId = s"${namespace}.app-instance-id"
-    val id = for {
-      group <- getString(config, s"$appInstanceId.group")
-      name <- getString(config, s"$appInstanceId.name")
-      version <- getString(config, s"$appInstanceId.version")
-      instance <- getString(config, s"$appInstanceId.instance")
-    } yield {
-      ApplicationInstanceId(group = group, name = name, version = version, instance = instance)
-    }
-
-    id match {
-      case None => throw new IllegalStateException("$appInstanceId is not properly defined in the config")
-      case Some(x) => x
-    }
-  }
-
   /**
    * URL used to load the application instance Config
    */
@@ -79,6 +70,3 @@ case class ApplicationDeployment(config: Config, namespace: String = "com.azaptr
 
 }
 
-case class ApplicationInstanceId(group: String, name: String, version: String, instance: String) {
-  val id = s"${group}_${name}_${version}_${instance}"
-}

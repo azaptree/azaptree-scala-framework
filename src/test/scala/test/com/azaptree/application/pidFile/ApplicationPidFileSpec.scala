@@ -68,7 +68,11 @@ com.azaptree{
     val fileWatcherComponent = Component[ComponentNotConstructed, FileWatcherService]("FileWatcherService", new FileWatcherServiceComponentLifeCycle())
     implicit val fileWatcherService = appService.registerComponent(fileWatcherComponent).get
 
-    val appDeployment = ApplicationDeployment(config)
+    import com.azaptree.application.deployment._
+
+    val deploymentConfig: ApplicationDeploymentConfig = () => config
+
+    val appDeployment = ApplicationDeployment(deploymentConfig)
     appService.registerComponent(Component[ComponentNotConstructed, ApplicationExtension]("ApplicationDeployment", new ApplicationExtensionComponentLifeCycle(appDeployment)))
     ApplicationPidFileUsingApplictionDeploymentSpec.appPidFile = appDeployment.appPidFile
 

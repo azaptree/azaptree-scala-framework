@@ -16,6 +16,8 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import com.azaptree.application.model.ComponentDependency
 import com.azaptree.application.model.ComponentDependencyConfig
+import com.azaptree.application.model.ApplicationInstanceId
+import com.azaptree.application.model.ComponentInstanceId
 
 trait ConfigLookup {
   def config(): Config
@@ -26,7 +28,7 @@ trait ConfigService extends ApplicationConfigs {
   /**
    * The configuration instance is validated before returning
    */
-  def applicationConfig(id: ApplicationConfigInstanceId): Either[Exception, Option[Config]] = {
+  def applicationConfig(id: ApplicationInstanceId): Either[Exception, Option[Config]] = {
     def configWithDependencies(config: Config, configInstance: ApplicationConfigInstance): Either[Exception, Option[Config]] = {
       configInstance.compDependencyRefs match {
         case None => Right(Some(config))
@@ -63,7 +65,7 @@ trait ConfigService extends ApplicationConfigs {
   /**
    * The configuration instance is validated before returning
    */
-  def componentConfig(id: ComponentConfigInstanceId): Either[Exception, Option[Config]] = {
+  def componentConfig(id: ComponentInstanceId): Either[Exception, Option[Config]] = {
     def configWithDependencies(config: Config, compConfigInstance: ComponentConfigInstance): Either[Exception, Option[Config]] = {
       compConfigInstance.compDependencyRefs match {
         case None => Right(Some(config))

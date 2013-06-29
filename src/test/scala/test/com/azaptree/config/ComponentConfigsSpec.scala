@@ -10,6 +10,7 @@ import java.util.UUID
 import com.typesafe.config.ConfigRenderOptions
 import com.azaptree.config._
 import com.azaptree.application.model.ComponentVersionId
+import com.azaptree.application.model.ComponentInstanceId
 
 case class ComponentConfigs(override val config: Config) extends com.azaptree.config.ComponentConfigs
 
@@ -201,12 +202,12 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
       val config = ConfigFactory.parseResourcesAnySyntax("test/com/azaptree/config/referenceWithInvalidConfigSchema.json").resolve()
       val compConfigs = ComponentConfigs(config)
 
-      val invalidConfigs: List[ComponentConfigInstanceId] = {
-        ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.1.0"), "dev-local") ::
-          ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "invalid-dependency-ref") ::
-          ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "missing-dependency-ref") ::
-          ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "invalid-dependency-ref-configName") ::
-          ComponentConfigInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.3.0"), "dev-local") ::
+      val invalidConfigs: List[ComponentInstanceId] = {
+        ComponentInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.1.0"), "dev-local") ::
+          ComponentInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "invalid-dependency-ref") ::
+          ComponentInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "missing-dependency-ref") ::
+          ComponentInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.2.0"), "invalid-dependency-ref-configName") ::
+          ComponentInstanceId(ComponentVersionId(ComponentId("com.azaptree", "azaptree-security-service"), "1.3.0"), "dev-local") ::
           Nil
       }
 

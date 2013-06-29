@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 import com.azaptree.config._
 import com.azaptree.application.model.ApplicationId
 import com.azaptree.application.model.ApplicationVersionId
+import com.azaptree.application.model.ApplicationInstanceId
 
 case class ApplicationConfigs(override val config: Config) extends com.azaptree.config.ApplicationConfigs
 
@@ -164,16 +165,16 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
       val appId = ApplicationId(group = "com.azaptree", name = "application-security-server")
 
       val appConfigInstanceIds = {
-        ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.0.0"), configInstanceName = "missing-config-schema-but-instance-has-config") ::
-          ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), configInstanceName = "invalid-config") ::
-          ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), configInstanceName = "invalid-comp-dependency-ref") ::
-          ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), configInstanceName = "invalid-comp-dependency-ref-config-ref") ::
-          ApplicationConfigInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), configInstanceName = "non-matching-attribute-value") ::
+        ApplicationInstanceId(ApplicationVersionId(appId = appId, version = "1.0.0"), instance = "missing-config-schema-but-instance-has-config") ::
+          ApplicationInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), instance = "invalid-config") ::
+          ApplicationInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), instance = "invalid-comp-dependency-ref") ::
+          ApplicationInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), instance = "invalid-comp-dependency-ref-config-ref") ::
+          ApplicationInstanceId(ApplicationVersionId(appId = appId, version = "1.1.0"), instance = "non-matching-attribute-value") ::
           Nil
       }
 
       appConfigInstanceIds.foreach { id =>
-        info("checking that config instance is invalid: " + id.configInstanceName)
+        info("checking that config instance is invalid: " + id.instance)
         appConfigs.validate(id) match {
           case None => throw new Exception("Expected application config instance to be invalid: " + appConfigs.applicationConfigInstance(id) +
             "\n\n" + appConfigs.applicationVersionConfig(id.versionId))

@@ -9,6 +9,7 @@ import com.azaptree.application.model.ComponentDependency
 import com.azaptree.application.model.ComponentId
 import com.azaptree.application.model.ComponentVersionId
 import com.azaptree.application.model.ComponentDependencyConfig
+import com.azaptree.application.model.ApplicationInstanceId
 
 trait ApplicationConfigs extends ComponentConfigs {
   protected val applicationConfigsLog = LoggerFactory.getLogger("com.azaptree.config.ApplicationConfigs")
@@ -87,7 +88,7 @@ trait ApplicationConfigs extends ComponentConfigs {
     }
   }
 
-  def applicationConfigInstanceIds(id: ApplicationVersionId): Option[Iterable[ApplicationConfigInstanceId]] = {
+  def applicationConfigInstanceIds(id: ApplicationVersionId): Option[Iterable[ApplicationInstanceId]] = {
     appConfigs.get(id.appId) match {
       case None => None
       case Some(appConfig) =>
@@ -100,18 +101,17 @@ trait ApplicationConfigs extends ComponentConfigs {
                 getConfigList(versionConfig, "configs") match {
                   case None => None
                   case Some(instanceConfigs) =>
-                    val appConfigInstanceIds = instanceConfigs.foldLeft(List.empty[ApplicationConfigInstanceId]) { (list, config) =>
-                      ApplicationConfigInstanceId(id, config.getString("name")) :: list
+                    val appInstanceIds = instanceConfigs.foldLeft(List.empty[ApplicationInstanceId]) { (list, config) =>
+                      ApplicationInstanceId(id, config.getString("name")) :: list
                     }
-                    Some(appConfigInstanceIds)
+                    Some(appInstanceIds)
                 }
             }
         }
     }
   }
 
-  def applicationConfigInstance(id: ApplicationConfigInstanceId): Option[ApplicationConfigInstance] = {
-
+  def applicationConfigInstance(id: ApplicationInstanceId): Option[ApplicationConfigInstance] = {
     appConfigs.get(id.versionId.appId) match {
       case None => None
       case Some(appConfig) =>
@@ -124,7 +124,7 @@ trait ApplicationConfigs extends ComponentConfigs {
                 getConfigList(versionConfig, "configs") match {
                   case None => None
                   case Some(instanceConfigs) =>
-                    instanceConfigs.find(_.getString("name") == id.configInstanceName) match {
+                    instanceConfigs.find(_.getString("name") == id.instance) match {
                       case None => None
                       case Some(instanceConfig) =>
                         Some(ApplicationConfigInstance(
@@ -174,7 +174,7 @@ trait ApplicationConfigs extends ComponentConfigs {
     }
   }
 
-  def validate(id: ApplicationConfigInstanceId): Option[Exception] = {
+  def validate(id: ApplicationInstanceId): Option[Exception] = {
 
     def validateConfigSchema(appVersionConfig: ApplicationVersionConfig, appConfigInstance: ApplicationConfigInstance) = {
       appConfigInstance.config match {

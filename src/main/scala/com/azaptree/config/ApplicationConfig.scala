@@ -3,6 +3,8 @@ package com.azaptree.config
 import com.azaptree.application.model.ApplicationVersion
 import com.azaptree.application.model.ApplicationVersionId
 import com.azaptree.application.model.ComponentVersionId
+import com.azaptree.application.model.ApplicationInstanceId
+import com.azaptree.application.model.ComponentInstanceId
 
 case class ApplicationVersionConfig(
   appVersion: ApplicationVersion,
@@ -14,9 +16,7 @@ case class ApplicationVersionConfig(
  *
  */
 case class ApplicationConfigInstance(
-  id: ApplicationConfigInstanceId,
+  id: ApplicationInstanceId,
   config: Option[com.typesafe.config.Config],
-  compDependencyRefs: Option[Map[String /* logical name used by the component / app to lookup the config */ , ComponentConfigInstanceId]] = None,
+  compDependencyRefs: Option[Map[String /* logical name used by the component / app to lookup the config */ , ComponentInstanceId]] = None,
   attributes: Option[Map[String, String]] = None)
-
-case class ApplicationConfigInstanceId(versionId: ApplicationVersionId, configInstanceName: String)
