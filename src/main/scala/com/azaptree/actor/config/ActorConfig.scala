@@ -28,18 +28,37 @@ case class ActorConfig(
    *
    * If not specified, then the Actor will be shutdown upon ActorSystem shutdown.
    */
-    gracefulStopTimeout: Option[FiniteDuration] = None) {
+    gracefulStopTimeout: Option[FiniteDuration] = None,
+    /* If specified, then the actor will be created using specified dispatcher config.
+   * 
+   * NOTE: dispatcher is in fact a path into the configuration 
+   */
+    dispatcher: Option[String] = None,
+    mailbox: Option[String] = None) {
 
   def name: String = actorPath.name
 
   def actorOfActorSystem(implicit actorSystem: ActorSystem): ActorRef = {
     ActorConfigRegistry.register(actorSystem.name, this)
-    actorSystem.actorOf(Props(actorClass), name)
+
+    actorSystem.actorOf(props, name)
+  }
+
+  def props: Props = {
+    val withOption: (Props, Option[String], (Props, String) => Props) => Props = { (props, configPath, f) =>
+      configPath match {
+        case None => Props(actorClass)
+        case Some(p) => f(props, p)
+      }
+    }
+
+    val withDispatcher = withOption.curried(Props(actorClass))(dispatcher)(_.withDispatcher(_))
+    withOption.curried(withDispatcher)(dispatcher)(_.withMailbox(_))
   }
 
   def actorOfActorContext(implicit actorContext: ActorContext): ActorRef = {
     ActorConfigRegistry.register(actorContext.system.name, this)
-    actorContext.actorOf(Props(actorClass), name)
+    actorContext.actorOf(props, name)
   }
 
   def registerIfTopLevelActor(implicit actorSystem: ActorSystem) = {
