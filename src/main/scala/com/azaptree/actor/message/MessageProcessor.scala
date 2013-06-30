@@ -46,9 +46,12 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
    * Wraps the following unhandledMessages within a Message and retry to process it once more:
    * <ul>
    * <li>akka.actor.Terminated
+   * <li>akka.actor.ReceiveTimeout
    * </ul>
    *
    * Otherwise, it records that that the message failed and logs an UnhandledMessage to the ActorSystem.eventStream
+   *
+   * If it's a Message[_] and the message specifies that is expecting a reply, than a Failure() response message is returned containing an IllegalArgumentException.
    *
    */
 
@@ -56,6 +59,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
 
   private def unhandledMessage: Receive = {
     case t: Terminated => process(Message(t))
+    case t: ReceiveTimeout => process(Message(t))
     case f: Failure => handleFailure(f)
     case msg: Message[_] if msg.metadata.expectingReply =>
       sender ! Failure(new IllegalArgumentException(s"Message was not handled: $msg"))
