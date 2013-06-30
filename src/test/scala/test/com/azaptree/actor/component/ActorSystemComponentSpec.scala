@@ -14,7 +14,6 @@ import com.azaptree.actor.component.ActorSystemComponentLifeCycle
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfigRegistry
 import com.azaptree.actor.message.Message
-import com.azaptree.actor.message.MessageActor
 import com.azaptree.actor.message.SUCCESS_MESSAGE_STATUS
 import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.application.Component
@@ -35,6 +34,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.azaptree.actor.component.ActorComponentLifeCycle
 import akka.actor.ActorSelection
+import com.azaptree.actor.message.MessageProcessor
 
 object Actors {
   import akka.actor.SupervisorStrategy._
@@ -46,7 +46,7 @@ object Actors {
 
   case object GetSupervisorStrategy
 
-  class Printer extends MessageActor {
+  class Printer extends MessageProcessor {
 
     override def receiveMessage = {
       case Message(msg: String, _) =>
@@ -57,7 +57,7 @@ object Actors {
     }
   }
 
-  class EchoMessageActor extends MessageActor {
+  class EchoMessageActor extends MessageProcessor {
     var printerActor: ActorRef = _
 
     override def preStart() = {

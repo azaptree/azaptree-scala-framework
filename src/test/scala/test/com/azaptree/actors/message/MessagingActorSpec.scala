@@ -17,7 +17,6 @@ import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.message.Message
-import com.azaptree.actor.message.MessageActor
 import com.azaptree.actor.message.SUCCESS_MESSAGE_STATUS
 import com.azaptree.actor.message.system.ApplicationMessageSupported
 import com.azaptree.actor.message.system.ChildrenActorPaths
@@ -51,6 +50,7 @@ import akka.testkit.DefaultTimeout
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import akka.actor.ActorIdentity
+import com.azaptree.actor.message.MessageProcessor
 
 object MessagingActorSpec {
   val logger = LoggerFactory.getLogger("MessagingActorSpec")
@@ -64,7 +64,7 @@ object MessagingActorSpec {
 
   case object GetSupervisorStrategy
 
-  class Printer extends MessageActor {
+  class Printer extends MessageProcessor {
 
     override def receiveMessage = {
       case Message(msg: String, _) =>
@@ -75,7 +75,7 @@ object MessagingActorSpec {
     }
   }
 
-  class EchoMessageActor extends MessageActor {
+  class EchoMessageActor extends MessageProcessor {
     var printerActor: ActorRef = _
 
     override def preStart() = {

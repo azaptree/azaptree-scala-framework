@@ -1,13 +1,13 @@
 package com.azaptree.actor.application
 
 import com.azaptree.actor.message.Message
-import com.azaptree.actor.message.MessageActor
 import com.typesafe.config.Config
 import scala.collection.immutable.Nil
 import java.lang.management.ManagementFactory
 import scala.collection.convert.Wrappers
+import com.azaptree.actor.message.MessageProcessor
 
-class ApplicationActor extends MessageActor {
+class ApplicationActor extends MessageProcessor {
   import ApplicationActor._
 
   override def receiveMessage(): PartialFunction[Message[_], Unit] = {

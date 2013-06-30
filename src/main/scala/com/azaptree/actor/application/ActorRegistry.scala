@@ -1,7 +1,6 @@
 package com.azaptree.actor.application
 
 import com.azaptree.actor.message.Message
-import com.azaptree.actor.message.MessageActor
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorPath
@@ -11,8 +10,9 @@ import akka.actor.Terminated
 import akka.actor.actorRef2Scala
 import akka.actor.Terminated
 import akka.actor.Terminated
+import com.azaptree.actor.message.MessageProcessor
 
-class ActorRegistry extends MessageActor {
+class ActorRegistry extends MessageProcessor {
   import ActorRegistry._
 
   var registeredActors = Map.empty[ActorPath, ActorRef]

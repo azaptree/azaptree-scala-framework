@@ -21,6 +21,13 @@ import com.azaptree.actor.application.ActorRegistry.RegisterActor
 import akka.actor.ReceiveTimeout
 import akka.event.LoggingReceive
 
+/**
+ * Handles messages that are wrapped within Message[A].
+ * If a message is received that is not wrapped within a Message[A],
+ * then it a new Message[A] envelope will be created for it and then processed.
+ *
+ * The main purpose of placing all messages within a Message[A] envelope is to track messages in a consistent manner.
+ */
 trait MessageProcessor extends ConfigurableActor with MessageLogging with SystemMessageProcessing {
 
   private[this] val processApplicationMessage = receiveMessage orElse (unsupportedMessageTypeException)
@@ -84,8 +91,8 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
    * </ul>
    *
    */
-  protected def process: Receive = {
-    def receive: Receive = {
+  override def receive: Receive = {
+    def process: Receive = {
       case msg: Message[_] =>
         val updatedMetadata = msg.metadata.copy(processingResults = ProcessingResult(senderActorPath = sender.path, actorPath = self.path) :: msg.metadata.processingResults)
         val message = msg.copy(metadata = updatedMetadata)
@@ -116,8 +123,8 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
     }
 
     val processMessage: Receive = if (actorConfig.loggingReceive) {
-      LoggingReceive { receive }
-    } else { receive }
+      LoggingReceive { process }
+    } else { process }
 
     processMessage
   }
