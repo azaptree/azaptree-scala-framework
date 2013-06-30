@@ -23,7 +23,7 @@ import akka.event.LoggingReceive
 
 trait MessageProcessor extends ConfigurableActor with MessageLogging with SystemMessageProcessing {
 
-  private[this] val processApplicationMessage = receiveMessage orElse (unhandledMessage andThen unsupportedMessageTypeException)
+  private[this] val processApplicationMessage = receiveMessage orElse (unsupportedMessageTypeException)
 
   /**
    * Sub-classes can override this method to provide the message handling logic.
@@ -69,11 +69,6 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
   }
 
   /**
-   * invoked if a akka.actor.ReceiveTimeout message is received
-   */
-  protected def receiveTimeout(): Unit = {}
-
-  /**
    *
    * If actorConfig.loggingReceive = true, then the receive is wrapped in a akka.event.LoggingReceive which then logs message invocations.
    * This is enabled by a setting in the Configuration : akka.actor.debug.receive = on
@@ -97,6 +92,7 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
 
         message match {
           case m @ Message(sysMsg: SystemMessage, _) => processSystemMessage(message.asInstanceOf[Message[SystemMessage]])
+          case Message(failure: Failure, _) => handleFailure(failure)
           case _ =>
             messageReceived()
             try {
@@ -108,24 +104,22 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
                 logMessage(message)
               }
             } catch {
-              case e: UnsupportedMessageTypeException => //ignore - this is already handled within processApplicationMessage via handleInvalidMessage
+              case e: UnsupportedMessageTypeException =>
+                unhandledMessage(msg)
               case e: Exception =>
                 messageFailed()
                 logMessage(message.update(status = unexpectedError("Failed to process message", e)))
                 throw e
             }
         }
-
-      case t: Terminated => process(Message(t))
-      case ReceiveTimeout => receiveTimeout()
-      case f: Failure => handleFailure(f)
+      case other => process(Message(other))
     }
 
     val processMessage: Receive = if (actorConfig.loggingReceive) {
       LoggingReceive { receive }
     } else { receive }
 
-    processMessage orElse unhandledMessage
+    processMessage
   }
 
 }

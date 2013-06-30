@@ -421,7 +421,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
     scenario("Send an invalid message and check that an UnhandledMessage event was published") {
       messageLogger ! 'reset
       Thread.sleep(5l)
-      echoMessageActor ! "INVALID MESSAGE"
+      echoMessageActor ! 99
       Thread.sleep(10l)
       Await.result(ask(messageLogger, 'getUnhandledMessage).mapTo[Int], 100 millis) should be(1)
     }
