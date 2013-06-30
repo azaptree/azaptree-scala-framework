@@ -93,7 +93,6 @@ object ApplicationServiceSpec {
 }
 
 class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
-
   val log = LoggerFactory.getLogger("ApplicationServiceSpec")
 
   val compAHealthCheck = HealthCheck(
@@ -153,7 +152,7 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
   }
 
   def createApp() = {
-    println(comps.mkString("\n\n***************** comps *****************\n", "\n\n", "\n*************************************\n"))
+    log.info(comps.mkString("\n\n***************** comps *****************\n", "\n\n", "\n*************************************\n"))
 
     val compCreator = comps.toList
     val app = new ApplicationService()
@@ -172,12 +171,12 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
       val app = createApp()
       try {
         app.start()
-        println("*** app components = " + app.componentNames.mkString("\n\n", "\n", "\n\n"))
+        log.info("*** app components = " + app.componentNames.mkString("\n\n", "\n", "\n\n"))
 
         app.stop()
 
         val shutdownOrder = reverseShutdownOrder.reverse
-        println("*** shutdownOrder = " + shutdownOrder)
+        log.info("*** shutdownOrder = " + shutdownOrder)
 
         shutdownOrder.indexOf("CompA") should be < 2
         shutdownOrder.indexOf("CompE") should be < 2
@@ -451,7 +450,7 @@ class ApplicationServiceSpec extends FunSpec with ShouldMatchers {
             for {
               healthCheckResult <- healthCheckResultsFutures.map(Await.result(_, 1 second))
             } yield {
-              println(s"healthCheckResult = $healthCheckResult")
+              log.info(s"healthCheckResult = $healthCheckResult")
               healthCheckResult match {
                 case h if (h.healthCheck.info.name == compA.name) =>
                   assert(h.healthCheckIndicator == GREEN)

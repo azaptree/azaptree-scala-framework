@@ -35,8 +35,10 @@ import akka.util.Timeout
 import com.azaptree.actor.component.ActorComponentLifeCycle
 import akka.actor.ActorSelection
 import com.azaptree.actor.message.MessageProcessor
+import org.slf4j.LoggerFactory
 
 object Actors {
+  val log = LoggerFactory.getLogger("test.com.azaptree.actor.component.Actors")
   import akka.actor.SupervisorStrategy._
 
   val resumeStrategy = OneForOneStrategy(maxNrOfRetries = Int.MaxValue, withinTimeRange = Duration.Inf) {
@@ -51,7 +53,7 @@ object Actors {
     override def receiveMessage = {
       case Message(msg: String, _) =>
         val path = self.path
-        println(s"$path : msg = $msg")
+        log.info(s"$path : msg = $msg")
       case Message(e: Exception, _) =>
         throw e
     }
@@ -183,8 +185,8 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
 
   implicit val defaultTimeout = new Timeout(1 second)
 
-  def log(actors: Iterable[ActorRef])(implicit actorRegistry: ActorSelection) = {
-    println(actors.mkString("\n**************** ACTORS ***************\n", "\n", "\n**************** END - ACTORS ***************\n"))
+  def log(actors: Iterable[ActorRef])(implicit actorRegistry: ActorSelection): Unit = {
+    Actors.log.info(actors.mkString("\n**************** ACTORS ***************\n", "\n", "\n**************** END - ACTORS ***************\n"))
 
     actors.foreach {
       actor =>
@@ -193,7 +195,7 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
 
         var sortedActors = TreeSet[ActorRef]()
         sortedActors = sortedActors ++ actors2
-        println(sortedActors.foldLeft("\n*** " + actor.path + " ***")((s, a) => s + "\n   |--" + a.path) + "\n")
+        Actors.log.info(sortedActors.foldLeft("\n*** " + actor.path + " ***")((s, a) => s + "\n   |--" + a.path) + "\n")
     }
   }
 
@@ -210,7 +212,7 @@ class ActorSystemComponentSpec extends FunSpec with ShouldMatchers with BeforeAn
       log(actors)
 
       info("Check that the number of actors registered equals the number of ActorConfigs that are registered")
-      ActorConfigRegistry.actorPaths(actorSystem.name).foreach(actorPaths => println(actorPaths.mkString("\n*******  ActorConfigRegistry  ***********\n", "\n", "\n*******  END - ActorConfigRegistry  ***********\n")))
+      ActorConfigRegistry.actorPaths(actorSystem.name).foreach(actorPaths => Actors.log.info(actorPaths.mkString("\n*******  ActorConfigRegistry  ***********\n", "\n", "\n*******  END - ActorConfigRegistry  ***********\n")))
       actors.size should be(ActorConfigRegistry.actorPaths(actorSystem.name).get.size)
     }
   }

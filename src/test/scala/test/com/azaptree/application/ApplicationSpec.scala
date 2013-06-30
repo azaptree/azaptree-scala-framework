@@ -17,6 +17,7 @@ import com.azaptree.application.PreApplicationShutdownEvent
 import com.azaptree.application.PostApplicationShutdownEvent
 import com.azaptree.application.ComponentShutdownFailedEvent
 import java.util.concurrent.atomic.AtomicInteger
+import org.slf4j.LoggerFactory
 
 object ApplicationSpec {
   val started = "ComponentStarted"
@@ -77,6 +78,7 @@ object ApplicationSpec {
 }
 
 class ApplicationSpec extends FunSpec with ShouldMatchers {
+  val log = LoggerFactory.getLogger(("ApplicationSpec"))
 
   describe("An Application will shutdown Components in the proper order") {
     it("can shutdown itself using it's registered ComponentLifeCycle") {
@@ -93,19 +95,19 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       comps = comps :+ compD.copy[ComponentNotConstructed, CompA](dependsOn = Some((compB :: Nil)))
       comps = comps :+ compE.copy[ComponentNotConstructed, CompA](dependsOn = Some((compD :: Nil)))
 
-      println(comps.mkString("\n\n***************** comps *****************\n", "\n\n", "\n*************************************\n"))
+      log.info(comps.mkString("\n\n***************** comps *****************\n", "\n\n", "\n*************************************\n"))
 
       val app = comps.foldLeft(Application()) { (app, comp) =>
-        println("\n" + app + "\n")
+        log.info("\n" + app + "\n")
         app.register(comp)._1
       }
 
-      println("*** app components = " + app.components.mkString("\n\n", "\n", "\n\n"))
+      log.info("*** app components = " + app.components.mkString("\n\n", "\n", "\n\n"))
 
       val appShutdowned = app.shutdown()
 
       val shutdownOrder = reverseShutdownOrder.reverse
-      println("*** shutdownOrder = " + shutdownOrder)
+      log.info("*** shutdownOrder = " + shutdownOrder)
 
       shutdownOrder.indexOf("CompA") should be < 2
       shutdownOrder.indexOf("CompE") should be < 2
@@ -128,14 +130,14 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       var compRegisteredCount = new AtomicInteger(0)
       val subscriber: Any => Unit = event => {
         compRegisteredCount.incrementAndGet()
-        println(compRegisteredCount + " : " + event)
+        log.info(compRegisteredCount + " : " + event)
       }
 
       var app = Application()
       app.eventBus.subscribe(subscriber, classOf[ComponentStartedEvent]);
       val comps = (compA :: compB :: compC :: Nil)
       app = comps.foldLeft(app) { (app, comp) =>
-        println("\n" + app + "\n")
+        log.info("\n" + app + "\n")
         app.register(comp)._1
       }
 
@@ -157,7 +159,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
           case e: ComponentShutdownEvent => ComponentShutdownEventCount.incrementAndGet()
         }
 
-        println((compRegisteredCount.get() + ComponentShutdownEventCount.get()) + " : " + event)
+        log.info((compRegisteredCount.get() + ComponentShutdownEventCount.get()) + " : " + event)
 
       }
 
@@ -166,7 +168,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       app.eventBus.subscribe(subscriber, classOf[ComponentShutdownEvent]);
       val comps = (compA :: compB :: compC :: Nil)
       app = comps.foldLeft(app) { (app, comp) =>
-        println("\n" + app + "\n")
+        log.info("\n" + app + "\n")
         app.register(comp)._1
       }
 
@@ -194,7 +196,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
           case e: PostApplicationShutdownEvent => PostApplicationShutdownEventCount.incrementAndGet()
         }
 
-        println((compRegisteredCount.get() + ComponentShutdownEventCount.get() + PreApplicationShutdownEventCount.get() + PostApplicationShutdownEventCount.get()) + " : " + event)
+        log.info((compRegisteredCount.get() + ComponentShutdownEventCount.get() + PreApplicationShutdownEventCount.get() + PostApplicationShutdownEventCount.get()) + " : " + event)
       }
 
       var app = Application()
@@ -204,7 +206,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       app.eventBus.subscribe(subscriber, classOf[PostApplicationShutdownEvent]);
       val comps = (compA :: compB :: compC :: Nil)
       app = comps.foldLeft(app) { (app, comp) =>
-        println("\n" + app + "\n")
+        log.info("\n" + app + "\n")
         app.register(comp)._1
       }
 
@@ -233,7 +235,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
         case e: ComponentShutdownFailedEvent => ComponentShutdownFailedEventCount += 1
       }
 
-      println((compRegisteredCount + ComponentShutdownEventCount + ComponentShutdownFailedEventCount) + " : " + event)
+      log.info((compRegisteredCount + ComponentShutdownEventCount + ComponentShutdownFailedEventCount) + " : " + event)
 
     }
 
@@ -243,7 +245,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
     app.eventBus.subscribe(subscriber, classOf[ComponentShutdownFailedEvent]);
     val comps = (compA :: compB :: compC :: compAWithShutdownFailure :: Nil)
     app = comps.foldLeft(app) { (app, comp) =>
-      println("\n" + app + "\n")
+      log.info("\n" + app + "\n")
       app.register(comp)._1
     }
 
@@ -272,21 +274,21 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
     comps = comps :+ compD.copy[ComponentNotConstructed, CompA](dependsOn = Some((compB :: Nil)))
     comps = comps :+ compE.copy[ComponentNotConstructed, CompA](dependsOn = Some((compD :: Nil)))
 
-    println(comps.mkString("\n\n***************** comps *****************\n", "\n\n", "\n*************************************\n"))
+    log.info(comps.mkString("\n\n***************** comps *****************\n", "\n\n", "\n*************************************\n"))
 
     val app = comps.foldLeft(Application()) { (app, comp) =>
-      println("\n" + app + "\n")
+      log.info("\n" + app + "\n")
       app.register(comp)._1
     }
 
     val appCompShutdownOrder = app.getComponentShutdownOrder.toList
 
-    println("*** app components = " + app.components.mkString("\n\n", "\n", "\n\n"))
+    log.info("*** app components = " + app.components.mkString("\n\n", "\n", "\n\n"))
 
     val appShutdowned = app.shutdown()
 
     val shutdownOrder = reverseShutdownOrder.reverse
-    println("*** shutdownOrder = " + shutdownOrder)
+    log.info("*** shutdownOrder = " + shutdownOrder)
 
     shutdownOrder.indexOf("CompA") should be < 2
     shutdownOrder.indexOf("CompE") should be < 2

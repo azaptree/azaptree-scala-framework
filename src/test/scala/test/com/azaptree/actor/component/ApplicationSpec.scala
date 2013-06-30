@@ -28,8 +28,11 @@ import akka.actor.UnhandledMessage
 import akka.actor.actorRef2Scala
 import akka.util.Timeout
 import com.azaptree.actor.message.MessageProcessor
+import org.slf4j.LoggerFactory
 
 object ApplicationSpec_Actors {
+  val log = LoggerFactory.getLogger("ApplicationSpec_Actors")
+
   import akka.actor.SupervisorStrategy._
 
   val resumeStrategy = OneForOneStrategy(maxNrOfRetries = Int.MaxValue, withinTimeRange = Duration.Inf) {
@@ -44,7 +47,7 @@ object ApplicationSpec_Actors {
     override def receiveMessage = {
       case Message(msg: String, _) =>
         val path = self.path
-        println(s"$path : msg = $msg")
+        log.info(s"$path : msg = $msg")
       case Message(e: Exception, _) =>
         throw e
     }
@@ -91,7 +94,6 @@ object ApplicationSpec_Actors {
 }
 
 object ApplicationSpec_ActorSystemComponentConfig {
-
   implicit val testConfig = ConfigFactory.parseString("""
         akka {
     		log-config-on-start = on
@@ -127,6 +129,7 @@ object ApplicationSpec_ActorSystemComponentConfig {
 }
 
 class ApplicationSpec extends FunSpec with ShouldMatchers with BeforeAndAfterAll {
+  val log = LoggerFactory.getLogger("ApplicationSpec")
 
   import ApplicationSpec_ActorSystemComponentConfig._
 
@@ -135,8 +138,8 @@ class ApplicationSpec extends FunSpec with ShouldMatchers with BeforeAndAfterAll
 
   implicit val defaultTimeout = new Timeout(1 second)
 
-  def log(actors: Set[ActorRef])(implicit actorRegistry: ActorRef) = {
-    println(actors.foldLeft("\n")((s, a) => s + "\n" + a.path) + "\n")
+  def log(actors: Set[ActorRef])(implicit actorRegistry: ActorRef): Unit = {
+    log.info(actors.foldLeft("\n")((s, a) => s + "\n" + a.path) + "\n")
 
     actors.foreach {
       actor =>
@@ -145,7 +148,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers with BeforeAndAfterAll
 
         var sortedActors = TreeSet[ActorRef]()
         sortedActors = sortedActors ++ actors2
-        println(sortedActors.foldLeft("*** " + actor.path + " ***")((s, a) => s + "\n   |--" + a.path) + "\n")
+        log.info(sortedActors.foldLeft("*** " + actor.path + " ***")((s, a) => s + "\n   |--" + a.path) + "\n")
     }
   }
 
