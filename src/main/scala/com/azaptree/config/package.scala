@@ -6,6 +6,7 @@ import com.typesafe.config.ConfigRenderOptions
 import com.typesafe.config.ConfigException
 import scala.collection.JavaConversions._
 import org.slf4j.LoggerFactory
+import scala.language.implicitConversions
 
 package object config {
 
@@ -70,12 +71,10 @@ package object config {
   object ConfigConversions {
     val configConversionsLog = LoggerFactory.getLogger("com.azaptree.config.ConfigConversions");
 
-    import scala.language.implicitConversions
-
     implicit def ComponentConfigInstance2Config(source: ComponentConfigInstance): Config = {
       val versionId = source.id.versionId
       val compId = versionId.compId
-      val configJson = source.config.map("config " + toJson(_)).getOrElse("")
+      val configJson = source.config.map(config => s"config ${toJson(config)}").getOrElse("")
       val compDependencyRefs = source.compDependencyRefs.map { compDependencyRefs =>
         val sb = new StringBuilder(128)
         sb.append("component-dependency-refs = [")
@@ -105,11 +104,32 @@ package object config {
         sb
       }.getOrElse(new StringBuilder(0))
 
-      val config = s"""{name = ${source.id.instance} \n ${compDependencyRefs} \n${attributes} \n ${configJson} }"""
+      val config = s"""{name = ${source.id.instance}\n${compDependencyRefs}\n${attributes}\n${configJson} }"""
       configConversionsLog.debug("config:\n{}", config)
 
       ConfigFactory.parseString(config)
 
+    }
+
+    implicit def ComponentVersionConfig2Config(source: ComponentVersionConfig): Config = {
+      val compVersion = source.compVersion
+      val compVersionId = compVersion.id
+      val compId = compVersionId.compId
+      val configSchema = source.configSchema.map(configSchema => s"config-schema ${toJson(configSchema)}").getOrElse("")
+      val configValidators = source.validators.map { validators =>
+        val sb = new StringBuilder(128)
+        sb.append("config-validators = [")
+        validators.foldLeft(sb) { (sb, validator) =>
+          sb.append(s""""${validator.getClass().getName()}"\n""")
+        }
+        sb.append(']')
+        sb
+      }.getOrElse(new StringBuilder(0))
+
+      val config = s"""{"version":"${compVersionId.version}"\n${configSchema}\n${configValidators} }"""
+      configConversionsLog.debug("config:\n{}", config)
+
+      ConfigFactory.parseString(config)
     }
 
   }

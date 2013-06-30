@@ -233,6 +233,15 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
           case None => throw new IllegalStateException("Did not find component versions for: " + id)
           case Some(versionIds) =>
             versionIds.foreach { versionId =>
+
+              import com.azaptree.config.ConfigConversions._
+              val compVersionConfig = compConfigs.componentVersionConfig(versionId).get
+              val config: Config = compVersionConfig
+              log.info(s"""compVersionConfig
+                        |
+                        | ${toFormattedJson(config)}
+                        """.stripMargin)
+
               compConfigs.componentConfigInstanceIds(versionId) match {
                 case None => throw new IllegalStateException("Expected some ComponentConfigInstanceIds")
                 case Some(componentConfigInstanceIds) =>
