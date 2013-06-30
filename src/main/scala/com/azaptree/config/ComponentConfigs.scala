@@ -286,6 +286,22 @@ trait ComponentConfigs extends ConfigLookup {
    * Will return an IllegalArgumentException if the compConfigInstanceId was not found
    */
   def validate(compConfigInstanceId: ComponentInstanceId): Option[Exception] = {
+    import com.azaptree.config.ConfigConversions._
+
+    def validationFailed(message: String, versionConfig: ComponentVersionConfig, compConfigInstance: ComponentConfigInstance) = {
+      val componentVersionConfig: Config = versionConfig
+      val instanceConfig: Config = compConfigInstance
+      throw new IllegalStateException(s"""${message}
+                  |
+                  | ComponentVersionConfig : $versionConfig
+                  |
+                  | ${componentVersionConfig}
+                  |
+                  | ComponentConfigInstance : $compConfigInstance
+                  |
+                  | ${instanceConfig}""".stripMargin);
+    }
+
     def checkThatAllDependenciesAreFullfilled(versionConfig: ComponentVersionConfig, compConfigInstance: ComponentConfigInstance) = {
       versionConfig.compVersion.compDependencies match {
         case None =>
@@ -300,11 +316,7 @@ trait ComponentConfigs extends ConfigLookup {
 
           compDependencyRefs.foreach { ref =>
             if (componentConfigInstance(ref._2).isEmpty) {
-              throw new IllegalStateException(s"""ComponentConfigInstance not foud for : %s
-                  |
-                  | ComponentVersionConfig : $versionConfig
-                  |
-                  | ComponentConfigInstance : $compConfigInstance""".stripMargin.format(ref._2));
+              validationFailed(s"ComponentConfigInstance not found for : ${ref._2}", versionConfig, compConfigInstance)
             }
           }
 
@@ -313,24 +325,13 @@ trait ComponentConfigs extends ConfigLookup {
             compDependency.configs match {
               case None =>
                 if (compDependencyRefs.values.find(_.versionId == compDependency.compVersionId).isEmpty) {
-                  throw new IllegalStateException(s"""ComponentDependency not satisfied: 
-                      |
-                      | $compDependency 
-                      |
-                      | versionConfig : $versionConfig
-                      |
-                      | compConfigInstance : $compConfigInstance""".stripMargin)
+                  validationFailed(s"ComponentDependency not satisfied: $compDependency", versionConfig, compConfigInstance)
                 }
               case Some(compDependencyConfigs) =>
                 compDependencyConfigs.foreach { compDependencyConfig =>
                   compDependencyRefs.get(compDependencyConfig.name) match {
-                    case None => throw new IllegalStateException(s"""ComponentDependency not satisfied: 
-                      |
-                      | $compDependencyConfig 
-                      |
-                      | versionConfig : $versionConfig
-                      |
-                      | compConfigInstance : $compConfigInstance""".stripMargin)
+                    case None =>
+                      validationFailed(s"ComponentDependency not satisfied: $compDependencyConfig", versionConfig, compConfigInstance)
                     case Some(compDependencyRefId) => componentConfigInstance(compDependencyRefId) match {
                       case None => throw new IllegalStateException("ComponentConfigInstance does not exist: $compDependencyRefId")
                       case Some(compRefConfigInstance) =>
