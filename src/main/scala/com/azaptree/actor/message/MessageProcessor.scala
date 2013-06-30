@@ -42,25 +42,15 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
     context.actorSelection(ActorRegistry.ACTOR_PATH) ! Message(RegisterActor(context.self))
   }
 
+  import akka.actor.Status._
   /**
-   * Wraps the following unhandledMessages within a Message and retry to process it once more:
-   * <ul>
-   * <li>akka.actor.Terminated
-   * <li>akka.actor.ReceiveTimeout
-   * </ul>
+   * If it's a Message[_] and the message specifies that it is expecting a reply,
+   * then a Failure() response message is returned containing an IllegalArgumentException.
    *
    * Otherwise, it records that that the message failed and logs an UnhandledMessage to the ActorSystem.eventStream
    *
-   * If it's a Message[_] and the message specifies that is expecting a reply, than a Failure() response message is returned containing an IllegalArgumentException.
-   *
    */
-
-  import akka.actor.Status._
-
-  private def unhandledMessage: Receive = {
-    case t: Terminated => process(Message(t))
-    case t: ReceiveTimeout => process(Message(t))
-    case f: Failure => handleFailure(f)
+  protected def unhandledMessage: Receive = {
     case msg: Message[_] if msg.metadata.expectingReply =>
       sender ! Failure(new IllegalArgumentException(s"Message was not handled: $msg"))
       messageFailed()
@@ -125,17 +115,17 @@ trait MessageProcessor extends ConfigurableActor with MessageLogging with System
                 throw e
             }
         }
+
+      case t: Terminated => process(Message(t))
+      case ReceiveTimeout => receiveTimeout()
+      case f: Failure => handleFailure(f)
     }
 
     val processMessage: Receive = if (actorConfig.loggingReceive) {
       LoggingReceive { receive }
     } else { receive }
 
-    val handleReceiveTimeout: PartialFunction[Any, Unit] = {
-      case ReceiveTimeout => receiveTimeout()
-    }
-
-    processMessage orElse handleReceiveTimeout orElse unhandledMessage
+    processMessage orElse unhandledMessage
   }
 
 }

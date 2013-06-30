@@ -125,9 +125,9 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       val compB = Component[ComponentNotConstructed, CompA]("CompB", new CompALifeCycle())
       val compC = Component[ComponentNotConstructed, CompA]("CompC", new CompALifeCycle())
 
-      var compRegisteredCount = 0
+      var compRegisteredCount = new AtomicInteger(0)
       val subscriber: Any => Unit = event => {
-        compRegisteredCount += 1
+        compRegisteredCount.incrementAndGet()
         println(compRegisteredCount + " : " + event)
       }
 
@@ -140,7 +140,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       }
 
       Thread.sleep(100l)
-      compRegisteredCount should be(comps.size)
+      compRegisteredCount.get() should be(comps.size)
 
     }
 
@@ -149,15 +149,15 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       val compB = Component[ComponentNotConstructed, CompA]("CompB", new CompALifeCycle())
       val compC = Component[ComponentNotConstructed, CompA]("CompC", new CompALifeCycle())
 
-      var compRegisteredCount = 0
-      var ComponentShutdownEventCount = 0
+      var compRegisteredCount = new AtomicInteger(0)
+      var ComponentShutdownEventCount = new AtomicInteger(0)
       val subscriber: Any => Unit = event => {
         event match {
-          case e: ComponentStartedEvent => compRegisteredCount += 1
-          case e: ComponentShutdownEvent => ComponentShutdownEventCount += 1
+          case e: ComponentStartedEvent => compRegisteredCount.incrementAndGet()
+          case e: ComponentShutdownEvent => ComponentShutdownEventCount.incrementAndGet()
         }
 
-        println((compRegisteredCount + ComponentShutdownEventCount) + " : " + event)
+        println((compRegisteredCount.get() + ComponentShutdownEventCount.get()) + " : " + event)
 
       }
 
@@ -174,7 +174,7 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
 
       Thread.sleep(50l)
 
-      (compRegisteredCount + ComponentShutdownEventCount) should be(comps.size * 2)
+      (compRegisteredCount.get() + ComponentShutdownEventCount.get()) should be(comps.size * 2)
     }
 
     it("will publish events before and after the application is shutdown") {
