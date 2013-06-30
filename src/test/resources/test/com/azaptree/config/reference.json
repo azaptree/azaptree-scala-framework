@@ -131,7 +131,7 @@
 									"attributes":[
 										{
 											"name":"database",
-											"value":"users"
+											"value":"sessions"
 										}
 										
 									]

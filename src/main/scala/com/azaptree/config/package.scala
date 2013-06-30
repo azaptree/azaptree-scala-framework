@@ -71,9 +71,44 @@ package object config {
   object ConfigConversions {
     val configConversionsLog = LoggerFactory.getLogger("com.azaptree.config.ConfigConversions");
 
+    implicit def ApplicationConfigInstance2Config(source: ApplicationConfigInstance): Config = {
+      val configJson = source.config.map(config => s"config ${toJson(config)}").getOrElse("")
+      val compDependencyRefs = source.compDependencyRefs.map { compDependencyRefs =>
+        val sb = new StringBuilder(128)
+        sb.append("component-dependency-refs = [")
+        compDependencyRefs.foldLeft(sb) { (sb, compDependencyRef) =>
+          val compId = compDependencyRef._2.versionId.compId
+          sb.append(s"""{"group":"${compId.group}",
+						 |"name":"${compId.name}",
+						 |"config-ref-name":"${compDependencyRef._2.instance}",
+						 |"config-name":"${compDependencyRef._1}"
+						}\n""".stripMargin)
+          sb
+        }
+
+        sb.append(']')
+        sb
+      }.getOrElse(new StringBuilder(0))
+
+      val attributes = source.attributes.map { attrs =>
+        val sb = new StringBuilder(128)
+        sb.append("attributes = [")
+        attrs.foldLeft(sb) { (sb, attr) =>
+          sb.append("{name=\"").append(attr._1).append("\", value=\"").append(attr._2).append("\"}\n")
+          sb
+        }
+
+        sb.append(']')
+        sb
+      }.getOrElse(new StringBuilder(0))
+
+      val config = s"""{name = ${source.id.instance}\n${compDependencyRefs}\n${attributes}\n${configJson} }"""
+      configConversionsLog.debug("config:\n{}", config)
+
+      ConfigFactory.parseString(config)
+    }
+
     implicit def ComponentConfigInstance2Config(source: ComponentConfigInstance): Config = {
-      val versionId = source.id.versionId
-      val compId = versionId.compId
       val configJson = source.config.map(config => s"config ${toJson(config)}").getOrElse("")
       val compDependencyRefs = source.compDependencyRefs.map { compDependencyRefs =>
         val sb = new StringBuilder(128)
@@ -111,10 +146,8 @@ package object config {
 
     }
 
-    implicit def ComponentVersionConfig2Config(source: ComponentVersionConfig): Config = {
-      val compVersion = source.compVersion
-      val compVersionId = compVersion.id
-      val compId = compVersionId.compId
+    implicit def ApplicationVersionConfig2Config(source: ApplicationVersionConfig): Config = {
+      val versionId = source.appVersion.id
       val configSchema = source.configSchema.map(configSchema => s"config-schema ${toJson(configSchema)}").getOrElse("")
       val configValidators = source.validators.map { validators =>
         val sb = new StringBuilder(128)
@@ -126,7 +159,58 @@ package object config {
         sb
       }.getOrElse(new StringBuilder(0))
 
-      val config = s"""{"version":"${compVersionId.version}"\n${configSchema}\n${configValidators} }"""
+      val config = s"""{"version":"${versionId.version}"\n${configSchema}\n${configValidators} }"""
+      configConversionsLog.debug("config:\n{}", config)
+
+      ConfigFactory.parseString(config)
+    }
+
+    implicit def ComponentVersionConfig2Config(source: ComponentVersionConfig): Config = {
+      val versionId = source.compVersion.id
+      val configSchema = source.configSchema.map(configSchema => s"config-schema ${toJson(configSchema)}").getOrElse("")
+      val configValidators = source.validators.map { validators =>
+        val sb = new StringBuilder(128)
+        sb.append("config-validators = [")
+        validators.foldLeft(sb) { (sb, validator) =>
+          sb.append(s""""${validator.getClass().getName()}"\n""")
+        }
+        sb.append(']')
+        sb
+      }.getOrElse(new StringBuilder(0))
+
+      val compDependencies = source.compVersion.compDependencies.map { compDependencies =>
+        val sb = new StringBuilder(256)
+        sb.append("component-dependencies = [")
+
+        compDependencies.foldLeft(sb) { (sb, compDependency) =>
+          val compId = compDependency.compVersionId.compId
+          sb.append(s"""{group="${compId.group}"
+	        		  	|name="${compId.name}"
+	        		  	|version="${compDependency.compVersionId.version}"""".stripMargin)
+
+          compDependency.configs.map { configs =>
+            sb.append("\nconfigs = [")
+            configs.foldLeft(sb) { (sb, config) =>
+              sb.append(s"""\n{name = "${config.name}"""");
+              config.attributes.map { attributes =>
+                sb.append("\nattributes = [")
+                attributes.foldLeft(sb) { (sb, attr) =>
+                  sb.append(s"""{name="${attr._1}", value="${attr._2}"}\n""")
+                }
+                sb.append(']') // close attributes[]
+              }
+              sb.append('}') // close config
+            }
+            sb.append(']') // close configs[]
+          }
+
+          sb.append("}\n") // close component dependency
+        }
+        sb.append(']')
+        sb
+      }.getOrElse(new StringBuilder(0))
+
+      val config = s"""{"version":"${versionId.version}"\n${compDependencies}\n${configSchema}\n${configValidators} }"""
       configConversionsLog.debug("config:\n{}", config)
 
       ConfigFactory.parseString(config)

@@ -185,6 +185,65 @@ class ApplicationConfigsSpec extends FunSpec with ShouldMatchers {
 
     }
 
+    it("can convert an ApplicationVersionConfig to a Config") {
+      appConfigs.applicationIds match {
+        case None => throw new IllegalStateException("Expecting some ApplicationIds")
+        case Some(appIds) =>
+          appIds.foreach { appId =>
+            appConfigs.applicationVersionIds(appId) match {
+              case None => throw new IllegalStateException("Found application which has no versions: " + appId)
+              case Some(appVersionIds) =>
+                appVersionIds.foreach { id =>
+                  import com.azaptree.config.ConfigConversions._
+                  val appVersionConfig = appConfigs.applicationVersionConfig(id).get
+                  val config: Config = appVersionConfig
+                  log.info(s"""appInstance
+                        |
+                        | ${toFormattedJson(config)}
+                        """.stripMargin)
+                }
+            }
+          }
+      }
+    }
+
+    it("can convert an ApplicationConfigInstance to a Config") {
+      appConfigs.applicationIds match {
+        case None => throw new IllegalStateException("Expecting some ApplicationIds")
+        case Some(appIds) =>
+          appIds.foreach { appId =>
+            appConfigs.applicationVersionIds(appId) match {
+              case None => throw new IllegalStateException("Found application which has no versions: " + appId)
+              case Some(appVersionIds) =>
+                appVersionIds.foreach { id =>
+
+                  import com.azaptree.config.ConfigConversions._
+                  val appVersionConfig = appConfigs.applicationVersionConfig(id).get
+                  val config: Config = appVersionConfig
+                  log.info(s"""appInstance
+                        |
+                        | ${toFormattedJson(config)}
+                        """.stripMargin)
+
+                  appConfigs.applicationConfigInstanceIds(id) match {
+                    case None => throw new IllegalStateException(s"Failed to find ApplicationConfigInstanceIds for $id")
+                    case Some(applicationConfigInstanceIds) =>
+                      applicationConfigInstanceIds.foreach { id =>
+                        val appInstance = appConfigs.applicationConfigInstance(id).get
+                        import com.azaptree.config.ConfigConversions._
+                        val config: Config = appInstance
+                        log.info(s"""appInstance
+                        |
+                        | ${toFormattedJson(config)}
+                        """.stripMargin)
+                      }
+                  }
+                }
+            }
+          }
+      }
+    }
+
   }
 
 }
