@@ -6,11 +6,13 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.math.Ordering
-import scala.util.Success
-import scala.util.Try
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FeatureSpec
 import org.scalatest.matchers.ShouldMatchers
+import org.slf4j.LoggerFactory
+import com.azaptree.actor.application.ActorRegistry
+import com.azaptree.actor.application.ActorRegistry._
+import com.azaptree.actor.application.ApplicationActor
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfig
 import com.azaptree.actor.config.ActorConfig
@@ -30,14 +32,13 @@ import com.azaptree.actor.message.system.HeartbeatResponse
 import com.azaptree.actor.message.system.IsApplicationMessageSupported
 import com.azaptree.actor.message.system.MessageProcessedEvent
 import com.azaptree.actor.message.system.MessageStats
-import com.azaptree.actor.message.system.SystemMessage
-import com.azaptree.actor.application.ActorRegistry
-import com.azaptree.actor.application.ActorRegistry._
 import com.typesafe.config.ConfigFactory
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
+import akka.actor.ActorSelection
 import akka.actor.ActorSystem
+import akka.actor.Identify
 import akka.actor.OneForOneStrategy
 import akka.actor.Props
 import akka.actor.SupervisorStrategy
@@ -49,11 +50,7 @@ import akka.pattern.ask
 import akka.testkit.DefaultTimeout
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
-import com.azaptree.actor.application.ApplicationActor
-import akka.actor.ActorSelection
-import com.azaptree.actor.ActorSystemManager
-import com.azaptree.actor.message.system.GetActorRef
-import org.slf4j.LoggerFactory
+import akka.actor.ActorIdentity
 
 object MessagingActorSpec {
   val logger = LoggerFactory.getLogger("MessagingActorSpec")
@@ -510,7 +507,7 @@ class MessagingActorSpec(_system: ActorSystem) extends TestKit(_system)
       val registeredActors = Await.result(ask(actorRegistry, Message(GetRegisteredActors())).mapTo[Message[RegisteredActors]], 100 millis).data
       registeredActors.actors.foreach { actor =>
         logger.info("actorPath = {}", actor.path)
-        val actorRef = Await.result(ask(actor, Message(GetActorRef)).asInstanceOf[Future[Message[ActorRef]]], 100 millis).data
+        val actorRef = Await.result(ask(actor, new Identify(0)).asInstanceOf[Future[ActorIdentity]], 100 millis).ref.get
         actorRef.path should be(actor.path)
       }
     }
