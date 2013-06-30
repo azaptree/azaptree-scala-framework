@@ -14,7 +14,7 @@ case class ClusterConfig(
   autoDown: Boolean = true,
   roles: Option[Set[String]] = None)
 
-case class SeedNode(host: String, port: Int = 2551)
+case class SeedNode(host: String, port: Int = 2552)
 
 case class RemoteConfig(
   logRemoteLifeCycleevents: Boolean = false,

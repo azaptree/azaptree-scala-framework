@@ -222,4 +222,39 @@ class ComponentConfigsSpec extends FunSpec with ShouldMatchers {
 
   }
 
+  it("can convert a ComponentConfigInstance to a Config") {
+    val compIds = compConfigs.componentIds
+    compIds.isDefined should be(true)
+    for {
+      ids <- compIds
+    } yield {
+      ids.foreach { id =>
+        compConfigs.componentVersionIds(ComponentId(group = id.group, name = id.name)) match {
+          case None => throw new IllegalStateException("Did not find component versions for: " + id)
+          case Some(versionIds) =>
+            versionIds.foreach { versionId =>
+              compConfigs.componentConfigInstanceIds(versionId) match {
+                case None => throw new IllegalStateException("Expected some ComponentConfigInstanceIds")
+                case Some(componentConfigInstanceIds) =>
+                  componentConfigInstanceIds.foreach { componentConfigInstanceId =>
+                    compConfigs.componentConfigInstance(componentConfigInstanceId) match {
+                      case None => throw new IllegalStateException("Expected componentConfigInstance to be found for: " + componentConfigInstanceId)
+                      case Some(componentConfigInstance) =>
+                        import com.azaptree.config.ConfigConversions._
+
+                        val config: Config = componentConfigInstance
+
+                        log.info(s"""$componentConfigInstance
+                        |
+                        | ${toFormattedJson(config)}
+                        """.stripMargin)
+                    }
+                  }
+              }
+            }
+        }
+      }
+    }
+  }
+
 }

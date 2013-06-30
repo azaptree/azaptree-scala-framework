@@ -5,6 +5,7 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigRenderOptions
 import com.typesafe.config.ConfigException
 import scala.collection.JavaConversions._
+import org.slf4j.LoggerFactory
 
 package object config {
 
@@ -64,6 +65,53 @@ package object config {
   def wrapConfig(name: String, config: Config): Config = {
     val wrappedConfig = """"%s":%s""".format(name, toJson(config))
     ConfigFactory.parseString(wrappedConfig)
+  }
+
+  object ConfigConversions {
+    val configConversionsLog = LoggerFactory.getLogger("com.azaptree.config.ConfigConversions");
+
+    import scala.language.implicitConversions
+
+    implicit def ComponentConfigInstance2Config(source: ComponentConfigInstance): Config = {
+      val versionId = source.id.versionId
+      val compId = versionId.compId
+      val configJson = source.config.map("config " + toJson(_)).getOrElse("")
+      val compDependencyRefs = source.compDependencyRefs.map { compDependencyRefs =>
+        val sb = new StringBuilder(128)
+        sb.append("component-dependency-refs = [")
+        compDependencyRefs.foldLeft(sb) { (sb, compDependencyRef) =>
+          val compId = compDependencyRef._2.versionId.compId
+          sb.append(s"""{"group":"${compId.group}",
+						 |"name":"${compId.name}",
+						 |"config-ref-name":"${compDependencyRef._2.instance}",
+						 |"config-name":"${compDependencyRef._1}"
+						}\n""".stripMargin)
+          sb
+        }
+
+        sb.append(']')
+        sb
+      }.getOrElse(new StringBuilder(0))
+
+      val attributes = source.attributes.map { attrs =>
+        val sb = new StringBuilder(128)
+        sb.append("attributes = [")
+        attrs.foldLeft(sb) { (sb, attr) =>
+          sb.append("{name=\"").append(attr._1).append("\", value=\"").append(attr._2).append("\"}\n")
+          sb
+        }
+
+        sb.append(']')
+        sb
+      }.getOrElse(new StringBuilder(0))
+
+      val config = s"""{name = ${source.id.instance} \n ${compDependencyRefs} \n${attributes} \n ${configJson} }"""
+      configConversionsLog.debug("config:\n{}", config)
+
+      ConfigFactory.parseString(config)
+
+    }
+
   }
 
 }

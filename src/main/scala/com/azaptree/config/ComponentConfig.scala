@@ -1,10 +1,8 @@
 package com.azaptree.config
 
-import com.azaptree.application.model.ComponentVersion
-import com.azaptree.application.model.ComponentId
-import com.azaptree.application.model.ComponentVersionId
-import com.typesafe.config.Config
 import com.azaptree.application.model.ComponentInstanceId
+import com.azaptree.application.model.ComponentVersion
+import com.typesafe.config.Config
 
 case class ComponentVersionConfig(
   compVersion: ComponentVersion,
@@ -23,7 +21,7 @@ case class ComponentVersionConfig(
  */
 case class ComponentConfigInstance(
   id: ComponentInstanceId,
-  config: Option[com.typesafe.config.Config] = None,
+  config: Option[Config] = None,
   compDependencyRefs: Option[Map[String, ComponentInstanceId]] = None,
   attributes: Option[Map[String, String]] = None)
 
