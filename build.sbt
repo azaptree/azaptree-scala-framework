@@ -22,6 +22,8 @@ libraryDependencies ++= Seq("com.typesafe.akka" %% "akka-actor" % akkaVersion,
 							"com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
 							"com.typesafe.akka" %% "akka-dataflow" % akkaVersion)
 							
+libraryDependencies += "com.typesafe.akka" %% "akka-cluster-experimental" % "2.2-M3"
+							
 libraryDependencies += compilerPlugin("org.scala-lang.plugins" % "continuations" % "2.10.2-RC1")
 
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.12"

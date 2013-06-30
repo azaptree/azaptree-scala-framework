@@ -16,6 +16,7 @@ import com.azaptree.application.ComponentShutdownEvent
 import com.azaptree.application.PreApplicationShutdownEvent
 import com.azaptree.application.PostApplicationShutdownEvent
 import com.azaptree.application.ComponentShutdownFailedEvent
+import java.util.concurrent.atomic.AtomicInteger
 
 object ApplicationSpec {
   val started = "ComponentStarted"
@@ -181,19 +182,19 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
       val compB = Component[ComponentNotConstructed, CompA]("CompB", new CompALifeCycle())
       val compC = Component[ComponentNotConstructed, CompA]("CompC", new CompALifeCycle())
 
-      var compRegisteredCount = 0
-      var ComponentShutdownEventCount = 0
-      var PreApplicationShutdownEventCount = 0
-      var PostApplicationShutdownEventCount = 0
+      var compRegisteredCount = new AtomicInteger(0)
+      var ComponentShutdownEventCount = new AtomicInteger(0)
+      var PreApplicationShutdownEventCount = new AtomicInteger(0)
+      var PostApplicationShutdownEventCount = new AtomicInteger(0)
       val subscriber: Any => Unit = event => {
         event match {
-          case e: ComponentStartedEvent => compRegisteredCount += 1
-          case e: ComponentShutdownEvent => ComponentShutdownEventCount += 1
-          case e: PreApplicationShutdownEvent => PreApplicationShutdownEventCount += 1
-          case e: PostApplicationShutdownEvent => PostApplicationShutdownEventCount += 1
+          case e: ComponentStartedEvent => compRegisteredCount.incrementAndGet()
+          case e: ComponentShutdownEvent => ComponentShutdownEventCount.incrementAndGet()
+          case e: PreApplicationShutdownEvent => PreApplicationShutdownEventCount.incrementAndGet()
+          case e: PostApplicationShutdownEvent => PostApplicationShutdownEventCount.incrementAndGet()
         }
 
-        println((compRegisteredCount + ComponentShutdownEventCount + PreApplicationShutdownEventCount + PostApplicationShutdownEventCount) + " : " + event)
+        println((compRegisteredCount.get() + ComponentShutdownEventCount.get() + PreApplicationShutdownEventCount.get() + PostApplicationShutdownEventCount.get()) + " : " + event)
       }
 
       var app = Application()
@@ -209,10 +210,10 @@ class ApplicationSpec extends FunSpec with ShouldMatchers {
 
       app.shutdown()
 
-      compRegisteredCount should be(comps.size)
-      ComponentShutdownEventCount should be(comps.size)
-      PreApplicationShutdownEventCount should be(1)
-      PostApplicationShutdownEventCount should be(1)
+      compRegisteredCount.get() should be(comps.size)
+      ComponentShutdownEventCount.get() should be(comps.size)
+      PreApplicationShutdownEventCount.get() should be(1)
+      PostApplicationShutdownEventCount.get() should be(1)
     }
   }
 
