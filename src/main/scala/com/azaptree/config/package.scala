@@ -7,6 +7,8 @@ import com.typesafe.config.ConfigException
 import scala.collection.JavaConversions._
 import org.slf4j.LoggerFactory
 import scala.language.implicitConversions
+import com.azaptree.application.model.ComponentDependency
+import com.azaptree.application.model.ComponentInstanceId
 
 package object config {
 
@@ -73,34 +75,8 @@ package object config {
 
     implicit def ApplicationConfigInstance2Config(source: ApplicationConfigInstance): Config = {
       val configJson = source.config.map(config => s"config ${toJson(config)}").getOrElse("")
-      val compDependencyRefs = source.compDependencyRefs.map { compDependencyRefs =>
-        val sb = new StringBuilder(128)
-        sb.append("component-dependency-refs = [")
-        compDependencyRefs.foldLeft(sb) { (sb, compDependencyRef) =>
-          val compId = compDependencyRef._2.versionId.compId
-          sb.append(s"""{"group":"${compId.group}",
-						 |"name":"${compId.name}",
-						 |"config-ref-name":"${compDependencyRef._2.instance}",
-						 |"config-name":"${compDependencyRef._1}"
-						}\n""".stripMargin)
-          sb
-        }
-
-        sb.append(']')
-        sb
-      }.getOrElse(new StringBuilder(0))
-
-      val attributes = source.attributes.map { attrs =>
-        val sb = new StringBuilder(128)
-        sb.append("attributes = [")
-        attrs.foldLeft(sb) { (sb, attr) =>
-          sb.append("{name=\"").append(attr._1).append("\", value=\"").append(attr._2).append("\"}\n")
-          sb
-        }
-
-        sb.append(']')
-        sb
-      }.getOrElse(new StringBuilder(0))
+      val compDependencyRefs = componentDependencyRefs2String(source.compDependencyRefs)
+      val attributes = attributes2String(source.attributes)
 
       val config = s"""{name = ${source.id.instance}\n${compDependencyRefs}\n${attributes}\n${configJson} }"""
       configConversionsLog.debug("config:\n{}", config)
@@ -110,34 +86,9 @@ package object config {
 
     implicit def ComponentConfigInstance2Config(source: ComponentConfigInstance): Config = {
       val configJson = source.config.map(config => s"config ${toJson(config)}").getOrElse("")
-      val compDependencyRefs = source.compDependencyRefs.map { compDependencyRefs =>
-        val sb = new StringBuilder(128)
-        sb.append("component-dependency-refs = [")
-        compDependencyRefs.foldLeft(sb) { (sb, compDependencyRef) =>
-          val compId = compDependencyRef._2.versionId.compId
-          sb.append(s"""{"group":"${compId.group}",
-						 |"name":"${compId.name}",
-						 |"config-ref-name":"${compDependencyRef._2.instance}",
-						 |"config-name":"${compDependencyRef._1}"
-						}\n""".stripMargin)
-          sb
-        }
+      val compDependencyRefs = componentDependencyRefs2String(source.compDependencyRefs)
 
-        sb.append(']')
-        sb
-      }.getOrElse(new StringBuilder(0))
-
-      val attributes = source.attributes.map { attrs =>
-        val sb = new StringBuilder(128)
-        sb.append("attributes = [")
-        attrs.foldLeft(sb) { (sb, attr) =>
-          sb.append("{name=\"").append(attr._1).append("\", value=\"").append(attr._2).append("\"}\n")
-          sb
-        }
-
-        sb.append(']')
-        sb
-      }.getOrElse(new StringBuilder(0))
+      val attributes = attributes2String(source.attributes)
 
       val config = s"""{name = ${source.id.instance}\n${compDependencyRefs}\n${attributes}\n${configJson} }"""
       configConversionsLog.debug("config:\n{}", config)
@@ -149,17 +100,9 @@ package object config {
     implicit def ApplicationVersionConfig2Config(source: ApplicationVersionConfig): Config = {
       val versionId = source.appVersion.id
       val configSchema = source.configSchema.map(configSchema => s"config-schema ${toJson(configSchema)}").getOrElse("")
-      val configValidators = source.validators.map { validators =>
-        val sb = new StringBuilder(128)
-        sb.append("config-validators = [")
-        validators.foldLeft(sb) { (sb, validator) =>
-          sb.append(s""""${validator.getClass().getName()}"\n""")
-        }
-        sb.append(']')
-        sb
-      }.getOrElse(new StringBuilder(0))
+      val configValidators = configValidators2String(source.validators)
 
-      val config = s"""{"version":"${versionId.version}"\n${configSchema}\n${configValidators} }"""
+      val config = s"""{"version":"${versionId.version}"\n${configSchema}\n${configValidators}\n${componentDependencies2String(source.appVersion.dependencies)}}"""
       configConversionsLog.debug("config:\n{}", config)
 
       ConfigFactory.parseString(config)
@@ -168,7 +111,37 @@ package object config {
     implicit def ComponentVersionConfig2Config(source: ComponentVersionConfig): Config = {
       val versionId = source.compVersion.id
       val configSchema = source.configSchema.map(configSchema => s"config-schema ${toJson(configSchema)}").getOrElse("")
-      val configValidators = source.validators.map { validators =>
+      val configValidators = configValidators2String(source.validators)
+
+      val compDependencies = componentDependencies2String(source.compVersion.compDependencies)
+
+      val config = s"""{"version":"${versionId.version}"\n${compDependencies}\n${configSchema}\n${configValidators} }"""
+      configConversionsLog.debug("config:\n{}", config)
+
+      ConfigFactory.parseString(config)
+    }
+
+    private def componentDependencyRefs2String(compDependencyRefs: Option[Map[String, ComponentInstanceId]]): String = {
+      compDependencyRefs.map { compDependencyRefs =>
+        val sb = new StringBuilder(128)
+        sb.append("component-dependency-refs = [")
+        compDependencyRefs.foldLeft(sb) { (sb, compDependencyRef) =>
+          val compId = compDependencyRef._2.versionId.compId
+          sb.append(s"""{"group":"${compId.group}",
+						 |"name":"${compId.name}",
+						 |"config-ref-name":"${compDependencyRef._2.instance}",
+						 |"config-name":"${compDependencyRef._1}"
+						}\n""".stripMargin)
+          sb
+        }
+
+        sb.append(']')
+        sb
+      }.getOrElse(new StringBuilder(0)).toString()
+    }
+
+    private def configValidators2String(validators: Option[Iterable[ConfigValidator]]): String = {
+      validators.map { validators =>
         val sb = new StringBuilder(128)
         sb.append("config-validators = [")
         validators.foldLeft(sb) { (sb, validator) =>
@@ -176,9 +149,25 @@ package object config {
         }
         sb.append(']')
         sb
-      }.getOrElse(new StringBuilder(0))
+      }.getOrElse(new StringBuilder(0)).toString()
+    }
 
-      val compDependencies = source.compVersion.compDependencies.map { compDependencies =>
+    private def attributes2String(attributes: Option[Map[String, String]]): String = {
+      attributes.map { attrs =>
+        val sb = new StringBuilder(128)
+        sb.append("attributes = [")
+        attrs.foldLeft(sb) { (sb, attr) =>
+          sb.append("{name=\"").append(attr._1).append("\", value=\"").append(attr._2).append("\"}\n")
+          sb
+        }
+
+        sb.append(']')
+        sb
+      }.getOrElse(new StringBuilder(0)).toString()
+    }
+
+    private def componentDependencies2String(compDependencies: Option[Iterable[ComponentDependency]]): String = {
+      compDependencies.map { compDependencies =>
         val sb = new StringBuilder(256)
         sb.append("component-dependencies = [")
 
@@ -208,12 +197,7 @@ package object config {
         }
         sb.append(']')
         sb
-      }.getOrElse(new StringBuilder(0))
-
-      val config = s"""{"version":"${versionId.version}"\n${compDependencies}\n${configSchema}\n${configValidators} }"""
-      configConversionsLog.debug("config:\n{}", config)
-
-      ConfigFactory.parseString(config)
+      }.getOrElse(new StringBuilder(0)).toString()
     }
 
   }
