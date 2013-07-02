@@ -29,7 +29,7 @@ trait ConfigService extends ApplicationConfigs {
    * The configuration instance is validated before returning
    */
   def applicationConfig(id: ApplicationInstanceId): Either[Exception, Option[Config]] = {
-    def configWithDependencies(config: Config, configInstance: ApplicationConfigInstance): Either[Exception, Option[Config]] = {
+    def configWithDependencies(config: Config, configInstance: ApplicationInstanceConfig): Either[Exception, Option[Config]] = {
       configInstance.compDependencyRefs match {
         case None => Right(Some(config))
         case Some(compDependencyRefs) =>
@@ -66,7 +66,7 @@ trait ConfigService extends ApplicationConfigs {
    * The configuration instance is validated before returning
    */
   def componentConfig(id: ComponentInstanceId): Either[Exception, Option[Config]] = {
-    def configWithDependencies(config: Config, compConfigInstance: ComponentConfigInstance): Either[Exception, Option[Config]] = {
+    def configWithDependencies(config: Config, compConfigInstance: ComponentInstanceConfig): Either[Exception, Option[Config]] = {
       compConfigInstance.compDependencyRefs match {
         case None => Right(Some(config))
         case Some(compDependencyRefs) =>

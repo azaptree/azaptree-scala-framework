@@ -19,7 +19,7 @@ case class ComponentVersionConfig(
  * </pre>
  *
  */
-case class ComponentConfigInstance(
+case class ComponentInstanceConfig(
   id: ComponentInstanceId,
   config: Option[Config] = None,
   compDependencyRefs: Option[Map[String, ComponentInstanceId]] = None,

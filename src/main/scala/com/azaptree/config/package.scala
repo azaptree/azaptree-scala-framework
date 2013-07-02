@@ -73,7 +73,7 @@ package object config {
   object ConfigConversions {
     val configConversionsLog = LoggerFactory.getLogger("com.azaptree.config.ConfigConversions");
 
-    implicit def ApplicationConfigInstance2Config(source: ApplicationConfigInstance): Config = {
+    implicit def ApplicationConfigInstance2Config(source: ApplicationInstanceConfig): Config = {
       val configJson = source.config.map(config => s"config ${toJson(config)}").getOrElse("")
       val compDependencyRefs = componentDependencyRefs2String(source.compDependencyRefs)
       val attributes = attributes2String(source.attributes)
@@ -84,7 +84,7 @@ package object config {
       ConfigFactory.parseString(config)
     }
 
-    implicit def ComponentConfigInstance2Config(source: ComponentConfigInstance): Config = {
+    implicit def ComponentConfigInstance2Config(source: ComponentInstanceConfig): Config = {
       val configJson = source.config.map(config => s"config ${toJson(config)}").getOrElse("")
       val compDependencyRefs = componentDependencyRefs2String(source.compDependencyRefs)
 

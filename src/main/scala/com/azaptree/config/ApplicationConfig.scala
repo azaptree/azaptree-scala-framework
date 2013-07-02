@@ -15,7 +15,7 @@ case class ApplicationVersionConfig(
  * attributes serve as meta-data that are searchable. For example, find all application config instances with attribute env=DEV
  *
  */
-case class ApplicationConfigInstance(
+case class ApplicationInstanceConfig(
   id: ApplicationInstanceId,
   config: Option[com.typesafe.config.Config],
   compDependencyRefs: Option[Map[String /* logical name used by the component / app to lookup the config */ , ComponentInstanceId]] = None,

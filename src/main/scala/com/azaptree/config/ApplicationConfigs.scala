@@ -111,7 +111,7 @@ trait ApplicationConfigs extends ComponentConfigs {
     }
   }
 
-  def applicationConfigInstance(id: ApplicationInstanceId): Option[ApplicationConfigInstance] = {
+  def applicationConfigInstance(id: ApplicationInstanceId): Option[ApplicationInstanceConfig] = {
     appConfigs.get(id.versionId.appId) match {
       case None => None
       case Some(appConfig) =>
@@ -127,7 +127,7 @@ trait ApplicationConfigs extends ComponentConfigs {
                     instanceConfigs.find(_.getString("name") == id.instance) match {
                       case None => None
                       case Some(instanceConfig) =>
-                        Some(ApplicationConfigInstance(
+                        Some(ApplicationInstanceConfig(
                           id = id,
                           config = getConfig(instanceConfig, "config"),
                           compDependencyRefs = ComponentConfigs.getComponentDependencyRefs(versionConfig, instanceConfig),
@@ -176,7 +176,7 @@ trait ApplicationConfigs extends ComponentConfigs {
 
   def validate(id: ApplicationInstanceId): Option[Exception] = {
 
-    def validateConfigSchema(appVersionConfig: ApplicationVersionConfig, appConfigInstance: ApplicationConfigInstance) = {
+    def validateConfigSchema(appVersionConfig: ApplicationVersionConfig, appConfigInstance: ApplicationInstanceConfig) = {
       appConfigInstance.config match {
         case None => if (appVersionConfig.configSchema.isDefined) throw new IllegalStateException("The application config instance requires a Config to be defined")
         case Some(config) =>
@@ -188,7 +188,7 @@ trait ApplicationConfigs extends ComponentConfigs {
       }
     }
 
-    def runValidators(appVersionConfig: ApplicationVersionConfig, appConfigInstance: ApplicationConfigInstance) = {
+    def runValidators(appVersionConfig: ApplicationVersionConfig, appConfigInstance: ApplicationInstanceConfig) = {
       for {
         validators <- appVersionConfig.validators
       } yield {
@@ -201,7 +201,7 @@ trait ApplicationConfigs extends ComponentConfigs {
       }
     }
 
-    def validateComponentDependencies(appVersionConfig: ApplicationVersionConfig, appConfigInstance: ApplicationConfigInstance) = {
+    def validateComponentDependencies(appVersionConfig: ApplicationVersionConfig, appConfigInstance: ApplicationInstanceConfig) = {
       appVersionConfig.appVersion.dependencies match {
         case None =>
           if (appConfigInstance.compDependencyRefs.isDefined) {

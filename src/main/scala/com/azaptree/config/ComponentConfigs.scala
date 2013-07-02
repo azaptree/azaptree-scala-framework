@@ -178,7 +178,7 @@ trait ComponentConfigs extends ConfigLookup {
   /**
    * if the configuration is invalid, then an Exception is returned
    */
-  def componentConfigInstance(id: ComponentInstanceId): Option[ComponentConfigInstance] = {
+  def componentConfigInstance(id: ComponentInstanceId): Option[ComponentInstanceConfig] = {
     def compDependencyRefs(configInstance: Config, compVersionConfig: Option[com.azaptree.config.ComponentVersionConfig]): Option[List[ComponentInstanceId]] = {
       getConfigList(configInstance, "component-dependency-refs") match {
         case None => None
@@ -222,7 +222,7 @@ trait ComponentConfigs extends ConfigLookup {
                           val configInstanceConfig = getConfig(instanceConfig, "config")
                           val compDependencyRefs = ComponentConfigs.getComponentDependencyRefs(versionConfig, instanceConfig)
                           val attributes = ComponentConfigs.getConfigInstanceAttributes(instanceConfig)
-                          Some(ComponentConfigInstance(id = id, config = configInstanceConfig, compDependencyRefs = compDependencyRefs, attributes = attributes))
+                          Some(ComponentInstanceConfig(id = id, config = configInstanceConfig, compDependencyRefs = compDependencyRefs, attributes = attributes))
                       }
                   }
               }
@@ -288,7 +288,7 @@ trait ComponentConfigs extends ConfigLookup {
   def validate(compConfigInstanceId: ComponentInstanceId): Option[Exception] = {
     import com.azaptree.config.ConfigConversions._
 
-    def validationFailed(message: String, versionConfig: ComponentVersionConfig, compConfigInstance: ComponentConfigInstance) = {
+    def validationFailed(message: String, versionConfig: ComponentVersionConfig, compConfigInstance: ComponentInstanceConfig) = {
       val componentVersionConfig: Config = versionConfig
       val instanceConfig: Config = compConfigInstance
       throw new IllegalStateException(s"""${message}
@@ -302,7 +302,7 @@ trait ComponentConfigs extends ConfigLookup {
                   | ${instanceConfig}""".stripMargin);
     }
 
-    def checkThatAllDependenciesAreFullfilled(versionConfig: ComponentVersionConfig, compConfigInstance: ComponentConfigInstance) = {
+    def checkThatAllDependenciesAreFullfilled(versionConfig: ComponentVersionConfig, compConfigInstance: ComponentInstanceConfig) = {
       versionConfig.compVersion.compDependencies match {
         case None =>
           if (compConfigInstance.compDependencyRefs.isDefined) {
