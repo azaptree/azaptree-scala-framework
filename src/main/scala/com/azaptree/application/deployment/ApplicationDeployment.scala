@@ -28,9 +28,6 @@ import applicationDeploymentConfigParams._
  *      instance = "instance"
  *  }
  *
- *  config-service{
- *  	url = "http://localhost:8080/api/config-service/1-0-0/"${com.azaptree.app-instance-id.group}/${com.azaptree.app-instance-id.name}/${com.azaptree.app-instance-id.version}/${com.azaptree.app-instance-id.instance}"
- *  }
  * }
  * </code>
  */
@@ -59,13 +56,6 @@ case class ApplicationDeployment(appDeploymentConfig: ApplicationDeploymentConfi
       case None => new File(System.getProperty("user.dir"))
       case Some(dir) => new File(dir)
     }
-  }
-
-  /**
-   * URL used to load the application instance Config
-   */
-  def configUrl: Option[String] = {
-    getString(config, s"${namespace}.config-service.url")
   }
 
 }
