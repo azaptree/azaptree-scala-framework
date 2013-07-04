@@ -25,3 +25,7 @@ set scalaVersion := "2.10.1"
 eclipse execution-environment=JavaSE-1.7 with-source=true
 reload return
 ================================================================================================================================================
+PREREQUISITES
+=============
+The following software is required to be installed in order for the unit tests to run successfully:
+1. mongodb

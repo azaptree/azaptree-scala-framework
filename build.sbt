@@ -30,6 +30,8 @@ libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.12"
 
 libraryDependencies += "commons-io" % "commons-io" % "2.4"
 
+libraryDependencies += "org.mongodb" %% "casbah" % "2.6.2"
+
 scalacOptions ++= Seq("-P:continuations:enable",
 					  "-optimise",
 					  "-feature",
