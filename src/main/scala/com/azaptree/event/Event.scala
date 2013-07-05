@@ -2,6 +2,7 @@ package com.azaptree.event
 
 import com.azaptree.application.model.ApplicationInstanceId
 import java.util.UUID
+import org.bson.types.ObjectId
 
 /**
  * <pre>
@@ -34,8 +35,7 @@ import java.util.UUID
  * </pre>
  */
 case class Event(
-    eventId: UUID = UUID.randomUUID,
-    eventTimestamp: Long = System.currentTimeMillis(),
+    eventId: ObjectId = new ObjectId(),
     namespace: String,
     name: String,
     level: EventLevel,
