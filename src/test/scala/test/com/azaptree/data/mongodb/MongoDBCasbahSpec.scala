@@ -75,6 +75,7 @@ class MongoDBCasbahSpec extends FunSuite with ShouldMatchers {
 
     } finally {
       db("MongoDBCasbahSpec").drop()
+      mongoClient.close()
     }
 
   }
@@ -110,6 +111,7 @@ class MongoDBCasbahSpec extends FunSuite with ShouldMatchers {
 
     } finally {
       db("MongoDBCasbahSpec").drop()
+      mongoClient.close()
     }
   }
 
