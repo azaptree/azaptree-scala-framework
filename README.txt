@@ -29,3 +29,10 @@ PREREQUISITES
 =============
 The following software is required to be installed in order for the unit tests to run successfully:
 1. mongodb
+================================================================================================================================================
+Eclipse plugins
+===============
+1. Scala IDE
+2. Logback Beagle - see: http://logback.qos.ch/beagle/
+3. Eclipse JSON Editor : https://sourceforge.net/projects/eclipsejsonedit/files/update
+

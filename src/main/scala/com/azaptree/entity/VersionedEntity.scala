@@ -10,9 +10,9 @@ import java.util.Objects
 class VersionedEntity[+A](
   override val entityId: UUID = UUID.randomUUID,
   override val entityCreatedOn: Long = System.currentTimeMillis,
+  override val entity: A,
   val entityVersion: UUID = UUID.randomUUID,
-  val entityUpdatedOn: Long = System.currentTimeMillis,
-  override val entity: A)
+  val entityUpdatedOn: Long = System.currentTimeMillis)
     extends Entity[A](entityId, entityCreatedOn, entity) {
 
   require(entityVersion != null, "entityVersion is required")

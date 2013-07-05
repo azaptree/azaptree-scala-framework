@@ -5,6 +5,8 @@ import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.FunSuite
 import com.mongodb.casbah.Imports._
 import org.slf4j.LoggerFactory
+import java.util.UUID
+import com.mongodb.casbah.commons.MongoDBObject
 
 class MongoDBCasbahSpec extends FunSuite with ShouldMatchers {
   val log = LoggerFactory.getLogger("MongoDBCasbahSpec")
@@ -75,6 +77,40 @@ class MongoDBCasbahSpec extends FunSuite with ShouldMatchers {
       db("MongoDBCasbahSpec").drop()
     }
 
+  }
+
+  test("array $slice keeps the last N elements in the array") {
+    val mongoClient = MongoClient("localhost", 27017)
+
+    val db = mongoClient("test")
+    db.collectionNames.foreach(name => log.info("collection name : {}", name))
+
+    try {
+      val coll = db("MongoDBCasbahSpec")
+      val numberList = 1 :: 2 :: 3 :: Nil
+      var a = MongoDBObject("numberList" -> numberList)
+      a = a + ("id" -> UUID.randomUUID())
+      val result = coll.insert(a)
+
+      val query = MongoDBObject("id" -> a("id"))
+      coll.find(query).foreach { a =>
+        log.info("an object with an array: {}", a)
+      }
+
+      import scala.language.reflectiveCalls
+
+      val arrayUpdate = MongoDBObject(("$each" -> Array(4, 5, 6)), ("$slice" -> new Integer(-3)))
+      var update = MongoDBObject("$push" -> MongoDBObject("numberList" -> arrayUpdate))
+
+      coll.update(query, update)
+
+      coll.find(query).foreach { a =>
+        log.info("an object with an array: {}", a)
+      }
+
+    } finally {
+      db("MongoDBCasbahSpec").drop()
+    }
   }
 
 }
