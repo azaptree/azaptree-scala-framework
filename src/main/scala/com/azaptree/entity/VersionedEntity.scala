@@ -2,18 +2,17 @@ package com.azaptree.entity
 
 import java.util.UUID
 import java.util.Objects
+import org.bson.types.ObjectId
 
 /**
  * Used to track entity versions.
  *
  */
 class VersionedEntity[+A](
-  override val entityId: UUID = UUID.randomUUID,
-  override val entityCreatedOn: Long = System.currentTimeMillis,
+  override val entityId: ObjectId = new ObjectId(),
   override val entity: A,
-  val entityVersion: UUID = UUID.randomUUID,
-  val entityUpdatedOn: Long = System.currentTimeMillis)
-    extends Entity[A](entityId, entityCreatedOn, entity) {
+  val entityVersion: ObjectId = new ObjectId())
+    extends Entity[A](entityId, entity) {
 
   require(entityVersion != null, "entityVersion is required")
 
@@ -40,9 +39,7 @@ class VersionedEntity[+A](
     require(newEntity != null)
     new VersionedEntity[B](
       entityId = this.entityId,
-      entityCreatedOn = this.entityCreatedOn,
-      entityVersion = UUID.randomUUID(),
-      entityUpdatedOn = System.currentTimeMillis(),
+      entityVersion = new ObjectId(),
       entity = newEntity)
   }
 }
