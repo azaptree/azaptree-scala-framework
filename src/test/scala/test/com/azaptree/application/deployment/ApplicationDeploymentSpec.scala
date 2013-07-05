@@ -15,8 +15,11 @@ import com.azaptree.application.ApplicationExtensionComponentLifeCycle
 import test.com.azaptree.application.pidFile.ApplicationPidFileUsingApplictionDeploymentSpec
 import java.io.File
 import java.io.FilenameFilter
+import org.slf4j.LoggerFactory
+import org.apache.commons.io.FileUtils
 
 class ApplicationDeploymentSpec extends FunSpec with ShouldMatchers {
+  val log = LoggerFactory.getLogger("ApplicationDeploymentSpec")
 
   implicit val appService = new ApplicationService()
 
@@ -40,6 +43,12 @@ class ApplicationDeploymentSpec extends FunSpec with ShouldMatchers {
   }
 
   val appDeployment = ApplicationDeployment(applicationDeploymentConfig)
+  log.info("appDeployment.baseDir - {}", appDeployment.baseDir)
+  val pidFiles = listPidFiles(appDeployment.baseDir)
+  for (f <- pidFiles) {
+    f.delete()
+    log.info("delete pre-existing pid file : {}", f)
+  }
 
   appService.registerComponent(Component[ComponentNotConstructed, ApplicationExtension]("ApplicationDeployment", new ApplicationExtensionComponentLifeCycle(appDeployment)))
   val appPidFile = appDeployment.appPidFile
