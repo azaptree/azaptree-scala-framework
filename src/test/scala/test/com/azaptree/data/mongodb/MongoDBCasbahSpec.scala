@@ -7,6 +7,7 @@ import com.mongodb.casbah.Imports._
 import org.slf4j.LoggerFactory
 import java.util.UUID
 import com.mongodb.casbah.commons.MongoDBObject
+import java.util.Date
 
 class MongoDBCasbahSpec extends FunSuite with ShouldMatchers {
   val log = LoggerFactory.getLogger("MongoDBCasbahSpec")
@@ -113,6 +114,53 @@ class MongoDBCasbahSpec extends FunSuite with ShouldMatchers {
       db("MongoDBCasbahSpec").drop()
       mongoClient.close()
     }
+  }
+
+  test("ObjectId can be used to search on object creation time") {
+    val mongoClient = MongoClient("localhost", 27017)
+
+    val db = mongoClient("test")
+    db.collectionNames.foreach(name => log.info("collection name : {}", name))
+
+    try {
+      val coll = db("MongoDBCasbahSpec")
+
+      val start = new ObjectId(new Date())
+      for (i <- 1 to 10) {
+        coll.insert(MongoDBObject("createdOn" -> System.currentTimeMillis()))
+      }
+
+      val start2 = new ObjectId(new Date())
+      for (i <- 1 to 10) {
+        coll.insert(MongoDBObject("createdOn" -> System.currentTimeMillis()))
+      }
+
+      val start3 = new ObjectId(new Date())
+      for (i <- 1 to 10) {
+        coll.insert(MongoDBObject("createdOn" -> System.currentTimeMillis()))
+      }
+
+      val rs = coll.find("_id" $gte start)
+      log.info("rs.size = {}", rs.size)
+      rs.size should be(30)
+
+      val rs2 = coll.find("_id" $gte start2)
+      log.info("rs2.size = {}", rs2.size)
+      rs2.size should be(20)
+
+      val rs3 = coll.find("_id" $gte start3)
+      log.info("rs3.size = {}", rs3.size)
+      rs3.size should be(10)
+
+      val rs4 = coll.find("_id" $gte start2 $lt start3)
+      log.info("rs4.size = {}", rs4.size)
+      rs4.size should be(10)
+
+    } finally {
+      db("MongoDBCasbahSpec").drop()
+      mongoClient.close()
+    }
+
   }
 
 }
