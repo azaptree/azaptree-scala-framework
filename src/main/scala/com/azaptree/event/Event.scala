@@ -6,6 +6,9 @@ import org.bson.types.ObjectId
 
 /**
  * <pre>
+ * - eventId - type is an ObjectId, which embeds the creation timestamp. For efficiency purposes, an event timestamp property is intentionally left out.
+ *           - events can be queried by date ranges via ObjectIds, i.e., using new ObjectId(time : Date)
+ *           - the date can be extracted during map reduce from the eventId
  * - namespace - used to group types of events
  * - the purpose for attributes is to provide a mechanism to attach additional meta-data that can be searchable
  * - parentEventId : used in order relate events, for example a workflow may log an event that is has started.
@@ -44,7 +47,7 @@ case class Event(
     exceptionInfo: Option[ExceptionInfo] = None,
     applictionInstanceId: ApplicationInstanceId,
     parentEventId: Option[UUID] = None,
-    attributes: Option[Map[String, Any]] = None) {
+    attributes: Option[Map[String, AnyVal]] = None) {
 }
 
 sealed trait EventLevel
