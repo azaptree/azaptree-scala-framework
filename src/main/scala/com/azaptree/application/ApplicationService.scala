@@ -54,24 +54,12 @@ class ApplicationService(asyncEventBus: Boolean = true) {
   @volatile
   private[this] var scheduledFuturesForCompLevelHealthChecks = Map.empty[String, Iterable[ScheduledFuture[_]]]
 
-  /**
-   * TODO: 2013-06-14: For some reason after re-factoring the code, SBT fails to compile the code when I try to create the application with named constructor params,
-   * e.g., private[this] var app: Application = Application(evenbus = new SynchronousSubchannelEventBus()).
-   *
-   * It compiles fine within Eclipse, but not using sbt on the command line.
-   *
-   * sbt version: 0.12.4-RC2
-   * scala version: 2.10.1
-   *
-   * NOTE: within Eclipse I am using scala version 2.10.2 - compile fails with sbt and scala 2.10.2
-   *
-   */
   @volatile
   private[this] var app: Application = {
     val app = if (asyncEventBus) {
-      Application(Nil, new AsynchronousSubchannelEventBus())
+      Application(eventBus = new AsynchronousSubchannelEventBus())
     } else {
-      Application(Nil, new SynchronousSubchannelEventBus())
+      Application(eventBus = new SynchronousSubchannelEventBus())
     }
 
     val subscriber = handleComponentEvents _

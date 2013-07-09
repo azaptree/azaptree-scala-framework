@@ -164,6 +164,7 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
     it("can cancel all registrations for a path") {
       val path = new File(baseDir, UUID.randomUUID().toString()).toPath()
       Files.createDirectory(path)
+      info("watch path = " + path)
       val result = FileWatcher.watch(path = path, fileWatcher = fileChangedListener)
       result match {
         case Right(key) => log.info(key.toString())
@@ -173,7 +174,12 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
       FileWatcher.cancel(path).isDefined should be(true)
       FileWatcher.fileWatcherRegistrationCount(path) should be(0)
 
+      info("cancelled watch")
+
+      Thread.sleep(100l)
+
       val sizeBefore = FileWatcherServiceSpec.pathsChanged.size
+      info("FileWatcherServiceSpec.pathsChanged sizeBefore = %s".format(sizeBefore))
 
       for (i <- 1 to 10) {
         val f = new File(path.toFile(), UUID.randomUUID().toString())
@@ -181,6 +187,22 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
       }
 
       Thread.sleep(100l)
+
+      info("FileWatcherServiceSpec.pathsChanged sizeAfter = %s".format(FileWatcherServiceSpec.pathsChanged.size))
+
+      if (sizeBefore != FileWatcherServiceSpec.pathsChanged.size) {
+        var diff = FileWatcherServiceSpec.pathsChanged
+        FileWatcherServiceSpec.pathsChanged.foreach { path =>
+          val index = diff.indexOf(path)
+          if (index != -1) {
+            val (left, right) = diff.splitAt(index)
+            diff = left ::: right.tail
+          }
+        }
+
+        info("FileWatcherServiceSpec.pathsChanged after - before diff = %s".format(diff.mkString("\n")))
+      }
+
       FileWatcherServiceSpec.pathsChanged.size should be(sizeBefore)
 
     }
