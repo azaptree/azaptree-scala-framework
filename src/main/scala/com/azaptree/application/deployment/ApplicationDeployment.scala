@@ -19,7 +19,18 @@ import applicationDeploymentConfigParams._
 /**
  * Config Schema:
  * <code>
+ * ${namespace}{
+ * 	app-instance-id{
+ *  	group = "group"
+ *      name = "name"
+ *      version = "version"
+ *      instance = "instance"
+ *  }
+ * }
+ * </code>
  *
+ * where namespace is supplied and defaults to "com.azaptree", e.g.,
+ * <code>
  * com.azaptree{
  * 	app-instance-id{
  *  	group = "group"
@@ -27,16 +38,19 @@ import applicationDeploymentConfigParams._
  *      version = "version"
  *      instance = "instance"
  *  }
- *
  * }
  * </code>
+ *
+ * fileWatcherService and applicationService are used by the ApplicationPidFile
  */
-case class ApplicationDeployment(appDeploymentConfig: ApplicationDeploymentConfig, namespace: String = "com.azaptree")(implicit fileWatcherService: FileWatcherService, applicationService: ApplicationService) extends ApplicationExtension {
-  require(namespace.trim().length() > 0, "namespace is required")
+case class ApplicationDeployment(appDeploymentConfig: ApplicationDeploymentConfig, namespace: Namespace = Namespace())(implicit fileWatcherService: FileWatcherService, applicationService: ApplicationService) extends ApplicationExtension {
 
   val config = appDeploymentConfig()
 
-  val applicationInstanceId = com.azaptree.application.deployment.applicationInstanceId(config, Namespace(namespace))
+  /**
+   *
+   */
+  val applicationInstanceId = com.azaptree.application.deployment.applicationInstanceId(config, namespace)
 
   val appPidFile = ApplicationPidFile(this)
 
