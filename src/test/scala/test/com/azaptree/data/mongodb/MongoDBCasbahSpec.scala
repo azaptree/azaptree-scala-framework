@@ -1,13 +1,14 @@
 package test.com.azaptree.data.mongodb
 
+import java.util.Date
+import java.util.UUID
+import org.scalatest.FunSuite
 import org.scalatest.WordSpec
 import org.scalatest.matchers.ShouldMatchers
-import org.scalatest.FunSuite
-import com.mongodb.casbah.Imports._
 import org.slf4j.LoggerFactory
-import java.util.UUID
+import com.mongodb.casbah.Imports._
 import com.mongodb.casbah.commons.MongoDBObject
-import java.util.Date
+import java.io.File
 
 class MongoDBCasbahSpec extends FunSuite with ShouldMatchers {
   val log = LoggerFactory.getLogger("MongoDBCasbahSpec")
@@ -159,6 +160,46 @@ class MongoDBCasbahSpec extends FunSuite with ShouldMatchers {
     } finally {
       db("MongoDBCasbahSpec").drop()
       mongoClient.close()
+    }
+
+  }
+
+  test("Testing out GridFS") {
+    import java.io.FileInputStream
+    import com.mongodb.casbah.Imports._
+    import com.mongodb.casbah.gridfs.Imports._
+
+    // Connect to the database
+    val mongoClient = MongoClient()("test")
+
+    // Pass the connection to the GridFS class
+    val gridfs = GridFS(mongoClient)
+
+    // Save a file to GridFS
+    val file = new File("src/test/resources/application.conf")
+    val fis = new FileInputStream(file)
+    val id = gridfs(fis) { f =>
+      f.filename = file.getAbsolutePath()
+      f.contentType = "text/xml"
+    }
+    val fileId = id.get.asInstanceOf[ObjectId]
+
+    try {
+      // Find a file in GridFS by its ObjectId
+      val myFileById = gridfs.findOne(fileId)
+      myFileById.isDefined should be(true)
+
+      // Print all filenames stored in GridFS
+      for (f <- gridfs) log.info(f.filename.get)
+
+      // Or find a file in GridFS by its filename
+      val myFileByName = gridfs.findOne(file.getAbsolutePath())
+      myFileByName.isDefined should be(true)
+    } finally {
+      // Print all filenames stored in GridFS
+      for (gridfsFile <- gridfs) {
+        gridfs.remove(gridfsFile._id.get)
+      }
     }
 
   }
