@@ -5,6 +5,9 @@ import com.typesafe.config.ConfigFactory
 import com.azaptree.config._
 import com.azaptree.application.model._
 import org.slf4j.LoggerFactory
+import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
 
 package object deployment {
 
@@ -24,7 +27,7 @@ package object deployment {
 
   import applicationDeploymentConfigParams._
 
-  val loadLocalApplicationDeploymentConfig: (ApplicationConfigRoot, ComponentConfigRoot, Namespace) => Either[Exception, Option[Config]] = (applicationConfigRoot, componentConfigRoot, namespace) => {
+  val loadLocalApplicationDeploymentConfig: (ApplicationConfigRoot, ComponentConfigRoot, Namespace) => Try[Option[Config]] = (applicationConfigRoot, componentConfigRoot, namespace) => {
     val log = LoggerFactory.getLogger("com.azaptree.application.deployment.loadLocalApplicationDeploymentConfig")
 
     val defaultConfig = ConfigFactory.load().resolve()
@@ -46,14 +49,15 @@ package object deployment {
     }
 
     val configService = DeploymentConfig.ConfigService(config)
+
     configService.applicationConfig(appInstanceId) match {
-      case Right(config) =>
-        Right(for {
+      case Success(config) =>
+        Success(for {
           c <- config
         } yield {
           defaultConfig.withFallback(c)
         })
-      case x => x
+      case Failure(e) => Failure(e)
     }
   }
 

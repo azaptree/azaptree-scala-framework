@@ -20,6 +20,10 @@ import com.azaptree.concurrent.PeriodicTaskSchedule
 import com.azaptree.concurrent.PeriodicTask
 import com.azaptree.concurrent.RecurringTaskWithFixedDelay
 import com.azaptree.concurrent.RecurringTaskWithFixedDelayTaskSchedule
+import com.azaptree.concurrent.ConfigurableThreadFactory
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 /**
  * Application level health checks are scheduled to run right after they are added.
@@ -302,28 +306,32 @@ class ApplicationService(asyncEventBus: Boolean = true) {
   def stopComponent(compName: String, stopDependents: Boolean = false): Option[Exception] = {
     synchronized {
       app.shutdownComponent(compName, stopDependents) match {
-        case Left(e) => Some(e)
-        case Right(app2) =>
+        case Failure(e) => e match {
+          case ex: Exception => Some(ex)
+          case t: Throwable => throw t
+        }
+        case Success(app2) =>
           app = app2
           None
       }
     }
   }
 
-  def startComponent(compName: String): Either[Exception, Boolean] = {
+  def startComponent(compName: String): Try[Boolean] = {
     def findByName: Component[_, _] => Boolean = _.name == compName
 
     synchronized {
-      app.components.find(findByName) match {
-        case Some(comp) => Right(false)
-        case None =>
-          components.find(findByName) match {
-            case Some(comp) =>
-              app = app.register(comp)._1
-              Right(true)
-            case None => Left(new InvalidComponentNameException(compName))
-          }
-      }
+      Try(
+        app.components.find(findByName) match {
+          case Some(comp) => false
+          case None =>
+            components.find(findByName) match {
+              case Some(comp) =>
+                app = app.register(comp)._1
+                true
+              case None => throw new InvalidComponentNameException(compName)
+            }
+        })
     }
   }
 

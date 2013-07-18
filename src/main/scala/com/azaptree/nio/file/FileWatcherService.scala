@@ -2,12 +2,11 @@ package com.azaptree.nio.file
 
 import java.nio.file._
 import java.util.UUID
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Lock
 import scala.reflect.ClassTag
-
 import org.slf4j.LoggerFactory
+import scala.util.Try
 
 trait FileWatcherService {
   protected val log = LoggerFactory.getLogger("FileWatcherService." + getClass().getSimpleName())
@@ -96,27 +95,27 @@ trait FileWatcherService {
 
   import StandardWatchEventKinds._
 
-  def watch(path: Path, eventKinds: List[WatchEvent.Kind[_]] = ENTRY_CREATE :: ENTRY_DELETE :: ENTRY_MODIFY :: Nil, fileWatcher: WatchEventProcessor): Either[Exception, FileWatcherRegistrationKey] = {
-    synchronized {
-      try {
-        val watchKey = watchKeys.get(path) match {
-          case Some(watchKey) => watchKey
-          case None =>
-            val watchKey = path.register(watchService, eventKinds.toArray(ClassTag(classOf[WatchEvent.Kind[_]])): _*)
-            watchKeys += (path -> watchKey)
-            watchKey
-        }
-
-        val fileWatcherRegistration = FileWatcherRegistration(path = path, eventKinds = eventKinds, fileWatcher = fileWatcher)
-        fileWatcherRegistrations.get(path) match {
-          case Some(registrations) => fileWatcherRegistrations += (path -> (registrations :+ fileWatcherRegistration))
-          case None => fileWatcherRegistrations += (path -> Vector(fileWatcherRegistration))
-        }
-
-        Right(FileWatcherRegistrationKey(fileWatcherRegistration.id, path))
-      } catch {
-        case e: Exception => Left(e)
+  def watch(path: Path, eventKinds: List[WatchEvent.Kind[_]] = ENTRY_CREATE :: ENTRY_DELETE :: ENTRY_MODIFY :: Nil, fileWatcher: WatchEventProcessor): Try[FileWatcherRegistrationKey] = {
+    def watch(path: Path, eventKinds: List[WatchEvent.Kind[_]] = ENTRY_CREATE :: ENTRY_DELETE :: ENTRY_MODIFY :: Nil, fileWatcher: WatchEventProcessor): FileWatcherRegistrationKey = {
+      val watchKey = watchKeys.get(path) match {
+        case Some(watchKey) => watchKey
+        case None =>
+          val watchKey = path.register(watchService, eventKinds.toArray(ClassTag(classOf[WatchEvent.Kind[_]])): _*)
+          watchKeys += (path -> watchKey)
+          watchKey
       }
+
+      val fileWatcherRegistration = FileWatcherRegistration(path = path, eventKinds = eventKinds, fileWatcher = fileWatcher)
+      fileWatcherRegistrations.get(path) match {
+        case Some(registrations) => fileWatcherRegistrations += (path -> (registrations :+ fileWatcherRegistration))
+        case None => fileWatcherRegistrations += (path -> Vector(fileWatcherRegistration))
+      }
+
+      FileWatcherRegistrationKey(fileWatcherRegistration.id, path)
+    }
+
+    synchronized {
+      Try(watch(path, eventKinds, fileWatcher))
     }
   }
 

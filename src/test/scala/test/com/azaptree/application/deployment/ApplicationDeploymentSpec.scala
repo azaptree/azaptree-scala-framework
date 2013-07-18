@@ -17,6 +17,8 @@ import java.io.File
 import java.io.FilenameFilter
 import org.slf4j.LoggerFactory
 import org.apache.commons.io.FileUtils
+import scala.util.Failure
+import scala.util.Success
 
 class ApplicationDeploymentSpec extends FunSpec with ShouldMatchers {
   val log = LoggerFactory.getLogger("ApplicationDeploymentSpec")
@@ -34,8 +36,8 @@ class ApplicationDeploymentSpec extends FunSpec with ShouldMatchers {
 
   val applicationDeploymentConfig: ApplicationDeploymentConfig = () => {
     loadLocalApplicationDeploymentConfig(appConfigRoot, compConfigRoot, namespace) match {
-      case Left(e) => throw e
-      case Right(config) => config match {
+      case Failure(e) => throw e
+      case Success(config) => config match {
         case None => throw new IllegalStateException("The application config was not found")
         case Some(c) => c
       }

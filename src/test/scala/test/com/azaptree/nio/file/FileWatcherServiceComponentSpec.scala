@@ -16,6 +16,8 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 import java.util.UUID
 import org.scalatest.BeforeAndAfterAll
+import scala.util.Failure
+import scala.util.Success
 
 object ApplicationContext {
   val appService = new ApplicationService()
@@ -68,8 +70,8 @@ class FileWatcherServiceComponentSpec extends FunSpec with ShouldMatchers with B
         Files.createDirectory(path)
         val result = fileWatcherService.watch(path = path, fileWatcher = fileChangedListener)
         result match {
-          case Right(key) => log.info(key.toString())
-          case Left(e) => throw e
+          case Success(key) => log.info(key.toString())
+          case Failure(e) => throw e
         }
 
         for (i <- 1 to 10) {
@@ -84,7 +86,7 @@ class FileWatcherServiceComponentSpec extends FunSpec with ShouldMatchers with B
         pathsChanged.size should be >= (20)
 
         val sizeBefore = pathsChanged.size
-        fileWatcherService.cancel(result.right.get).isDefined should be(true)
+        fileWatcherService.cancel(result.get).isDefined should be(true)
 
         for (i <- 1 to 10) {
           val f = new File(path.toFile(), UUID.randomUUID().toString())

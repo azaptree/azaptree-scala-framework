@@ -1,11 +1,13 @@
 package com.azaptree.application
 
 import scala.annotation.tailrec
-
 import org.slf4j.LoggerFactory
-
 import akka.event.EventBus
 import akka.event.japi.SubchannelEventBus
+import Application._
+import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
 
 object Application {
   def componentDependencies(components: List[Component[_, _]]): Option[Map[String, List[String]]] = {
@@ -23,8 +25,6 @@ object Application {
     if (dependencyMap.isEmpty) None else Some(dependencyMap)
   }
 }
-
-import Application._
 
 case class Application(components: List[Component[ComponentStarted, _]] = Nil, eventBus: SubchannelEventBus[Any, Any => Unit, Class[_]] = new AsynchronousSubchannelEventBus()) {
 
@@ -49,51 +49,51 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
     (appWithNewComp, compStarted.componentObject)
   }
 
-  def shutdownComponent(componentName: String, shutdownDependents: Boolean = false): Either[Exception, Application] = {
-    def shutdown(app: Application, comp: Component[ComponentStarted, _]): Either[Exception, Application] = {
+  def shutdownComponent(componentName: String, shutdownDependents: Boolean = false): Try[Application] = {
+    def shutdown(app: Application, comp: Component[ComponentStarted, _]): Application = {
       try {
         val compStopped = comp.shutdown()
         val appWithCompRemoved = app.copy(components = app.components.filterNot(c => c.name == componentName))
         app.eventBus.publish(ComponentShutdownEvent(appWithCompRemoved, compStopped))
-        Right(appWithCompRemoved)
+        appWithCompRemoved
       } catch {
         case e: Exception =>
           eventBus.publish(ComponentShutdownFailedEvent(this, comp, e))
-          Left(e)
+          throw e
       }
     }
 
-    componentMap.get(componentName) match {
-      case None => Left(new ComponentNotFoundException(componentName))
-      case Some(componentToShutdown) =>
-        if (shutdownDependents) {
-          componentDependencies(components) match {
-            case Some(compDependencyMap) =>
-              val entries = compDependencyMap.filter(_._2.contains(componentName))
-              try {
-                val updatedApp = entries.keys.foldLeft(this) { (app, dependentName) =>
-                  app.shutdownComponent(dependentName, true) match {
-                    case Right(a) => a
-                    case Left(e) => e match {
-                      case ex: ComponentNotFoundException => app
-                      case _ => throw e
+    Try(
+      componentMap.get(componentName) match {
+        case None => throw new ComponentNotFoundException(componentName)
+        case Some(componentToShutdown) =>
+          if (shutdownDependents) {
+            componentDependencies(components) match {
+              case Some(compDependencyMap) =>
+                val entries = compDependencyMap.filter(_._2.contains(componentName))
+                try {
+                  val updatedApp = entries.keys.foldLeft(this) { (app, dependentName) =>
+                    app.shutdownComponent(dependentName, true) match {
+                      case Success(a) => a
+                      case Failure(e) => e match {
+                        case ex: ComponentNotFoundException => app
+                        case _ => throw e
+                      }
                     }
                   }
+                  shutdown(updatedApp, componentToShutdown)
+                } catch {
+                  case e: Exception =>
+                    eventBus.publish(ComponentShutdownFailedEvent(this, componentToShutdown, e))
+                    throw e
                 }
-                shutdown(updatedApp, componentToShutdown)
-              } catch {
-                case e: Exception =>
-                  eventBus.publish(ComponentShutdownFailedEvent(this, componentToShutdown, e))
-                  Left(e)
-              }
-            case None => shutdown(this, componentToShutdown)
+              case None => shutdown(this, componentToShutdown)
+            }
+
+          } else {
+            shutdown(this, componentToShutdown)
           }
-
-        } else {
-          shutdown(this, componentToShutdown)
-        }
-
-    }
+      })
   }
 
   def shutdown(): Application = {
@@ -116,8 +116,8 @@ case class Application(components: List[Component[ComponentStarted, _]] = Nil, e
         var componentDependenciesTemp = componentDependencies
         val appAfterCompShutdown = compsWithoutDependents.foldLeft(app) { (app, comp) =>
           val appAfterCompShutdown = app.shutdownComponent(comp.name) match {
-            case Left(_) => app
-            case Right(application) => application
+            case Failure(_) => app
+            case Success(application) => application
           }
           componentDependenciesTemp -= comp.name
           appAfterCompShutdown

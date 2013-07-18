@@ -12,6 +12,10 @@ import java.util.UUID
 import org.scalatest.BeforeAndAfterAll
 import org.apache.commons.io.FileUtils
 import java.nio.file.Files
+import scala.util.Success
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Failure
 
 object FileWatcher extends FileWatcherService {
 }
@@ -46,14 +50,14 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
       val file1Path = baseDir.toPath()
       val result = FileWatcher.watch(path = file1Path, fileWatcher = fileChangedListener)
       result match {
-        case Right(key) =>
+        case Success(key) =>
           log.info(key.toString())
           val registration = FileWatcher.fileWatcherRegistration(key)
           registration match {
             case None => throw new IllegalStateException(s"no registration found for : $key")
             case Some(r) => log.info("registration = {}", r)
           }
-        case Left(e) => throw e
+        case Failure(e) => throw e
       }
     }
 
@@ -63,8 +67,8 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
       val filePath = file.toPath()
       val result = FileWatcher.watch(path = filePath, fileWatcher = fileChangedListener)
       result match {
-        case Right(key) => throw new IllegalStateException(s"Should have received an exception because the path does not exist: $file")
-        case Left(e) => log.info("expected exception because path does not exist", e)
+        case Success(key) => throw new IllegalStateException(s"Should have received an exception because the path does not exist: $file")
+        case Failure(e) => log.info("expected exception because path does not exist", e)
       }
     }
 
@@ -73,8 +77,8 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
       Files.createDirectory(path)
       val result = FileWatcher.watch(path = path, fileWatcher = fileChangedListener)
       result match {
-        case Right(key) => log.info(key.toString())
-        case Left(e) => throw e
+        case Success(key) => log.info(key.toString())
+        case Failure(e) => throw e
       }
 
       for (i <- 1 to 10) {
@@ -89,7 +93,7 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
       FileWatcherServiceSpec.pathsChanged.size should be >= (20)
 
       val sizeBefore = FileWatcherServiceSpec.pathsChanged.size
-      FileWatcher.cancel(result.right.get).isDefined should be(true)
+      FileWatcher.cancel(result.get).isDefined should be(true)
 
       for (i <- 1 to 10) {
         val f = new File(path.toFile(), UUID.randomUUID().toString())
@@ -105,8 +109,8 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
       Files.createDirectory(path)
       val result = FileWatcher.watch(path = path, fileWatcher = fileChangedListener)
       result match {
-        case Right(key) => log.info(key.toString())
-        case Left(e) => throw e
+        case Success(key) => log.info(key.toString())
+        case Failure(e) => throw e
       }
 
       for (i <- 1 to 10) {
@@ -126,8 +130,8 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
       Files.createDirectory(path)
       val result = FileWatcher.watch(path = path, fileWatcher = fileChangedListener)
       result match {
-        case Right(key) => log.info(key.toString())
-        case Left(e) => throw e
+        case Success(key) => log.info(key.toString())
+        case Failure(e) => throw e
       }
 
       FileWatcher.pathsWatched match {
@@ -144,8 +148,8 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
       Files.createDirectory(path)
       val result = FileWatcher.watch(path = path, fileWatcher = fileChangedListener)
       result match {
-        case Right(key) => log.info(key.toString())
-        case Left(e) => throw e
+        case Success(key) => log.info(key.toString())
+        case Failure(e) => throw e
       }
     }
 
@@ -154,8 +158,8 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
       Files.createDirectory(path)
       val result = FileWatcher.watch(path = path, fileWatcher = fileChangedListener)
       result match {
-        case Right(key) => log.info(key.toString())
-        case Left(e) => throw e
+        case Success(key) => log.info(key.toString())
+        case Failure(e) => throw e
       }
 
       FileWatcher.fileWatcherRegistrationCount(path) should be >= (1)
@@ -167,8 +171,8 @@ class FileWatcherServiceSpec extends FunSpec with ShouldMatchers with BeforeAndA
       info("watch path = " + path)
       val result = FileWatcher.watch(path = path, fileWatcher = fileChangedListener)
       result match {
-        case Right(key) => log.info(key.toString())
-        case Left(e) => throw e
+        case Success(key) => log.info(key.toString())
+        case Failure(e) => throw e
       }
 
       FileWatcher.cancel(path).isDefined should be(true)

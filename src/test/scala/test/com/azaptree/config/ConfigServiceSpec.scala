@@ -6,6 +6,8 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
 import com.azaptree.config._
+import scala.util.Failure
+import scala.util.Success
 
 case class ConfigService(override val config: Config) extends com.azaptree.config.ConfigService
 
@@ -40,10 +42,12 @@ class ConfigServiceSpec extends FunSpec with ShouldMatchers {
               } yield {
                 compConfigInstanceIds.foreach { compConfigInstanceId =>
                   configService.componentConfig(compConfigInstanceId) match {
-                    case Left(e) => throw e
-                    case Right(None) => throw new IllegalStateException(s"No Config was found for : $compConfigInstanceId")
-                    case Right(Some(config)) =>
-                      log.info(s"$compConfigInstanceId config :\n" + toFormattedJson(config))
+                    case Failure(e) => throw e
+                    case Success(v) => v match {
+                      case None => throw new IllegalStateException(s"No Config was found for : $compConfigInstanceId")
+                      case Some(config) =>
+                        log.info(s"$compConfigInstanceId config :\n" + toFormattedJson(config))
+                    }
                   }
                 }
               }
@@ -67,9 +71,11 @@ class ConfigServiceSpec extends FunSpec with ShouldMatchers {
               } yield {
                 applicationConfigInstanceIds.foreach { id =>
                   configService.applicationConfig(id) match {
-                    case Left(e) => throw e
-                    case Right(None) => throw new IllegalStateException(s"No Config was found for : $id")
-                    case Right(Some(config)) => log.info(s"$id config :\n" + toFormattedJson(config))
+                    case Failure(e) => throw e
+                    case Success(v) => v match {
+                      case None => throw new IllegalStateException(s"No Config was found for : $id")
+                      case Some(config) => log.info(s"$id config :\n" + toFormattedJson(config))
+                    }
                   }
                 }
 

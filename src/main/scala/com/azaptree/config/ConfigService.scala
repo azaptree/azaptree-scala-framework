@@ -18,6 +18,9 @@ import com.azaptree.application.model.ComponentDependency
 import com.azaptree.application.model.ComponentDependencyConfig
 import com.azaptree.application.model.ApplicationInstanceId
 import com.azaptree.application.model.ComponentInstanceId
+import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
 
 trait ConfigLookup {
   def config(): Config
@@ -28,75 +31,74 @@ trait ConfigService extends ApplicationConfigs {
   /**
    * The configuration instance is validated before returning
    */
-  def applicationConfig(id: ApplicationInstanceId): Either[Exception, Option[Config]] = {
-    def configWithDependencies(config: Config, configInstance: ApplicationInstanceConfig): Either[Exception, Option[Config]] = {
+  def applicationConfig(id: ApplicationInstanceId): Try[Option[Config]] = {
+    def configWithDependencies(config: Config, configInstance: ApplicationInstanceConfig): Option[Config] = {
       configInstance.compDependencyRefs match {
-        case None => Right(Some(config))
+        case None => Some(config)
         case Some(compDependencyRefs) =>
-          try {
-            Right(Some(compDependencyRefs.foldLeft(config) { (c, compDependencyRef) =>
-              componentConfig(compDependencyRef._2) match {
-                case Left(e) => throw e
-                case Right(None) => c
-                case Right(Some(compConfig)) =>
+          Some(compDependencyRefs.foldLeft(config) { (c, compDependencyRef) =>
+            componentConfig(compDependencyRef._2) match {
+              case Failure(e) => throw e
+              case Success(v) => v match {
+                case None => c
+                case Some(compConfig) =>
                   c.withFallback(wrapConfig(compDependencyRef._1, compConfig))
               }
-            }))
-          } catch {
-            case e: Exception => Left(e)
-          }
+            }
+          })
       }
     }
 
-    validate(id) match {
-      case Some(e) => Left(e)
-      case None =>
-        applicationConfigInstance(id) match {
-          case None => Right(None)
-          case Some(appConfigInstance) =>
-            appConfigInstance.config match {
-              case None => configWithDependencies(ConfigFactory.empty(), appConfigInstance)
-              case Some(appConfig) => configWithDependencies(appConfig, appConfigInstance)
-            }
-        }
-    }
+    Try(
+      validate(id) match {
+        case Some(e) => throw e
+        case None =>
+          applicationConfigInstance(id) match {
+            case None => None
+            case Some(appConfigInstance) =>
+              appConfigInstance.config match {
+                case None => configWithDependencies(ConfigFactory.empty(), appConfigInstance)
+                case Some(appConfig) => configWithDependencies(appConfig, appConfigInstance)
+              }
+          }
+      })
   }
 
   /**
    * The configuration instance is validated before returning
    */
-  def componentConfig(id: ComponentInstanceId): Either[Exception, Option[Config]] = {
-    def configWithDependencies(config: Config, compConfigInstance: ComponentInstanceConfig): Either[Exception, Option[Config]] = {
+  def componentConfig(id: ComponentInstanceId): Try[Option[Config]] = {
+    def configWithDependencies(config: Config, compConfigInstance: ComponentInstanceConfig): Option[Config] = {
       compConfigInstance.compDependencyRefs match {
-        case None => Right(Some(config))
+        case None => Some(config)
         case Some(compDependencyRefs) =>
-          try {
-            Right(Some(compDependencyRefs.foldLeft(config) { (config, compDependencyRef) =>
-              componentConfig(compDependencyRef._2) match {
-                case Right(None) => config
-                case Right(Some(compConfig)) =>
+          Some(compDependencyRefs.foldLeft(config) { (config, compDependencyRef) =>
+            componentConfig(compDependencyRef._2) match {
+              case Success(value) => value match {
+                case None => config
+                case Some(compConfig) =>
                   config.withFallback(wrapConfig(compDependencyRef._1, compConfig))
-                case Left(e) => throw e
               }
-            }))
-          } catch {
-            case e: Exception => Left(e)
-          }
+              case Failure(e) => throw e
+            }
+          })
+
       }
     }
 
-    validate(id) match {
-      case None =>
-        componentConfigInstance(id) match {
-          case None => Right(None)
-          case Some(compConfigInstance) =>
-            compConfigInstance.config match {
-              case None => configWithDependencies(ConfigFactory.empty(), compConfigInstance)
-              case Some(config) => configWithDependencies(config, compConfigInstance)
-            }
-        }
-      case Some(e) => Left(e)
-    }
+    Try(
+      validate(id) match {
+        case None =>
+          componentConfigInstance(id) match {
+            case None => None
+            case Some(compConfigInstance) =>
+              compConfigInstance.config match {
+                case None => configWithDependencies(ConfigFactory.empty(), compConfigInstance)
+                case Some(config) => configWithDependencies(config, compConfigInstance)
+              }
+          }
+        case Some(e) => throw e
+      })
 
   }
 }
