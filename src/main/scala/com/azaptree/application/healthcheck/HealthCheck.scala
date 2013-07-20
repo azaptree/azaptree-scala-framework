@@ -67,6 +67,10 @@ case class StopWatch(start: Long = System.currentTimeMillis, end: Option[Long] =
     copy(end = Some(System.currentTimeMillis))
   }
 
+  def reset() = {
+    StopWatch()
+  }
+
   def executionTimeMillis: Option[Long] = end.map(_ - start)
 }
 
