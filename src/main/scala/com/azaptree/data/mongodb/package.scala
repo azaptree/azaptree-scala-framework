@@ -1,8 +1,8 @@
 package com.azaptree.data
 
 import com.mongodb.casbah.MongoClient
-import com.mongodb.casbah.MongoDB
 import com.mongodb.casbah.MongoCollection
+import com.mongodb.casbah.MongoDB
 
 //TODO: define healthchecks for mongo databases and collections
 package object mongodb {

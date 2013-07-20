@@ -34,6 +34,8 @@ libraryDependencies += "commons-codec" % "commons-codec" % "1.8"
 
 libraryDependencies += "org.mongodb" %% "casbah" % "2.6.2"
 
+libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.10.2"
+
 scalacOptions ++= Seq("-P:continuations:enable",
 					  "-optimise",
 					  "-feature",

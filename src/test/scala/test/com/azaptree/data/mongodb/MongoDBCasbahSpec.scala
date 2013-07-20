@@ -32,7 +32,11 @@ class MongoDBCasbahSpec extends FunSuite with ShouldMatchers {
 
       val allDocs = coll.find()
       log.info("allDocs = {}", allDocs)
-      for (doc <- allDocs) log.info("doc = {}", doc)
+      for (doc <- allDocs) {
+        log.info("doc = {}", doc)
+        val mongoDBObj: MongoDBObject = doc
+        log.info("hello -> {}", mongoDBObj.getAs[String]("hello"))
+      }
 
       val hello = MongoDBObject("hello" -> "world")
       val helloWorld = coll.findOne(hello)
