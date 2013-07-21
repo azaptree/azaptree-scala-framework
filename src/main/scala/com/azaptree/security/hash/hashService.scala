@@ -13,6 +13,7 @@ import java.security.DigestInputStream
 import org.apache.commons.io.IOUtils
 import org.slf4j.LoggerFactory
 import java.util.Arrays
+import java.util.Objects
 
 case class Hash(hash: Array[Byte], hashParams: HashParams) {
 
@@ -35,6 +36,8 @@ case class Hash(hash: Array[Byte], hashParams: HashParams) {
       case _ => false
     }
   }
+
+  override def hashCode() = { Objects.hash(Arrays.hashCode(hash): Integer, hashParams) }
 }
 
 case class HashService(name: String, hashAlgorithm: String = MessageDigestAlgorithms.SHA_256, privateSalt: Array[Byte] = nextRandomBytes()) {
@@ -95,6 +98,10 @@ case class HashParams(
       case _ => false
     }
   }
+
+  override def hashCode() = {
+    Objects.hash(hashAlgorithm, hashIterations: Integer, Arrays.hashCode(salt): Integer)
+  }
 }
 
 trait HashRequest {
@@ -114,6 +121,10 @@ case class HashArrayRequest(byteSource: Array[Byte], override val params: HashPa
         Arrays.equals(byteSource, that.byteSource) && params == that.params
       case _ => false
     }
+  }
+
+  override def hashCode() = {
+    Objects.hash(Arrays.hashCode(byteSource): Integer, params)
   }
 }
 

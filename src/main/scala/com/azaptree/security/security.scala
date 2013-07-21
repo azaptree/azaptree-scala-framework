@@ -1,39 +1,65 @@
 package com.azaptree.security
 
 import java.util.Date
-
+import reflect.runtime.universe._
 import org.bson.types.ObjectId
+import java.util.Objects
+import com.azaptree.utils.TypedKey
+import com.azaptree.utils.TypedKeyValue
 
 trait Principal[T] extends Serializable {
-  def principalType: PrincipalType
 
-  def name: String
+  def keyValue: TypedKeyValue[T]
 
-  def value: T
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: Principal[_] =>
+        keyValue.key == that.keyValue.key
+      case _ => false
+    }
+  }
+
+  override def hashCode() = { keyValue.key.hashCode() }
 }
 
-trait PrincipalType
+case class ObjectIdPrincipal(override val keyValue: TypedKeyValue[ObjectId]) extends Principal[ObjectId]
 
-case object OBJECT_ID extends PrincipalType
-case object USER_ID extends PrincipalType
+case class UserId(userId: String)
 
-case class ObjectIdPrincipal(override val name: String, override val value: ObjectId) extends Principal[ObjectId] {
-  override val principalType = OBJECT_ID
-}
+case class UserIdPrincipal(override val keyValue: TypedKeyValue[UserId]) extends Principal[UserId]
 
-case class UserIdPrincipal(override val name: String, override val value: String) extends Principal[String] {
-  override val principalType = OBJECT_ID
-}
-
-trait Credential {
-  def credentialType: CredentialType
-
-  def name: String
-
-  def value: Array[Byte]
+trait Credential[T] extends Serializable {
+  def keyValue: TypedKeyValue[T]
 
   def expiresOn: Option[Date] = None
 
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: Credential[_] =>
+        keyValue.key == that.keyValue.key
+      case _ => false
+    }
+  }
+
+  override def hashCode() = { keyValue.key.hashCode() }
 }
 
-trait CredentialType
+case class Subject(
+  principals: Set[Principal[_]],
+  privateCredentials: Option[Set[Credential[_]]],
+  publicCredentials: Option[Set[Credential[_]]],
+  status: SubjectStatus,
+  statusTimestamp: Date,
+  maxSessions: Int = 1)
+
+case class AuthenticationInfo(
+  consecutiveAuthenticationFailedCount: Int = 0,
+  lastAuthenticationFailure: Option[Date] = None,
+  lastAuthenticationSuccess: Option[Date] = None)
+
+sealed trait SubjectStatus
+
+final object LOCKED extends SubjectStatus
+final object ACTIVE extends SubjectStatus
+final object INACTIVE extends SubjectStatus
+final object TERMINATED extends SubjectStatus
