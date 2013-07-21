@@ -11,6 +11,8 @@ import com.azaptree.data.mongodb.MongoDBEntityRegistry
 import org.slf4j.LoggerFactory
 import reflect.runtime.universe._
 import com.azaptree.security.hash.HashService
+import com.azaptree.data.mongodb.Collection
+import com.azaptree.data.mongodb.Database
 
 class HashServiceMongoDBObjectConverter extends MongoDBObjectConverter[Entity[HashService]] {
   def convert(entity: Entity[HashService]): com.mongodb.casbah.commons.MongoDBObject = {
@@ -19,7 +21,7 @@ class HashServiceMongoDBObjectConverter extends MongoDBObjectConverter[Entity[Ha
   }
 
   def convert(mongoDBObject: com.mongodb.casbah.commons.MongoDBObject): Entity[HashService] = {
-    new Entity[HashService](entity = HashService())
+    new Entity[HashService](entity = HashService("MongoDBEntityRegistrySpec"))
   }
 }
 
@@ -30,7 +32,7 @@ class MongoDBEntityRegistrySpec extends FunSpec with ShouldMatchers {
     it("is used to register MongoDBEntity's") {
       import reflect.runtime.universe._
 
-      val entity = MongoDBEntity[Entity[HashService]]("test", "user", new HashServiceMongoDBObjectConverter())
+      val entity = MongoDBEntity[Entity[HashService]](Database("test"), Collection("user"), new HashServiceMongoDBObjectConverter())
 
       MongoDBEntityRegistry.register[Entity[HashService]](entity)
       val registeredTypes = MongoDBEntityRegistry.registeredTypes

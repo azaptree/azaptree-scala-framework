@@ -37,7 +37,7 @@ case class Hash(hash: Array[Byte], hashParams: HashParams) {
   }
 }
 
-case class HashService(hashAlgorithm: String = MessageDigestAlgorithms.SHA_256, privateSalt: Array[Byte] = nextRandomBytes()) {
+case class HashService(name: String, hashAlgorithm: String = MessageDigestAlgorithms.SHA_256, privateSalt: Array[Byte] = nextRandomBytes()) {
   val log = LoggerFactory.getLogger(getClass())
 
   require(privateSalt != null && privateSalt.length > 0, "privateSalt is required")

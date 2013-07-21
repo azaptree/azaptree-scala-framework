@@ -25,7 +25,7 @@ class HashServiceSpec extends FunSpec with ShouldMatchers {
       stopWatch = stopWatch.stop()
       log.info("hashParams1 create time = {} msec", stopWatch.executionTimeMillis.get)
       stopWatch = stopWatch.reset()
-      val hashService1 = new HashService()
+      val hashService1 = new HashService("HashServiceSpec")
       stopWatch = stopWatch.stop()
       log.info("hashService1 create time = {} msec", stopWatch.executionTimeMillis.get)
       stopWatch = stopWatch.reset()
@@ -59,7 +59,7 @@ class HashServiceSpec extends FunSpec with ShouldMatchers {
       stopWatch = stopWatch.stop()
       log.info("hashParams1 create time = {} msec", stopWatch.executionTimeMillis.get)
       stopWatch = stopWatch.reset()
-      val hashService1 = new HashService()
+      val hashService1 = new HashService("HashServiceSpec")
       stopWatch = stopWatch.stop()
       log.info("hashService1 create time = {} msec", stopWatch.executionTimeMillis.get)
       stopWatch = stopWatch.reset()
@@ -88,7 +88,7 @@ class HashServiceSpec extends FunSpec with ShouldMatchers {
     it("reproduce the same hash for the same HashRequest using the same HashService") {
       log.info("using default HashParams")
 
-      val hashService1 = new HashService()
+      val hashService1 = new HashService("HashServiceSpec")
 
       info("hashing the same request should produce the same hash")
       val hashRequest1 = HashArrayRequest("ARRAY-SOURCE-1".getBytes())

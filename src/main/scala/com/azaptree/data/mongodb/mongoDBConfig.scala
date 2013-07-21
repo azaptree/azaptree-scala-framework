@@ -2,22 +2,27 @@ package com.azaptree.data.mongodb
 
 import com.mongodb.casbah.MongoClient
 import com.mongodb.casbah.MongoCollection
+import com.mongodb.casbah.commons.MongoDBObject
 
 trait MongoDBObjectConverter[A] {
-  def convert(entity: A): com.mongodb.casbah.commons.MongoDBObject
+  def convert(entity: A): MongoDBObject
 
-  def convert(mongoDBObject: com.mongodb.casbah.commons.MongoDBObject): A
+  def convert(mongoDBObject: MongoDBObject): A
 }
+
+case class Database(name: String)
+
+case class Collection(name: String)
 
 /**
  * This assumes that each collection only stores data that at the very least, is supported by the specified converter
  */
 case class MongoDBEntity[A](
-    database: String,
-    collection: String,
+    database: Database,
+    collection: Collection,
     converter: MongoDBObjectConverter[A]) {
 
-  def entityCollection(implicit mongoClient: MongoClient): MongoCollection = mongoCollection(database, collection)
+  def entityCollection(implicit mongoClient: MongoClient): MongoCollection = mongoCollection(database.name, collection.name)
 }
 
 object MongoDBEntityRegistry {
