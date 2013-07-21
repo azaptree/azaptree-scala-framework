@@ -15,15 +15,21 @@ case class Database(name: String)
 case class Collection(name: String)
 
 /**
- * This assumes that each collection only stores data that at the very least, is supported by the specified converter
+ * This assumes that each collection only stores data that at the very least, is supported by the specified converter.
+ *
  */
 case class MongoDBEntity[A](
     database: Database,
     collection: Collection,
-    converter: MongoDBObjectConverter[A]) {
+    converter: MongoDBObjectConverter[A],
+    indexes: Option[Iterable[Index]] = None) {
 
-  def entityCollection(implicit mongoClient: MongoClient): MongoCollection = mongoCollection(database.name, collection.name)
+  def entityCollection()(implicit mongoClient: MongoClient): MongoCollection = mongoCollection(database.name, collection.name)
 }
+
+case class Index(fields: Iterable[IndexField], unique: Boolean = false, sparse: Boolean = false)
+
+case class IndexField(name: String, ascending: Boolean = true)
 
 object MongoDBEntityRegistry {
   import reflect.runtime.universe._

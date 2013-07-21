@@ -11,6 +11,7 @@ import com.azaptree.data.mongodb.MongoDBObjectConverter
 import com.azaptree.data.mongodb._
 import com.mongodb.casbah.commons.MongoDBObjectBuilder
 import com.azaptree.security.hash.HashService
+import org.bson.types.ObjectId
 
 case object HashServiceConverter extends MongoDBObjectConverter[Entity[HashService]] {
   def convert(entity: Entity[HashService]): MongoDBObject = {
@@ -37,10 +38,19 @@ case class HashServiceRepository(hashServiceEntity: MongoDBEntity[Entity[HashSer
   def insert(hashService: HashService): Try[Entity[HashService]] = {
     Try {
       val entity = new Entity[HashService](entity = hashService)
-      val collection = hashServiceEntity.entityCollection
       val mongoDBObj = hashServiceEntity.converter.convert(entity)
-      collection.insert(mongoDBObj)
+      hashServiceEntity.entityCollection.insert(mongoDBObj)
       entity
+    }
+  }
+
+  def findByEntityId(entityId: ObjectId): Try[Option[Entity[HashService]]] = {
+    Try {
+      hashServiceEntity.entityCollection.findOneByID(entityId) match {
+        case Some(dbObj) =>
+          Some(hashServiceEntity.converter.convert(dbObj))
+        case None => None
+      }
     }
   }
 
