@@ -38,12 +38,13 @@ class HashServiceRepositorySpec extends FunSpec with ShouldMatchers with BeforeA
   val hashServiceMongoDBEntity = createMongoDBEntity(Database("test"), Collection("HashServiceRepositorySpec"))
   MongoDBEntityRegistry.register(hashServiceMongoDBEntity)
   hashServiceMongoDBEntity.entityCollection().drop()
+  hashServiceMongoDBEntity.ensureIndexes()
 
   val hashServiceRepository = HashServiceRepository(hashServiceMongoDBEntity)
 
   override def afterAll(configMap: Map[String, Any]) {
     MongoDBEntityRegistry(typeOf[Entity[HashService]]).foreach { entity =>
-      entity.entityCollection().drop()
+      //entity.entityCollection().drop()
     }
   }
 
@@ -56,6 +57,7 @@ class HashServiceRepositorySpec extends FunSpec with ShouldMatchers with BeforeA
 
           hashServiceRepository.insert(hashService) match {
             case Success(entity) =>
+              info("find inserted entity by its entity id")
               hashServiceRepository.findByEntityId(entity.entityId) match {
                 case Success(r) => r match {
                   case Some(hashServiceEntity) =>
@@ -77,6 +79,14 @@ class HashServiceRepositorySpec extends FunSpec with ShouldMatchers with BeforeA
             case Failure(exception) => throw exception
           }
         case None => throw new IllegalStateException("Entity[HashService] type was not found in MongoDBEntityRegistry")
+      }
+    }
+
+    it("will not insert HashService entities with duplicate names") {
+      val hashService = HashService(MessageDigestAlgorithms.SHA_256)
+      hashServiceRepository.insert(hashService) match {
+        case Failure(e) => log.info("inserting HashService entity with duplicate name failed as expected : {}", e.getMessage())
+        case Success(r) => throw new IllegalStateException("inserting HashService entity with duplicate name should have failed")
       }
     }
 

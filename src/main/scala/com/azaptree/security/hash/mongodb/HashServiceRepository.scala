@@ -37,7 +37,7 @@ object HashServiceMongoDBConfig {
 
   val hashServiceIndexes = {
     Index(fields = IndexField("name") :: Nil, unique = true) ::
-      Index(fields = IndexField("algorithm") :: Nil, unique = true) ::
+      Index(fields = IndexField("algorithm") :: Nil, unique = false) ::
       Nil
   }
 

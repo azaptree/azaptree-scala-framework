@@ -27,11 +27,18 @@ case class MongoDBEntity[A](
     indexes: Option[Iterable[Index]] = None) {
 
   def entityCollection()(implicit mongoClient: MongoClient): MongoCollection = mongoCollection(database.name, collection.name)
+
+  def ensureIndexes()(implicit mongoClient: MongoClient): Unit = {
+    indexes.foreach { indexes =>
+      implicit val coll = entityCollection()
+      indexes.foreach(_.ensureIndex())
+    }
+  }
 }
 
 case class Index(fields: Iterable[IndexField], unique: Boolean = false, sparse: Boolean = false) {
 
-  def ensureIndex(background: Boolean = false)(coll: MongoCollection): Unit = {
+  def ensureIndex(background: Boolean = false)(implicit coll: MongoCollection): Unit = {
     var keysBuilder = new MongoDBObjectBuilder()
     fields.foreach { field =>
       keysBuilder += field.name -> { if (field.ascending) 1 else -1 }
