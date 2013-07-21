@@ -13,24 +13,38 @@ import com.mongodb.casbah.commons.MongoDBObjectBuilder
 import com.azaptree.security.hash.HashService
 import org.bson.types.ObjectId
 
-case object HashServiceConverter extends MongoDBObjectConverter[Entity[HashService]] {
-  def convert(entity: Entity[HashService]): MongoDBObject = {
-    var builder = new MongoDBObjectBuilder()
-    builder = addObjectId(builder, entity.entityId)
-    val hashService = entity.entity
-    builder += "name" -> hashService.name
-    builder += "algorithm" -> hashService.hashAlgorithm
-    builder += "salt" -> hashService.privateSalt
-    builder.result()
+object HashServiceMongoDBConfig {
+
+  object HashServiceConverter extends MongoDBObjectConverter[Entity[HashService]] {
+    def convert(entity: Entity[HashService]): MongoDBObject = {
+      var builder = new MongoDBObjectBuilder()
+      builder = addObjectId(builder, entity.entityId)
+      val hashService = entity.entity
+      builder += "name" -> hashService.name
+      builder += "algorithm" -> hashService.hashAlgorithm
+      builder += "salt" -> hashService.privateSalt
+      builder.result()
+    }
+
+    def convert(mongoDBObject: MongoDBObject): Entity[HashService] = {
+      val name = mongoDBObject.as[String]("name")
+      val algorithm = mongoDBObject.as[String]("algorithm")
+      val privateSalt = mongoDBObject.as[Array[Byte]]("salt")
+      val hashService = HashService(name, algorithm, privateSalt)
+      new Entity[HashService](mongoDBObject._id.get, hashService)
+    }
   }
 
-  def convert(mongoDBObject: MongoDBObject): Entity[HashService] = {
-    val name = mongoDBObject.as[String]("name")
-    val algorithm = mongoDBObject.as[String]("algorithm")
-    val privateSalt = mongoDBObject.as[Array[Byte]]("salt")
-    val hashService = HashService(name, algorithm, privateSalt)
-    new Entity[HashService](mongoDBObject._id.get, hashService)
+  val hashServiceIndexes = {
+    Index(fields = IndexField("name") :: Nil, unique = true) ::
+      Index(fields = IndexField("algorithm") :: Nil, unique = true) ::
+      Nil
   }
+
+  def createMongoDBEntity(database: Database, collection: Collection): MongoDBEntity[Entity[HashService]] = {
+    MongoDBEntity[Entity[HashService]](database, collection, HashServiceConverter, Some(hashServiceIndexes))
+  }
+
 }
 
 case class HashServiceRepository(hashServiceEntity: MongoDBEntity[Entity[HashService]])(implicit mongoClient: MongoClient) {

@@ -5,7 +5,6 @@ import org.scalatest.matchers.ShouldMatchers
 import com.azaptree.data.mongodb.MongoDBEntity
 import com.azaptree.entity.Entity
 import com.azaptree.security.hash.HashService
-import com.azaptree.security.hash.mongodb.HashServiceConverter
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import com.azaptree.data.mongodb.Database
@@ -23,6 +22,7 @@ import com.azaptree.security.hash.HashService
 import org.apache.commons.codec.digest.MessageDigestAlgorithms
 import org.slf4j.LoggerFactory
 import com.azaptree.security.hash.mongodb.HashServiceRepository
+import com.azaptree.security.hash.mongodb.HashServiceMongoDBConfig._
 import scala.util.Success
 import scala.util.Failure
 import com.azaptree.security.hash.HashRequest
@@ -35,7 +35,7 @@ class HashServiceRepositorySpec extends FunSpec with ShouldMatchers with BeforeA
   val mongoClientComp = new Component[ComponentNotConstructed, MongoClient](name = "mongoClient", componentLifeCycle = MongoClientLifeCycle())
   implicit val mongoClient = applicationService.registerComponent(mongoClientComp).get
 
-  val hashServiceMongoDBEntity = MongoDBEntity[Entity[HashService]](Database("test"), Collection("HashServiceRepositorySpec"), HashServiceConverter)
+  val hashServiceMongoDBEntity = createMongoDBEntity(Database("test"), Collection("HashServiceRepositorySpec"))
   MongoDBEntityRegistry.register(hashServiceMongoDBEntity)
   hashServiceMongoDBEntity.entityCollection().drop()
 

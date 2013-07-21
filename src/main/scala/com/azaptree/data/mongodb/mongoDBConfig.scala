@@ -3,6 +3,8 @@ package com.azaptree.data.mongodb
 import com.mongodb.casbah.MongoClient
 import com.mongodb.casbah.MongoCollection
 import com.mongodb.casbah.commons.MongoDBObject
+import com.mongodb.casbah.Imports._
+import com.mongodb.casbah.commons.MongoDBObjectBuilder
 
 trait MongoDBObjectConverter[A] {
   def convert(entity: A): MongoDBObject
@@ -27,7 +29,23 @@ case class MongoDBEntity[A](
   def entityCollection()(implicit mongoClient: MongoClient): MongoCollection = mongoCollection(database.name, collection.name)
 }
 
-case class Index(fields: Iterable[IndexField], unique: Boolean = false, sparse: Boolean = false)
+case class Index(fields: Iterable[IndexField], unique: Boolean = false, sparse: Boolean = false) {
+
+  def ensureIndex(background: Boolean = false)(coll: MongoCollection): Unit = {
+    var keysBuilder = new MongoDBObjectBuilder()
+    fields.foreach { field =>
+      keysBuilder += field.name -> { if (field.ascending) 1 else -1 }
+    }
+    val keys = keysBuilder.result()
+
+    var optionsBuilder = new MongoDBObjectBuilder()
+    optionsBuilder += "unique" -> unique
+    optionsBuilder += "sparse" -> sparse
+    val options = optionsBuilder.result()
+
+    coll.ensureIndex(keys, options)
+  }
+}
 
 case class IndexField(name: String, ascending: Boolean = true)
 
