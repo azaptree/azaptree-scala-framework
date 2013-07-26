@@ -22,4 +22,15 @@ package object security {
     bytes
   }
 
+  def nextRandomInt(maxValue: Option[Int] = None): Int = {
+    maxValue match {
+      case Some(n) => secureRandom.nextInt(n)
+      case None => secureRandom.nextInt()
+    }
+  }
+
+  def nextRandomLong(): Long = secureRandom.nextLong()
+
+  def nextRandomBoolean(): Boolean = secureRandom.nextBoolean()
+
 }

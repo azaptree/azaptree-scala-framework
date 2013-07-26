@@ -12,6 +12,7 @@ import com.azaptree.data.mongodb._
 import com.mongodb.casbah.commons.MongoDBObjectBuilder
 import com.azaptree.security.hash.HashService
 import org.bson.types.ObjectId
+import com.azaptree.security._
 
 object HashServiceMongoDBConfig {
 

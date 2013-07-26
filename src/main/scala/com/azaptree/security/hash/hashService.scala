@@ -84,7 +84,7 @@ case class HashService(name: String, hashAlgorithm: String = MessageDigestAlgori
 
 case class HashParams(
     hashAlgorithm: String = MessageDigestAlgorithms.SHA_256,
-    hashIterations: Int = 1024 * 128,
+    hashIterations: Int = (nextRandomInt(Some(1024)) + 1) * (nextRandomInt(Some(128)) + 1),
     salt: Array[Byte] = nextRandomBytes()) {
   require(hashIterations > 0, "hashIterations must be > 0")
   require(salt.length > 0, "salt cannot be empty")

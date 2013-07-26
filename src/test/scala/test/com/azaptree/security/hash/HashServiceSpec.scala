@@ -35,6 +35,7 @@ class HashServiceSpec extends FunSpec with ShouldMatchers {
         log.info("{} : hash an array input source", i)
         stopWatch = stopWatch.reset()
         val hashRequest1 = HashArrayRequest("ARRAY-SOURCE-1".getBytes())
+        log.info("hashRequest1 = {}", hashRequest1)
         stopWatch = stopWatch.stop()
         log.info("hashRequest1 time = {} msec", stopWatch.executionTimeMillis.get)
         stopWatch = stopWatch.reset()
