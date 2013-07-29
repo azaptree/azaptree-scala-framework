@@ -9,45 +9,6 @@ import com.azaptree.utils.TypedKeyValue
 import com.mongodb.casbah.commons.MongoDBObject
 import com.azaptree.security.hash.Hash
 
-trait Principal[T] extends Serializable {
-
-  def keyValue: TypedKeyValue[T]
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Principal[_] =>
-        keyValue.key == that.keyValue.key
-      case _ => false
-    }
-  }
-
-  override def hashCode() = { keyValue.key.hashCode() }
-}
-
-case class ObjectIdPrincipal(override val keyValue: TypedKeyValue[ObjectId]) extends Principal[ObjectId]
-
-case class UserId(userId: String)
-
-case class UserIdPrincipal(override val keyValue: TypedKeyValue[UserId]) extends Principal[UserId]
-
-trait Credential[T] extends Serializable {
-  def keyValue: TypedKeyValue[T]
-
-  def expiresOn: Option[Date] = None
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: Credential[_] =>
-        keyValue.key == that.keyValue.key
-      case _ => false
-    }
-  }
-
-  override def hashCode() = { keyValue.key.hashCode() }
-}
-
-case class HashCredential(override val keyValue: TypedKeyValue[Hash], override val expiresOn: Option[Date] = None) extends Credential[Hash]
-
 /**
  * Private credentials are paired with public credentials with the same name.
  * The intent for public and private credentials is to support public/private keys.
