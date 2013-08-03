@@ -160,9 +160,9 @@ class ApplicationService(asyncEventBus: Boolean = true) {
     } yield {
       val task: () => Unit = () => runHealthCheck((healthCheck: HealthCheck, healthCheckRunner: HealthCheckRunner))
       val scheduledTask = schedule match {
-        case c: OneTimeTaskSchedule => OneTimeTask(task, c)
-        case c: PeriodicTaskSchedule => PeriodicTask(task, c)
-        case c: RecurringTaskWithFixedDelayTaskSchedule => RecurringTaskWithFixedDelay(task, c)
+        case c: OneTimeTaskSchedule => OneTimeTask(c)(task)
+        case c: PeriodicTaskSchedule => PeriodicTask(c)(task)
+        case c: RecurringTaskWithFixedDelayTaskSchedule => RecurringTaskWithFixedDelay(c)(task)
       }
       scheduledTask.schedule(scheduledExecutorService)
     }
