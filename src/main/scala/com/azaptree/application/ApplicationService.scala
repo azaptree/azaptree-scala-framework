@@ -26,10 +26,19 @@ import scala.util.Success
 import scala.util.Try
 
 /**
- * Application level health checks are scheduled to run right after they are added.
- *
- * Component level health checks are only scheduled to run while the component is started.
- * Once the component is stopped, the component specific scheduled health checked are cancelled.
+ * Manages an Application and HealthChecks.
+ * 
+ * <ul>Application is used to
+ * <li>register components
+ * <li>stop / start the application
+ * <li>run / manage health checks
+ * </ul>
+ * 
+ * <ul>HealthChecks
+ * <li>Application level health checks are scheduled to run right after they are added.
+ * <li>Component level health checks are only scheduled to run while the component is started.
+ * <li>Once the component is stopped, the component specific scheduled health check tasks are cancelled.
+ * </ul>
  *
  */
 class ApplicationService(asyncEventBus: Boolean = true) {
